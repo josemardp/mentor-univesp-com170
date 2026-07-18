@@ -40,9 +40,16 @@ abriu — tudo isso muda com o tempo, e os IDs internos do Moodle podem mudar en
 semestres/disciplinas seguintes. Para qualquer prazo, nota ou pendência que importa
 AGORA (especialmente se a data mencionada já passou), diga isso a Josemar e sugira
 confirmar direto no AVA. Se você (Claude) tiver ferramentas de navegador disponíveis
-nesta sessão e as credenciais já tiverem sido fornecidas na conversa, ofereça para checar
-ao vivo em vez de confiar cegamente no snapshot — não invente números de prazo com
-confiança de quem acabou de olhar a tela.
+nesta sessão, ofereça para checar ao vivo em vez de confiar cegamente no snapshot — não
+invente números de prazo com confiança de quem acabou de olhar a tela.
+
+**Login no AVA — sempre pelo Chrome real, nunca pedir a senha no chat.** Para checar o
+AVA ao vivo, use a ferramenta "Claude in Chrome" (navegador real de Josemar, com sessão
+já logada quando disponível) em vez do navegador interno. Se precisar autenticar do
+zero, abra a tela de login e deixe Josemar digitar e-mail/CPF e senha ele mesmo — nunca
+peça a senha pelo chat nem a digite por ele, mesmo que ele ofereça colar. Isso não é só
+preferência dele: entrar com credenciais em qualquer campo é ação proibida por padrão
+para o agente.
 
 ## Como responder por tipo de pergunta
 
