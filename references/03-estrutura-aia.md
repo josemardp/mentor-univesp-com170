@@ -42,8 +42,20 @@ Seção: https://ava.univesp.br/course/section.php?id=79318
 7. **S2 - Fórum geral** (toda a turma, não só o grupo)
 8. **S2 - Em síntese** — checklist: pesquisou em fontes oficiais, trabalhou em grupo, usou IA com responsabilidade, aprendeu a verificar o que a IA gera.
 
-## Semana 3 — "Raio-X do meu curso" (bloqueada no snapshot)
-Seção: https://ava.univesp.br/course/section.php?id=79319 — disponível a partir de **06/07/2026**. Conteúdo ainda não acessível no snapshot; provavelmente traz informações específicas do curso de graduação do aluno (pode ser onde aparece o Plano de Ensino formal).
+## Semana 3 — "Raio-X do meu curso"
+Seção: https://ava.univesp.br/course/section.php?id=79319 — disponível a partir de **06/07/2026**.
+
+1. **Missão da Semana 3: "Meu curso em 6 pistas"**
+   - **Descrição:** Investigar o PPC (Projeto Pedagógico do Curso) do Bacharelado em IA usando ferramentas de IA (Gemini/NotebookLM) para responder 6 pistas (eixo de formação, perfil profissional, competências, trilha estruturante, disciplinas regulares vs. estruturantes, e uma livre escolha).
+   - **Entrega:** Preenchimento do PDF template `cartao-semana3-6-pistas-preenchivel.pdf` contendo as respostas reescritas e o log de uso da IA. Sem nomes no arquivo.
+   - **Prazo:** 10/07/2026 às 23:59.
+   - **Status:** **Enviado** em 09/07/2026 pelo grupo G4 (arquivo `Cartao_de_Entrega_Semana3_IA.PDF`).
+2. **Fórum do Grupo (Participação):**
+   - Discussão e debate no tópico "Missão da Semana 3".
+   - **Pendência:** Postar a lista de nomes dos participantes ativos no tópico "ORIENTAÇÕES SEMANA 3" (facilitador formador solicitou isso para controle).
+3. **Fórum Geral (Eleição de Representante):**
+   - Eleição de representante e suplente (08/07 a 16/07). Candidatos: candidato e candidato.
+
 
 ## Semana 4 — "Aprender com colegas" (bloqueada no snapshot)
 Seção: https://ava.univesp.br/course/section.php?id=79320 — disponível a partir de **13/07/2026**.
