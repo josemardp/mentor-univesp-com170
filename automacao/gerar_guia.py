@@ -14,7 +14,7 @@ automacao/capturar_sessao.py de novo.
 import json
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
@@ -238,11 +238,14 @@ def esc(s):
     return (s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
 
 
+BR_TZ = timezone(timedelta(hours=-3))
+
+
 def render_html(data, changes):
     checked_at = data.get("checked_at", "")
     try:
-        dt = datetime.fromisoformat(checked_at)
-        checked_at_fmt = dt.strftime("%d/%m/%Y %H:%M UTC")
+        dt = datetime.fromisoformat(checked_at).astimezone(BR_TZ)
+        checked_at_fmt = dt.strftime("%d/%m/%Y às %H:%M")
     except Exception:
         checked_at_fmt = checked_at
 
@@ -260,19 +263,22 @@ def render_html(data, changes):
     if changes:
         rows = "".join(
             f'<li><b>{esc(c["course"])}</b> — {esc(c["label"])} '
-            f'<span class="tag">{"concluído" if c["kind"]=="concluido" else "novo item"}</span></li>'
+            f'<span class="tag">{"concluído" if c["kind"]=="concluido" else "novidade"}</span></li>'
             for c in changes
         )
+        n = len(changes)
+        resumo = f"{n} novidade{'s' if n != 1 else ''} encontrada{'s' if n != 1 else ''}:"
         changes_html = f"""
     <div class="today">
-      <h2>O que mudou desde a última checagem</h2>
+      <h2>Entrei no AVA em {esc(checked_at_fmt)} (horário de Brasília)</h2>
+      <p class="sub" style="margin:0 0 8px;">{esc(resumo)}</p>
       <ul class="changelist">{rows}</ul>
     </div>"""
     else:
-        changes_html = """
+        changes_html = f"""
     <div class="today">
-      <h2>O que mudou desde a última checagem</h2>
-      <p class="sub" style="margin:0;">Nada novo por enquanto. O robô confere de novo amanhã às 8h.</p>
+      <h2>Entrei no AVA em {esc(checked_at_fmt)} (horário de Brasília)</h2>
+      <p class="sub" style="margin:0;">Nenhuma novidade desde a última checagem. Volto amanhã às 8h.</p>
     </div>"""
 
     cards_html = []
@@ -398,7 +404,7 @@ TEMPLATE = """<!doctype html>
 <div class="wrap">
   <div class="eyebrow">Univesp · BIA · Turma 001</div>
   <h1>Guia diário do AVA</h1>
-  <p class="sub">Atualizado automaticamente todo dia às 8h · última checagem: {{CHECKED_AT}}</p>
+  <p class="sub">Atualizado automaticamente todo dia às 8h · última entrada no AVA: {{CHECKED_AT}} (Brasília)</p>
   {{BANNER}}
   {{CHANGES}}
   {{CARDS}}
