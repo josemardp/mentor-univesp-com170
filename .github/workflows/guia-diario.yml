@@ -50,3 +50,10 @@ jobs:
             git commit -m "Atualização diária do guia ($(date -u +%Y-%m-%d))"
             git push
           fi
+
+      - name: Verificar sessão
+        run: |
+          if grep -q '"status": "session_expired"' docs/data.json; then
+            echo "::error::Sessão do AVA expirou. Rode 'python automacao/capturar_sessao.py' e depois 'python automacao/publicar_sessao_no_github.py' para renovar."
+            exit 1
+          fi
