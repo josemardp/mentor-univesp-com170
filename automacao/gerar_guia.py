@@ -23,6 +23,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"
 STATE_PATH = ROOT / "automacao" / "storage_state.json"
 DATA_PATH = DOCS / "data.json"
+RECADO_PATH = DOCS / "revisao.json"
 
 COURSES = [
     {"code": "COM170", "name": "Inteligência Artificial na Prática Acadêmica e Profissional", "id": 18922},
@@ -417,6 +418,78 @@ def render_sections(c):
 BR_TZ = timezone(timedelta(hours=-3))
 
 
+def _inline_md(s):
+    s = esc(s)
+    s = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", s)
+    return s
+
+
+def _is_bullet(l):
+    return l.startswith(("- ", "• ", "* "))
+
+
+def _mini_md(text):
+    """Markdown minimalista: parágrafos (linhas juntas por espaço) e
+    listas. Um bloco pode misturar linhas normais e bullets."""
+    blocks = re.split(r"\n\s*\n", text.strip())
+    out = []
+    for b in blocks:
+        lines = [l.strip() for l in b.splitlines() if l.strip()]
+        para = []
+        bullets = []
+
+        def flush():
+            if para:
+                out.append(f"<p>{_inline_md(' '.join(para))}</p>")
+                para.clear()
+            if bullets:
+                lis = "".join(f"<li>{_inline_md(x)}</li>" for x in bullets)
+                out.append(f"<ul>{lis}</ul>")
+                bullets.clear()
+
+        for l in lines:
+            if _is_bullet(l):
+                if para:
+                    out.append(f"<p>{_inline_md(' '.join(para))}</p>")
+                    para.clear()
+                bullets.append(l[2:].strip())
+            else:
+                if bullets:
+                    lis = "".join(f"<li>{_inline_md(x)}</li>" for x in bullets)
+                    out.append(f"<ul>{lis}</ul>")
+                    bullets.clear()
+                para.append(l)
+        flush()
+    return "".join(out)
+
+
+def render_recado():
+    if not RECADO_PATH.exists():
+        return ""
+    try:
+        r = json.loads(RECADO_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return ""
+    text = (r.get("text") or "").strip()
+    if not text:
+        return ""
+    when = ""
+    try:
+        dt = datetime.fromisoformat(r.get("written_at", "")).astimezone(BR_TZ)
+        when = dt.strftime("%d/%m/%Y às %H:%M")
+    except Exception:
+        pass
+    when_html = f'<p class="recado-when">Escrito em {esc(when)} (Brasília)</p>' if when else ""
+    return (
+        '<div class="recado">'
+        '<div class="recado-head"><span class="recado-ico">📌</span>'
+        '<span class="recado-label">Recado da mentora</span></div>'
+        f'<div class="recado-body">{_mini_md(text)}</div>'
+        f'{when_html}'
+        '</div>'
+    )
+
+
 def render_html(data, changes):
     checked_at = data.get("checked_at", "")
     try:
@@ -476,6 +549,7 @@ def render_html(data, changes):
   </div>""")
 
     html = TEMPLATE.replace("{{BANNER}}", banner) \
+                    .replace("{{RECADO}}", render_recado()) \
                     .replace("{{CHECKED_AT}}", esc(checked_at_fmt)) \
                     .replace("{{CHANGES}}", changes_html) \
                     .replace("{{CARDS}}", "".join(cards_html))
@@ -518,6 +592,16 @@ TEMPLATE = """<!doctype html>
   .sub{color:var(--ink-soft);font-size:14px;margin-top:8px;}
   .alertbar{background:var(--wait-bg);color:var(--wait);border-radius:12px;padding:12px 14px;font-size:13.5px;margin:16px 0;}
   .alertbar code{background:rgba(0,0,0,.08);padding:1px 5px;border-radius:5px;}
+  .recado{background:var(--brick-soft);border:1px solid var(--brick);border-radius:14px;padding:16px;box-shadow:var(--shadow);margin:18px 0 22px;}
+  .recado-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+  .recado-ico{font-size:15px;}
+  .recado-label{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--brick);font-weight:700;}
+  .recado-body p{margin:0 0 8px;font-size:14px;line-height:1.5;}
+  .recado-body p:last-child{margin-bottom:0;}
+  .recado-body ul{margin:6px 0 8px;padding-left:20px;}
+  .recado-body li{font-size:14px;margin-bottom:4px;line-height:1.45;}
+  .recado-body strong{font-weight:700;}
+  .recado-when{margin:10px 0 0;font-size:11.5px;color:var(--ink-soft);}
   .today{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:var(--shadow);margin:18px 0 26px;}
   .today h2{font-size:16px;margin-bottom:10px;}
   .changelist{list-style:none;margin:0;padding:0;}
@@ -561,6 +645,7 @@ TEMPLATE = """<!doctype html>
   <h1>Guia diário do AVA</h1>
   <p class="sub">Atualizado automaticamente todo dia às 8h · última entrada no AVA: {{CHECKED_AT}} (Brasília)</p>
   {{BANNER}}
+  {{RECADO}}
   {{CHANGES}}
   {{CARDS}}
   <footer>Gerado por um robô que lê o AVA de verdade todo dia. Sem clique manual — o status aqui é o status real de lá.</footer>
@@ -569,5 +654,19 @@ TEMPLATE = """<!doctype html>
 </html>
 """
 
+def render_only():
+    """Regenera o index.html a partir do data.json + revisao.json,
+    sem entrar no AVA. Usado pela revisão semanal (que não tem sessão)."""
+    data = load_previous()
+    if not data:
+        print("Sem data.json para renderizar.")
+        return
+    render_html(data, changes=[])
+    print("Render-only OK.")
+
+
 if __name__ == "__main__":
-    sys.exit(main() or 0)
+    if "--render-only" in sys.argv:
+        render_only()
+    else:
+        sys.exit(main() or 0)
