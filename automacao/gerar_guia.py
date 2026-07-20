@@ -280,15 +280,27 @@ def render_html(data, changes):
         pct = c.get("progress_pct")
         pct_html = f'<div class="progress-pill{" has-progress" if pct else ""}">{pct if pct is not None else "?"}% concluído</div>'
         items_html = []
+        past_the_horizon = False
         for s in c["sections"]:
+            label_bit = f'{esc(s["title"])}{" — " + esc(s["theme"]) if s.get("theme") else ""}'
+
             if s.get("locked"):
                 items_html.append(
                     f'<div class="unlock"><b>{esc(s["title"])}:</b> {esc(s["locked"])}</div>'
                 )
+                past_the_horizon = True
                 continue
+
             if not s["items"]:
                 continue
-            label_bit = f'{esc(s["title"])}{" — " + esc(s["theme"]) if s.get("theme") else ""}'
+
+            if past_the_horizon:
+                items_html.append(
+                    f'<div class="sec-done"><span class="status lock">Ainda não</span>{label_bit} '
+                    f'<span class="muted">({len(s["items"])} itens à frente)</span></div>'
+                )
+                continue
+
             all_done = all(it["status"] == "Concluído" for it in s["items"])
             if all_done:
                 items_html.append(
