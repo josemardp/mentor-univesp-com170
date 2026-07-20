@@ -14,7 +14,7 @@ automacao/capturar_sessao.py de novo.
 import json
 import re
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
@@ -232,6 +232,81 @@ STATUS_META = {
     "Marcar como feito": ("lock", "A marcar"),
 }
 
+# ---------------------------------------------------------------------------
+# Calendário do bimestre — âncoras reais lidas do próprio AVA:
+# - AIA (COM170, Semanas 1-4): início 22/06/2026; aberturas confirmadas
+#   06/07 (Semana 3) e 13/07 (Semana 4). Terminou em 19/07/2026.
+# - Disciplinas regulares (LET110/SOC100/COM100 e a fase Quinzena/Módulo do
+#   COM170): Semana 1 começa em 20/07/2026 (segunda). As liberações que o AVA
+#   mostra confirmam o grid semanal: 27/07 (S2), 03/08 (S3), 10/08 (S4).
+# ---------------------------------------------------------------------------
+AIA_START = date(2026, 6, 22)
+REGULAR_START = date(2026, 7, 20)
+
+MESES_PT = {
+    "janeiro": 1, "fevereiro": 2, "março": 3, "abril": 4, "maio": 5,
+    "junho": 6, "julho": 7, "agosto": 8, "setembro": 9, "outubro": 10,
+    "novembro": 11, "dezembro": 12,
+}
+
+DIAS_PT = ["segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo"]
+
+
+def parse_lock_date(locked):
+    """Extrai a data real de um texto tipo 'disponível a partir de 27 de julho de 2026'."""
+    if not locked:
+        return None
+    m = re.search(r"(\d{1,2}) de (\w+) de (\d{4})", locked)
+    if not m:
+        return None
+    mes = MESES_PT.get(m.group(2).lower())
+    if not mes:
+        return None
+    try:
+        return date(int(m.group(3)), mes, int(m.group(1)))
+    except ValueError:
+        return None
+
+
+def fmt_dm(d):
+    return f"{d.day:02d}/{d.month:02d}"
+
+
+def fmt_range(d1, d2):
+    if d1.month == d2.month:
+        return f"{d1.day:02d} a {fmt_dm(d2)}"
+    return f"{fmt_dm(d1)} a {fmt_dm(d2)}"
+
+
+def section_dates(code, title):
+    """(início, fim) reais de uma seção, derivados do calendário do bimestre.
+    Devolve None para seções sem data (Módulos liberados por conclusão, Geral etc.)."""
+    m = re.match(r"Semana (\d+)$", title)
+    if m:
+        n = int(m.group(1))
+        start = AIA_START if code == "COM170" else REGULAR_START
+        d1 = start + timedelta(days=7 * (n - 1))
+        return d1, d1 + timedelta(days=6)
+    m = re.match(r"Quinzena (\d+)$", title)
+    if m:
+        n = int(m.group(1))
+        d1 = REGULAR_START + timedelta(days=14 * (n - 1))
+        return d1, d1 + timedelta(days=13)
+    return None
+
+
+def when_badge(code, s, today=None):
+    """Badge de data da seção: período real, ou data de liberação vinda do AVA."""
+    lock_dt = parse_lock_date(s.get("locked"))
+    if lock_dt:
+        return f"abre {fmt_dm(lock_dt)}"
+    if s.get("locked"):
+        return ""  # liberação por conclusão, sem data
+    dates = section_dates(code, s["title"])
+    if not dates:
+        return ""
+    return fmt_range(*dates)
+
 # Resumos curtos por seção, baseados no conteúdo real que o robô lê no AVA.
 # Onde não houver entrada aqui, cai no "tema" da seção (também vindo do AVA).
 DESCRICOES = {
@@ -336,15 +411,20 @@ def build_rich(code, s):
     return " ".join(parts)
 
 
-def render_locked_row(s):
+def render_locked_row(code, s):
+    badge = when_badge(code, s)
+    when_html = f'<span class="when">{esc(badge)}</span>' if badge else ""
+    theme = s.get("theme")
+    desc = f"{theme} · {s['locked']}" if theme else s["locked"]
     return (
         '<details class="sec">'
         '<summary><span class="sec-head">'
         '<span class="chev"></span>'
         '<span class="status lock">Bloqueado</span>'
         f'<span class="sec-title-txt">{esc(s["title"])}</span>'
+        f'{when_html}'
         '</span></summary>'
-        f'<p class="sec-desc">{esc(s["locked"])}</p>'
+        f'<p class="sec-desc">{esc(desc)}</p>'
         '</details>'
     )
 
@@ -369,6 +449,8 @@ def render_accordion(code, s, state):
         f'<span class="muted"> · {len(s["items"])} itens</span>'
         if state in ("done", "future") else ""
     )
+    badge = when_badge(code, s)
+    when_html = f'<span class="when">{esc(badge)}</span>' if badge else ""
 
     li = []
     for it in s["items"]:
@@ -385,34 +467,94 @@ def render_accordion(code, s, state):
         '<span class="chev"></span>'
         f'<span class="status {chip_cls}">{chip_label}</span>'
         f'<span class="sec-title-txt">{esc(s["title"])}</span>{count_html}'
+        f'{when_html}'
         '</span></summary>'
         f'{desc_html}{items_html}'
         '</details>'
     )
 
 
-def render_sections(c):
-    code = c["code"]
+def _section_state(s, horizon):
+    done = all(it["status"] == "Concluído" for it in s["items"])
+    if done:
+        return "done"
+    if horizon:
+        return "future"
+    if s["title"] == "Geral":
+        return "geral"
+    return "current"
+
+
+def _render_section_list(code, sections):
     out = []
     horizon = False
-    for s in c["sections"]:
+    for s in sections:
         if not s.get("locked") and not s["items"]:
             continue  # pastas/rótulos sem status
         if s.get("locked"):
-            out.append(render_locked_row(s))
+            out.append(render_locked_row(code, s))
             horizon = True
             continue
-        done = all(it["status"] == "Concluído" for it in s["items"])
-        if done:
-            state = "done"
-        elif horizon:
-            state = "future"
-        elif s["title"] == "Geral":
-            state = "geral"
-        else:
-            state = "current"
-        out.append(render_accordion(code, s, state))
+        out.append(render_accordion(code, s, _section_state(s, horizon)))
     return "".join(out)
+
+
+def render_sections(c):
+    code = c["code"]
+    sections = c["sections"]
+
+    if code != "COM170":
+        return _render_section_list(code, sections)
+
+    # COM170 tem duas fases com nomes de seção que se confundem com as outras
+    # disciplinas: as "Semanas 1-4" dele são a Ambientação (AIA), que já
+    # terminou em 19/07. Agrupamos a AIA num bloco próprio, fechado, e
+    # deixamos a fase regular (Quinzena/Módulos) como o corpo do card.
+    aia = [s for s in sections if re.match(r"Semana \d+$", s["title"])]
+    regular = [s for s in sections if s not in aia]
+
+    aia_pend = sum(
+        1 for s in aia for it in s["items"] if it["status"] == "Pendente"
+    )
+    if aia_pend:
+        aia_chip = '<span class="status pend">Pendente</span>'
+        aia_note = (
+            f"Fase de ambientação, encerrada em 19/07. Ainda consta {aia_pend} "
+            f"pendência aqui dentro (vale conferir no AVA se ainda dá pra fazer)."
+            if aia_pend == 1 else
+            f"Fase de ambientação, encerrada em 19/07. Ainda constam {aia_pend} "
+            f"pendências aqui dentro (vale conferir no AVA se ainda dá pra fazer)."
+        )
+    else:
+        aia_chip = '<span class="status ok">Feito</span>'
+        aia_note = "Fase de ambientação, encerrada em 19/07. Tudo concluído."
+
+    aia_inner = []
+    for s in aia:
+        state = "done" if all(it["status"] == "Concluído" for it in s["items"]) else "current"
+        # dentro do grupo AIA nada fica aberto por padrão: é passado
+        html = render_accordion(code, s, state)
+        aia_inner.append(html.replace('<details class="sec" open>', '<details class="sec">'))
+
+    aia_block = (
+        '<details class="sec phase-group">'
+        '<summary><span class="sec-head">'
+        '<span class="chev"></span>'
+        f'{aia_chip}'
+        '<span class="sec-title-txt">Ambientação (AIA) · Semanas 1 a 4</span>'
+        f'<span class="when">{fmt_range(AIA_START, date(2026, 7, 19))}</span>'
+        '</span></summary>'
+        f'<p class="sec-desc">{esc(aia_note)}</p>'
+        f'<div class="nested">{"".join(aia_inner)}</div>'
+        '</details>'
+    )
+
+    regular_html = _render_section_list(code, regular)
+    return (
+        f'{aia_block}'
+        f'<div class="phase-label">Disciplina regular · começou em {fmt_dm(REGULAR_START)}</div>'
+        f'{regular_html}'
+    )
 
 
 BR_TZ = timezone(timedelta(hours=-3))
@@ -490,6 +632,98 @@ def render_recado():
     )
 
 
+def _como_fazer(it):
+    t = it.get("type")
+    lab = it["label"].lower()
+    if t == "Questionário":
+        return "questionário no AVA"
+    if t == "Pacote SCORM":
+        return "quiz interativo no AVA"
+    if "fórum" in lab or "forum" in lab:
+        return "participar do fórum"
+    if "pesquisa" in lab:
+        return "responder à pesquisa"
+    if t == "Página":
+        return "abrir a página e concluir a atividade"
+    if t == "URL":
+        return "acessar o link"
+    return "fazer no AVA"
+
+
+def _quando(code, s, today):
+    """(chip curto, complemento, urgência) do prazo de uma seção."""
+    dates = section_dates(code, s["title"])
+    if dates:
+        d1, d2 = dates
+        if d2 < today:
+            return "atrasado", f"era de {fmt_range(d1, d2)}", "late"
+        if d1 <= today <= d2:
+            return f"até {fmt_dm(d2)}", "", "now"
+        return f"a partir de {fmt_dm(d1)}", "", "soon"
+    if s["title"].startswith("Módulo"):
+        return "livre", "concluir destrava o próximo módulo", "now"
+    return "", "", "now"
+
+
+def render_pendencias(data, today):
+    """Mapa único do que está pendente de verdade: o quê, como e quando."""
+    rows = []
+    for c in data.get("courses", []):
+        for s in c.get("sections", []):
+            for it in s.get("items", []):
+                if it["status"] != "Pendente":
+                    continue
+                quando, extra, urg = _quando(c["code"], s, today)
+                sec_label = s["title"]
+                if c["code"] == "COM170" and re.match(r"Semana \d+$", sec_label):
+                    sec_label = f"AIA · {sec_label}"
+                rows.append({
+                    "code": c["code"], "section": sec_label,
+                    "label": it["label"], "como": _como_fazer(it),
+                    "quando": quando, "extra": extra, "urg": urg,
+                })
+    if not rows:
+        return (
+            '<div class="pend-block"><h2>O que falta agora</h2>'
+            '<p class="sub" style="margin:0;">Nada pendente. Tudo em dia. 🎉</p></div>'
+        )
+    order = {"late": 0, "now": 1, "soon": 2}
+    rows.sort(key=lambda r: (order.get(r["urg"], 1), r["code"]))
+    lis = []
+    for r in rows:
+        urg_cls = {"late": "pend", "now": "brick", "soon": "lock"}[r["urg"]]
+        quando_html = (
+            f'<span class="status {urg_cls}">{esc(r["quando"])}</span>'
+            if r["quando"] else ""
+        )
+        detalhes = " · ".join(x for x in (r["como"], r["extra"]) if x)
+        lis.append(
+            f'<li>{quando_html}<span class="tlabel"><b>{esc(r["code"])}</b> '
+            f'({esc(r["section"])}) — {esc(r["label"])} '
+            f'<span class="muted">· {esc(detalhes)}</span></span></li>'
+        )
+    n = len(rows)
+    return (
+        '<div class="pend-block">'
+        f'<h2>O que falta agora · {n} {"item" if n == 1 else "itens"}</h2>'
+        '<p class="sub" style="margin:0 0 8px;">Só o que conta como pendência real no AVA. '
+        'O resto do site mostra o mapa completo, com datas.</p>'
+        f'<ul class="tasklist pendlist">{"".join(lis)}</ul>'
+        '</div>'
+    )
+
+
+def semana_atual_line(today):
+    delta = (today - REGULAR_START).days
+    dia = DIAS_PT[today.weekday()]
+    if delta < 0:
+        return f"Hoje é {dia}, {fmt_dm(today)} · o bimestre regular começa em {fmt_dm(REGULAR_START)}"
+    n = delta // 7 + 1
+    d1 = REGULAR_START + timedelta(days=7 * (n - 1))
+    d2 = d1 + timedelta(days=6)
+    return f"Hoje é {dia}, {fmt_dm(today)} · Semana {n} do bimestre ({fmt_range(d1, d2)})"
+
+
 def render_html(data, changes):
     checked_at = data.get("checked_at", "")
     try:
@@ -548,9 +782,12 @@ def render_html(data, changes):
     <div class="sections">{body}</div>
   </div>""")
 
+    today = datetime.now(BR_TZ).date()
     html = TEMPLATE.replace("{{BANNER}}", banner) \
                     .replace("{{RECADO}}", render_recado()) \
                     .replace("{{CHECKED_AT}}", esc(checked_at_fmt)) \
+                    .replace("{{SEMANA}}", esc(semana_atual_line(today))) \
+                    .replace("{{PENDENCIAS}}", render_pendencias(data, today)) \
                     .replace("{{CHANGES}}", changes_html) \
                     .replace("{{CARDS}}", "".join(cards_html))
     (DOCS / "index.html").write_text(html, encoding="utf-8")
@@ -635,6 +872,13 @@ TEMPLATE = """<!doctype html>
   .status.lock{background:var(--locked-bg);color:var(--locked);}
   .status.brick{background:var(--brick-soft);color:var(--brick);}
   .status.neutral{background:var(--locked-bg);color:var(--ink-soft);}
+  .when{margin-left:auto;flex:0 0 auto;font-size:11px;font-weight:600;color:var(--ink-soft);white-space:nowrap;padding-left:8px;}
+  .phase-label{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--brick);font-weight:700;margin:14px 0 2px;padding-top:10px;border-top:1px solid var(--line);}
+  .phase-group .nested{margin-left:18px;border-left:2px solid var(--line);padding-left:10px;margin-bottom:10px;}
+  .pend-block{background:var(--paper);border:1px solid var(--wait);border-radius:14px;padding:16px;box-shadow:var(--shadow);margin:18px 0 22px;}
+  .pend-block h2{font-size:16px;margin-bottom:8px;}
+  .pendlist{margin-left:0 !important;}
+  .semana-line{font-size:13px;color:var(--ink);font-weight:600;margin-top:6px;}
   @media (prefers-reduced-motion: reduce){.chev{transition:none;}}
   footer{margin-top:30px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--ink-soft);text-align:center;}
 </style>
@@ -643,12 +887,15 @@ TEMPLATE = """<!doctype html>
 <div class="wrap">
   <div class="eyebrow">Univesp · BIA · Turma 001</div>
   <h1>Guia diário do AVA</h1>
+  <p class="semana-line">{{SEMANA}}</p>
   <p class="sub">Atualizado automaticamente todo dia às 8h · última entrada no AVA: {{CHECKED_AT}} (Brasília)</p>
   {{BANNER}}
   {{RECADO}}
+  {{PENDENCIAS}}
   {{CHANGES}}
   {{CARDS}}
-  <footer>Gerado por um robô que lê o AVA de verdade todo dia. Sem clique manual — o status aqui é o status real de lá.</footer>
+  <footer>Gerado por um robô que lê o AVA de verdade todo dia. Sem clique manual — o status aqui é o status real de lá.<br>
+  Datas das semanas seguem o calendário do bimestre (Semana 1 regular: 20 a 26/07); liberações com data específica vêm do próprio AVA.</footer>
 </div>
 </body>
 </html>
