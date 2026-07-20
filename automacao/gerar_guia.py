@@ -239,10 +239,10 @@ DESCRICOES = {
     ("COM170", "Semana 3"): "Ambientação (AIA): seu curso em 6 pistas e leitura do PPC.",
     ("COM170", "Semana 4"): "Ambientação (AIA): revisão entre pares na ferramenta Laboratório.",
     ("COM170", "Quinzena 1"): "Abertura da disciplina regular: página de introdução e os fóruns geral e de dúvidas.",
-    ("COM170", "Módulo 1"): "O que é (e o que não é) IA: vídeo, quiz de calibração, material-base e quiz dos paradigmas.",
-    ("LET110", "Semana 1"): "As funções sociais da leitura e da escrita: por que lemos e escrevemos e o papel disso na vida em sociedade. Tem atividade avaliativa e fórum temático.",
-    ("SOC100", "Semana 1"): "Introdução à Ética: conceitos fundamentais e a diferença entre ética e moral. Tem atividade avaliativa e o fórum sobre autonomia e liberdade.",
-    ("COM100", "Semana 1"): "O século XXI e a computação na BNCC: por que o pensamento computacional importa hoje. Tem atividade avaliativa e fórum temático.",
+    ("COM170", "Módulo 1"): "O que é (e o que não é) IA: os paradigmas por trás dela e seu primeiro contato prático.",
+    ("LET110", "Semana 1"): "As funções sociais da leitura e da escrita: por que lemos e escrevemos e o papel disso na vida em sociedade.",
+    ("SOC100", "Semana 1"): "Introdução à Ética: conceitos fundamentais e a diferença entre ética e moral.",
+    ("COM100", "Semana 1"): "O século XXI e a computação na BNCC: por que o pensamento computacional importa hoje.",
 }
 
 
@@ -257,6 +257,82 @@ def section_desc(code, s):
     if d:
         return d
     return s.get("theme") or ""
+
+
+def _join_pt(xs):
+    xs = [x for x in xs if x]
+    if not xs:
+        return ""
+    if len(xs) == 1:
+        return xs[0]
+    return ", ".join(xs[:-1]) + " e " + xs[-1]
+
+
+def _find(items, *needles):
+    out = []
+    for it in items:
+        lab = it["label"].lower()
+        if any(n in lab for n in needles):
+            out.append(it)
+    return out
+
+
+def _status_word(items):
+    sts = [it["status"] for it in items]
+    if "Pendente" in sts:
+        return "pendente"
+    if sts and all(x == "Concluído" for x in sts):
+        return "feita"
+    return "a fazer"
+
+
+def _forum_topic(label):
+    l = re.sub(r"\s*\d+\s+mensage.*$", "", label).strip()
+    m = re.search(r"[Ff]órum[^-:]*[-:]\s*(.+)$", l)
+    if not m:
+        return ""
+    t = m.group(1).strip().rstrip("?").strip()
+    if len(t) > 64:
+        t = t[:61] + "…"
+    return f"o fórum “{t}”" if t else ""
+
+
+def build_rich(code, s):
+    """Resumo rico e automático da seção atual: tema + o que há dentro."""
+    base = DESCRICOES.get((code, s["title"])) or s.get("theme") or ""
+    items = s["items"]
+
+    leituras = _find(items, "texto-base", "material-base")
+    videos = _find(items, "videoaula", "vídeo-base", "video-base", "vídeo base")
+    aval = _find(items, "atividade avaliativa")
+    quiz = [it for it in _find(items, "quiz") if it not in aval]
+    forum = _find(items, "fórum", "forum")
+    live = _find(items, "live com facilitador")
+
+    bits = []
+    if leituras:
+        n = len(leituras)
+        bits.append(f"{n} leitura{'s' if n > 1 else ''}")
+    if videos:
+        bits.append("videoaulas")
+    if aval:
+        bits.append(f"atividade avaliativa ({_status_word(aval)})")
+    elif quiz:
+        n = len(quiz)
+        bits.append(f"{'quizzes' if n > 1 else 'quiz'} ({_status_word(quiz)})")
+    if forum:
+        topic = _forum_topic(forum[0]["label"])
+        bits.append(topic or "fórum temático")
+    if live:
+        bits.append("live com facilitador")
+
+    parts = []
+    if base:
+        parts.append(base if base.rstrip().endswith(".") else base.rstrip() + ".")
+    has_graded = bool(aval or quiz)
+    if bits and (has_graded or len(bits) >= 2):
+        parts.append("Nesta seção: " + _join_pt(bits) + ".")
+    return " ".join(parts)
 
 
 def render_locked_row(s):
@@ -286,7 +362,7 @@ def render_accordion(code, s, state):
             chip_cls, chip_label = "brick", "Atual"
         is_open = True
 
-    desc = section_desc(code, s)
+    desc = build_rich(code, s) if state == "current" else section_desc(code, s)
     desc_html = f'<p class="sec-desc">{esc(desc)}</p>' if desc else ""
     count_html = (
         f'<span class="muted"> · {len(s["items"])} itens</span>'
