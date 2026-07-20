@@ -231,11 +231,111 @@ STATUS_META = {
     "Marcar como feito": ("lock", "A marcar"),
 }
 
+# Resumos curtos por seção, baseados no conteúdo real que o robô lê no AVA.
+# Onde não houver entrada aqui, cai no "tema" da seção (também vindo do AVA).
+DESCRICOES = {
+    ("COM170", "Semana 1"): "Ambientação (AIA): guia de IAs gratuitas e primeiro contato com o Gemini.",
+    ("COM170", "Semana 2"): "Ambientação (AIA): NotebookLM e a missão da semana no fórum do grupo.",
+    ("COM170", "Semana 3"): "Ambientação (AIA): seu curso em 6 pistas e leitura do PPC.",
+    ("COM170", "Semana 4"): "Ambientação (AIA): revisão entre pares na ferramenta Laboratório.",
+    ("COM170", "Quinzena 1"): "Abertura da disciplina regular: página de introdução e os fóruns geral e de dúvidas.",
+    ("COM170", "Módulo 1"): "O que é (e o que não é) IA: vídeo, quiz de calibração, material-base e quiz dos paradigmas.",
+    ("LET110", "Semana 1"): "As funções sociais da leitura e da escrita: por que lemos e escrevemos e o papel disso na vida em sociedade. Tem atividade avaliativa e fórum temático.",
+    ("SOC100", "Semana 1"): "Introdução à Ética: conceitos fundamentais e a diferença entre ética e moral. Tem atividade avaliativa e o fórum sobre autonomia e liberdade.",
+    ("COM100", "Semana 1"): "O século XXI e a computação na BNCC: por que o pensamento computacional importa hoje. Tem atividade avaliativa e fórum temático.",
+}
+
 
 def esc(s):
     if s is None:
         return ""
     return (s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
+
+
+def section_desc(code, s):
+    d = DESCRICOES.get((code, s["title"]))
+    if d:
+        return d
+    return s.get("theme") or ""
+
+
+def render_locked_row(s):
+    return (
+        '<details class="sec">'
+        '<summary><span class="sec-head">'
+        '<span class="chev"></span>'
+        '<span class="status lock">Bloqueado</span>'
+        f'<span class="sec-title-txt">{esc(s["title"])}</span>'
+        '</span></summary>'
+        f'<p class="sec-desc">{esc(s["locked"])}</p>'
+        '</details>'
+    )
+
+
+def render_accordion(code, s, state):
+    if state == "done":
+        chip_cls, chip_label, is_open = "ok", "Feito", False
+    elif state == "future":
+        chip_cls, chip_label, is_open = "lock", "Depois", False
+    elif state == "geral":
+        chip_cls, chip_label, is_open = "neutral", "Referências", False
+    else:  # current
+        if any(it["status"] == "Pendente" for it in s["items"]):
+            chip_cls, chip_label = "pend", "Pendente"
+        else:
+            chip_cls, chip_label = "brick", "Atual"
+        is_open = True
+
+    desc = section_desc(code, s)
+    desc_html = f'<p class="sec-desc">{esc(desc)}</p>' if desc else ""
+    count_html = (
+        f'<span class="muted"> · {len(s["items"])} itens</span>'
+        if state in ("done", "future") else ""
+    )
+
+    li = []
+    for it in s["items"]:
+        cls, label = STATUS_META.get(it["status"], ("lock", it["status"]))
+        li.append(
+            f'<li><span class="status {cls}">{esc(label)}</span>'
+            f'<span class="tlabel">{esc(it["label"])}</span></li>'
+        )
+    items_html = f'<ul class="tasklist">{"".join(li)}</ul>'
+
+    return (
+        f'<details class="sec"{" open" if is_open else ""}>'
+        '<summary><span class="sec-head">'
+        '<span class="chev"></span>'
+        f'<span class="status {chip_cls}">{chip_label}</span>'
+        f'<span class="sec-title-txt">{esc(s["title"])}</span>{count_html}'
+        '</span></summary>'
+        f'{desc_html}{items_html}'
+        '</details>'
+    )
+
+
+def render_sections(c):
+    code = c["code"]
+    out = []
+    horizon = False
+    for s in c["sections"]:
+        if not s.get("locked") and not s["items"]:
+            continue  # pastas/rótulos sem status
+        if s.get("locked"):
+            out.append(render_locked_row(s))
+            horizon = True
+            continue
+        done = all(it["status"] == "Concluído" for it in s["items"])
+        if done:
+            state = "done"
+        elif horizon:
+            state = "future"
+        elif s["title"] == "Geral":
+            state = "geral"
+        else:
+            state = "current"
+        out.append(render_accordion(code, s, state))
+    return "".join(out)
 
 
 BR_TZ = timezone(timedelta(hours=-3))
@@ -285,48 +385,18 @@ def render_html(data, changes):
     for c in data.get("courses", []):
         pct = c.get("progress_pct")
         pct_html = f'<div class="progress-pill{" has-progress" if pct else ""}">{pct if pct is not None else "?"}% concluído</div>'
-        items_html = []
-        past_the_horizon = False
-        for s in c["sections"]:
-            label_bit = f'{esc(s["title"])}{" — " + esc(s["theme"]) if s.get("theme") else ""}'
-
-            if s.get("locked"):
-                items_html.append(
-                    f'<div class="unlock"><b>{esc(s["title"])}:</b> {esc(s["locked"])}</div>'
-                )
-                past_the_horizon = True
-                continue
-
-            if not s["items"]:
-                continue
-
-            if past_the_horizon:
-                items_html.append(
-                    f'<div class="sec-done"><span class="status lock">Ainda não</span>{label_bit} '
-                    f'<span class="muted">({len(s["items"])} itens à frente)</span></div>'
-                )
-                continue
-
-            all_done = all(it["status"] == "Concluído" for it in s["items"])
-            if all_done:
-                items_html.append(
-                    f'<div class="sec-done"><span class="status ok">Feito</span>{label_bit} '
-                    f'<span class="muted">({len(s["items"])} itens)</span></div>'
-                )
-                continue
-            items_html.append(f'<div class="sec-label">{label_bit}</div>')
-            li = []
-            for it in s["items"]:
-                cls, label = STATUS_META.get(it["status"], ("lock", it["status"]))
-                li.append(f'<li><span class="status {cls}">{label}</span><span class="tlabel">{esc(it["label"])}</span></li>')
-            items_html.append(f'<ul class="tasklist">{"".join(li)}</ul>')
+        sections_html = render_sections(c)
+        body = sections_html or (
+            '<p class="sub">Não consegui ler o conteúdo agora. '
+            f'<a href="https://ava.univesp.br/course/view.php?id={c["id"]}">Abrir no AVA</a>.</p>'
+        )
         cards_html.append(f"""
   <div class="card">
     <div class="card-head">
       <div><h3>{esc(c["name"])}</h3><div class="code">{esc(c["code"])}</div></div>
       {pct_html}
     </div>
-    {"".join(items_html) if items_html else '<p class="sub">Não consegui ler o conteúdo agora. <a href="https://ava.univesp.br/course/view.php?id=' + str(c["id"]) + '">Abrir no AVA</a>.</p>'}
+    <div class="sections">{body}</div>
   </div>""")
 
     html = TEMPLATE.replace("{{BANNER}}", banner) \
@@ -384,19 +454,28 @@ TEMPLATE = """<!doctype html>
   .code{font-size:12px;color:var(--ink-soft);font-weight:600;}
   .progress-pill{font-size:11px;font-weight:700;padding:3px 8px;border-radius:99px;white-space:nowrap;background:var(--locked-bg);color:var(--locked);}
   .progress-pill.has-progress{background:var(--ok-bg);color:var(--ok);}
-  .sec-label{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);font-weight:700;margin:14px 0 4px;}
-  .sec-done{display:flex;align-items:center;gap:8px;font-size:13px;padding:7px 0;border-top:1px solid var(--line);}
-  .sec-done:first-child{border-top:none;}
-  .sec-done .muted{color:var(--ink-soft);font-size:12px;}
-  .tasklist{list-style:none;margin:0;padding:0;}
+  .sections{margin-top:6px;}
+  .sec{border-top:1px solid var(--line);}
+  .sec:first-child{border-top:none;}
+  .sec > summary{list-style:none;cursor:pointer;padding:11px 0;display:block;border-radius:8px;}
+  .sec > summary::-webkit-details-marker{display:none;}
+  .sec > summary:focus-visible{outline:2px solid var(--brick);outline-offset:2px;}
+  .sec-head{display:flex;align-items:center;gap:8px;}
+  .chev{flex:0 0 auto;width:0;height:0;border-left:6px solid var(--ink-soft);border-top:5px solid transparent;border-bottom:5px solid transparent;transition:transform .18s ease;}
+  details[open] > summary .chev{transform:rotate(90deg);}
+  .sec-title-txt{font-weight:700;font-size:14px;}
+  .sec-head .muted{color:var(--ink-soft);font-size:12px;font-weight:400;}
+  .sec-desc{margin:2px 0 10px 22px;font-size:12.5px;color:var(--ink-soft);line-height:1.45;}
+  .tasklist{list-style:none;margin:0 0 10px 22px;padding:0;}
   .tasklist li{display:flex;align-items:flex-start;gap:9px;padding:6px 0;font-size:14px;border-top:1px solid var(--line);}
   .tasklist li:first-child{border-top:none;}
-  .status{flex:0 0 auto;margin-top:2px;font-size:10.5px;font-weight:700;text-transform:uppercase;padding:2px 7px;border-radius:6px;}
+  .status{flex:0 0 auto;margin-top:2px;font-size:10.5px;font-weight:700;text-transform:uppercase;padding:2px 7px;border-radius:6px;white-space:nowrap;}
   .status.pend{background:var(--wait-bg);color:var(--wait);}
   .status.ok{background:var(--ok-bg);color:var(--ok);}
   .status.lock{background:var(--locked-bg);color:var(--locked);}
-  .unlock{margin-top:10px;padding:8px 10px;border-radius:10px;background:var(--brick-soft);font-size:12.5px;}
-  .unlock b{color:var(--brick);}
+  .status.brick{background:var(--brick-soft);color:var(--brick);}
+  .status.neutral{background:var(--locked-bg);color:var(--ink-soft);}
+  @media (prefers-reduced-motion: reduce){.chev{transition:none;}}
   footer{margin-top:30px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--ink-soft);text-align:center;}
 </style>
 </head>
