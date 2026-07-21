@@ -737,8 +737,8 @@ def render_html(data, changes):
         banner = (
             '<div class="alertbar">'
             '<b>Sessão do AVA expirou.</b> Este retrato é o último válido. '
-            'Rode <code>python automacao/capturar_sessao.py</code> e depois '
-            '<code>python automacao/publicar_sessao_no_github.py</code> para renovar.'
+            'Dê 2 cliques em <code>automacao/renovar_sessao.bat</code> pra renovar '
+            '(abre o navegador, você loga, e o resto acontece sozinho).'
             '</div>'
         )
 
