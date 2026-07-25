@@ -13,8 +13,9 @@ Configuracao (Secrets do GitHub, nunca no codigo):
   SMTP_PASS   senha de app (Gmail: Conta Google > Seguranca > Senhas de app)
   EMAIL_PARA  para quem vai (pode ser o mesmo endereco)
 
-Se faltar qualquer uma, o script sai quieto e sem erro: o site ja foi gerado,
-o e-mail e um extra.
+Em CI, faltar qualquer uma é erro: Secret removido não pode parar o e-mail com
+a Action verde. Para uma execução local deliberadamente sem e-mail, use
+EMAIL_OPCIONAL=1.
 """
 import json
 import os
@@ -211,13 +212,22 @@ def main():
     user = os.environ.get("SMTP_USER")
     senha = os.environ.get("SMTP_PASS")
     para = os.environ.get("EMAIL_PARA")
+    opcional = os.environ.get("EMAIL_OPCIONAL", "").lower() in ("1", "true", "sim")
 
     if not all([host, user, senha, para]):
-        print("E-mail nao configurado (faltam Secrets). Sigo sem enviar.")
-        return 0
+        mensagem = "E-mail nao configurado (faltam SMTP_HOST/USER/PASS ou EMAIL_PARA)."
+        if opcional:
+            print(mensagem + " EMAIL_OPCIONAL ativo; sigo sem enviar.")
+            return 0
+        print(f"::error::{mensagem}")
+        return 2
     if not DATA_PATH.exists():
-        print("Sem data.json, nao ha o que enviar.")
-        return 0
+        mensagem = "Sem data.json, nao ha o que enviar."
+        if opcional:
+            print(mensagem + " EMAIL_OPCIONAL ativo; sigo sem enviar.")
+            return 0
+        print(f"::error::{mensagem}")
+        return 2
 
     data = json.loads(DATA_PATH.read_text(encoding="utf-8"))
     msg = EmailMessage()

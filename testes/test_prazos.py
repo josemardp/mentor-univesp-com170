@@ -357,8 +357,11 @@ vivo = curso_sem_prazo()
 vivo["avisos"] = [{"titulo": "x"}] * 12
 vivo["cronograma"] = {"semanas": []}
 vivo["sections"][0]["items"][0]["prazo"] = "2026-08-01T23:59:00-03:00"
+ontem_vivo = {"courses": ontem["courses"],
+              "fontes": {"avisos": 12, "eventos_calendario": 3,
+                          "cronograma": 1, "itens_com_prazo": 1}}
 ok, _ = C.validar_cobertura(
-    {"courses": [vivo], "eventos": [1, 2, 3], "notificacoes": []}, ontem)
+    {"courses": [vivo], "eventos": [1, 2, 3], "notificacoes": []}, ontem_vivo)
 checa(ok, "coleta com as fontes vivas continua passando")
 
 # telemetria não pode contar cronograma que a disciplina não tem

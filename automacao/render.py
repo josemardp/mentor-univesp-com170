@@ -12,7 +12,9 @@ A ordem da pagina segue a pergunta que o Josemar faz de verdade:
   5. Ja encerrou (recolhido)
 """
 import json
+import os
 import re
+import tempfile
 import unicodedata
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -99,7 +101,17 @@ def _mini_md(texto):
     return "".join(saida)
 
 
-def render_recado():
+def _cmids_pendentes(data):
+    return {
+        str(it.get("cmid"))
+        for c in data.get("courses", [])
+        for s in c.get("sections", [])
+        for it in s.get("items", [])
+        if it.get("cmid") is not None and it.get("status") != "Concluído"
+    }
+
+
+def render_recado(data):
     if not RECADO_PATH.exists():
         return ""
     try:
@@ -109,6 +121,23 @@ def render_recado():
     texto = (r.get("text") or "").strip()
     if not texto:
         return ""
+    motivos = []
+    exigidos = {str(x) for x in (r.get("requires_pending_cmids") or [])}
+    if exigidos and not exigidos.issubset(_cmids_pendentes(data)):
+        motivos.append("a atividade citada já mudou de estado")
+    if r.get("valid_until"):
+        try:
+            if datetime.now(BR_TZ) > datetime.fromisoformat(r["valid_until"]).astimezone(BR_TZ):
+                motivos.append("a validade do recado terminou")
+        except Exception:
+            motivos.append("a validade do recado não pôde ser verificada")
+    if motivos:
+        return (
+            '<details class="bloco recado-antigo"><summary class="enc-sum">'
+            'Recado anterior arquivado automaticamente</summary>'
+            f'<p class="sub">{esc("; ".join(motivos).capitalize())}. '
+            'A fila abaixo já usa a leitura mais recente do AVA.</p></details>'
+        )
     quando = ""
     try:
         quando = datetime.fromisoformat(r["written_at"]).astimezone(BR_TZ).strftime("%d/%m/%Y às %H:%M")
@@ -118,6 +147,35 @@ def render_recado():
     return ('<div class="recado"><div class="recado-head"><span>📌</span>'
             '<span class="recado-label">Recado da mentora</span></div>'
             f'<div class="recado-body">{_mini_md(texto)}</div>{rodape}</div>')
+
+
+def render_fontes_status(data):
+    estados = (data.get("fontes_status_tentativa")
+               if data.get("status") != "ok"
+               else data.get("fontes_status")) or {}
+    if not estados:
+        return ""
+    nomes = {"calendario": "calendário", "cronograma": "cronogramas", "foruns": "fóruns"}
+    partes, degradou = [], False
+    for chave in ("calendario", "cronograma", "foruns"):
+        info = estados.get(chave) or {}
+        status = info.get("status")
+        if not status:
+            continue
+        degradou = degradou or status in ("falhou", "degradado", "parcial")
+        quando = ""
+        if info.get("last_live_at"):
+            try:
+                quando = datetime.fromisoformat(info["last_live_at"]).astimezone(
+                    BR_TZ).strftime("%H:%M")
+            except Exception:
+                pass
+        sufixo = f" às {quando}" if quando else ""
+        partes.append(f"{nomes[chave]}: {status.replace('_', ' ')}{sufixo}")
+    if not partes:
+        return ""
+    classe = "sourcebar degraded" if degradou else "sourcebar"
+    return f'<div class="{classe}"><b>Fontes:</b> {esc(" · ".join(partes))}</div>'
 
 
 # ---------------------------------------------------------------------------
@@ -471,7 +529,8 @@ def frescor(data):
     é não usar o presente ("faça agora") sobre um retrato de horas atrás.
     """
     try:
-        lido = datetime.fromisoformat(data.get("checked_at", "")).astimezone(BR_TZ)
+        lido = datetime.fromisoformat(
+            data.get("snapshot_at") or data.get("checked_at", "")).astimezone(BR_TZ)
     except Exception:
         return "", ""
     horas = (datetime.now(BR_TZ) - lido).total_seconds() / 3600
@@ -484,33 +543,70 @@ def frescor(data):
     return f"Li o AVA {quando}", aviso
 
 
+def gravar_texto_atomico(caminho, texto):
+    caminho.parent.mkdir(parents=True, exist_ok=True)
+    fd, nome = tempfile.mkstemp(
+        prefix=f".{caminho.name}.", suffix=".tmp", dir=str(caminho.parent))
+    temp = Path(nome)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as arq:
+            arq.write(texto)
+            arq.flush()
+            os.fsync(arq.fileno())
+        os.replace(temp, caminho)
+    finally:
+        temp.unlink(missing_ok=True)
+
+
 def render_html(data):
-    checado = data.get("checked_at", "")
+    snapshot_at = data.get("snapshot_at") or data.get("checked_at", "")
+    checado = snapshot_at
+    tentativa = data.get("attempted_at")
+    tentativa_txt = ""
     try:
         checado = datetime.fromisoformat(checado).astimezone(BR_TZ).strftime("%d/%m/%Y às %H:%M")
     except Exception:
         pass
+    try:
+        tentativa_txt = datetime.fromisoformat(tentativa).astimezone(
+            BR_TZ).strftime("%d/%m às %H:%M")
+    except Exception:
+        pass
 
-    _, banner_idade = frescor(data)
-    banner = banner_idade
+    banners = []
     if data.get("status") == "session_expired":
-        banner = ('<div class="alertbar"><b>Sessão do AVA expirou.</b> Este retrato é o '
-                  'último válido. Dê 2 cliques em <code>automacao/renovar_sessao.bat</code> '
-                  'pra renovar (abre o navegador, você loga, o resto acontece sozinho).</div>')
+        banners.append(
+            '<div class="alertbar"><b>Sessão do AVA expirou.</b> Este é o último '
+            'retrato válido; a tentativa mais recente'
+            f'{f" ({esc(tentativa_txt)})" if tentativa_txt else ""} não conseguiu entrar.</div>')
+    elif data.get("status") == "coleta_incompleta":
+        problemas = "; ".join(data.get("problemas") or [])
+        banners.append(
+            '<div class="alertbar"><b>Leitura incompleta.</b> Mantive o último '
+            f'retrato válido. Tentativa: {esc(tentativa_txt or "horário desconhecido")}. '
+            f'{esc(problemas)}</div>')
+    # Este elemento sempre existe. O JavaScript recalcula a idade enquanto a
+    # página está aberta; HTML estático não envelhece sozinho.
+    banners.append(
+        f'<div id="freshness-alert" class="alertbar" '
+        f'data-snapshot-at="{esc(snapshot_at)}" hidden></div>')
+    banner = "".join(banners)
 
     hoje = datetime.now(BR_TZ).date()
     html = (TEMPLATE
             .replace("{{SEMANA}}", esc(linha_semana(data, hoje)))
             .replace("{{CHECKED_AT}}", esc(checado))
+            .replace("{{SNAPSHOT_AT}}", esc(snapshot_at))
             .replace("{{BANNER}}", banner)
-            .replace("{{RECADO}}", render_recado())
+            .replace("{{FONTES_STATUS}}", render_fontes_status(data))
+            .replace("{{RECADO}}", render_recado(data))
             .replace("{{AGORA}}", render_agora(data))
             .replace("{{CONFIRMAR}}", render_confirmar(data))
             .replace("{{NOVIDADES}}", render_novidades(data))
             .replace("{{CARDS}}", render_cards(data))
             .replace("{{HIGIENE}}", render_higiene(data))
             .replace("{{ENCERRADOS}}", render_encerrados(data)))
-    (DOCS / "index.html").write_text(html, encoding="utf-8")
+    gravar_texto_atomico(DOCS / "index.html", html)
 
 
 TEMPLATE = """<!doctype html>
@@ -557,6 +653,8 @@ TEMPLATE = """<!doctype html>
   .alertbar{background:var(--wait-bg);color:var(--wait);border-radius:12px;
             padding:12px 14px;font-size:13.5px;margin:16px 0;}
   .alertbar code{background:rgba(0,0,0,.08);padding:1px 5px;border-radius:5px;}
+  .sourcebar{font-size:11.5px;color:var(--ink-soft);margin:8px 0 14px;line-height:1.4;}
+  .sourcebar.degraded{color:var(--wait);font-weight:600;}
   .recado{background:var(--brick-soft);border:1px solid var(--brick);border-radius:14px;
           padding:16px;box-shadow:var(--shadow);margin:18px 0 22px;}
   .recado-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
@@ -625,13 +723,14 @@ TEMPLATE = """<!doctype html>
          font-size:12px;color:var(--ink-soft);text-align:center;}
 </style>
 </head>
-<body>
+<body data-snapshot-at="{{SNAPSHOT_AT}}">
 <div class="wrap">
   <div class="eyebrow">Univesp · BIA · Turma 001</div>
   <h1>Guia diário do AVA</h1>
   <p class="semana-line">{{SEMANA}}</p>
   <p class="sub">Releio o AVA várias vezes ao dia · última leitura: {{CHECKED_AT}} (Brasília)</p>
   {{BANNER}}
+  {{FONTES_STATUS}}
   {{RECADO}}
   {{AGORA}}
   {{CONFIRMAR}}
@@ -644,6 +743,36 @@ TEMPLATE = """<!doctype html>
   notificações e mensagens. Prazo só aparece aqui com a origem à mostra.<br>
   Nenhuma data é chutada: se não achei prazo oficial, digo que não tem.</footer>
 </div>
+<script>
+(() => {
+  const aviso = document.getElementById('freshness-alert');
+  if (!aviso) return;
+  const atualizar = () => {
+    const valor = aviso.dataset.snapshotAt || document.body.dataset.snapshotAt;
+    const instante = Date.parse(valor || '');
+    if (!Number.isFinite(instante)) {
+      aviso.textContent = 'Não consegui verificar a idade deste retrato. Confirme no AVA.';
+      aviso.hidden = false;
+      return;
+    }
+    const horas = Math.max(0, (Date.now() - instante) / 3600000);
+    if (horas < 3) {
+      aviso.hidden = true;
+      return;
+    }
+    const quando = new Date(instante).toLocaleString('pt-BR', {
+      timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit',
+      hour: '2-digit', minute: '2-digit'
+    });
+    aviso.textContent = `Este retrato é de ${quando}, cerca de ${Math.floor(horas)}h atrás. ` +
+      'Se você estudou depois disso, confira no AVA antes de confiar na lista.';
+    aviso.hidden = false;
+  };
+  atualizar();
+  setInterval(atualizar, 60000);
+  document.addEventListener('visibilitychange', atualizar);
+})();
+</script>
 </body>
 </html>
 """

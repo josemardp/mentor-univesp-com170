@@ -153,6 +153,38 @@ rótulo) não reproduzi como falha concreta mas a chave era frágil e foi trocad
 **O e-mail diário é o heartbeat.** Não há monitor externo: se o e-mail das 8h
 não chegar, o robô parou. Vale saber disso.
 
+## Auditoria rodada 5 — fase imediata (25/07/2026)
+
+Homologação adversarial das correções da rodada 4. Relatório em
+`AUDITORIA-INDEPENDENTE-RODADA-5-IMEDIATA-2026-07-25.md`. Os casos vizinhos
+foram reproduzidos e corrigidos:
+
+- a primeira perda das fontes falhava fechado, mas gravava os zeros como nova
+  referência; a segunda pane idêntica voltava a `ok`. Tentativa falha agora
+  possui telemetria separada e a baseline continua sendo o último snapshot
+  válido;
+- fórum offline com posts em cache parecia fonte viva. A coleta agora distingue
+  leitura ao vivo, cache, fonte parcial, degradada e falha;
+- quedas grandes que não chegavam a zero passavam. Fonte que cai para menos da
+  metade da última leitura válida falha fechado;
+- `checked_at` era atualizado mesmo quando o conteúdo antigo era preservado.
+  Agora existem `snapshot_at`, `attempted_at` e `publication_id`;
+- o aviso de frescor era calculado só ao gerar HTML. JavaScript recalcula a
+  idade a cada minuto e quando a aba volta ao primeiro plano;
+- recado manual pode declarar `requires_pending_cmids` e `valid_until`; se a
+  condição mudou, ele é arquivado automaticamente;
+- Secret SMTP ausente agora é erro. Execução local sem e-mail exige
+  `EMAIL_OPCIONAL=1`;
+- a rodada das 8h ganhou um cron próprio, então atraso do runner não suprime o
+  e-mail;
+- push não é mais tratado como publicação: o workflow espera o mesmo
+  `publication_id` aparecer no `data.json` servido pelo Pages antes do SMTP;
+- JSON e HTML usam temporário único, `fsync` e substituição atômica. O cache é
+  substituído antes e `data.json` funciona como marcador final do snapshot;
+- identidade normaliza `cmid` para string e cai para URL ou seção+rótulo quando
+  o Moodle não fornece ID;
+- `testes/test_operacao.py` congela os cenários acima e roda na Action.
+
 ## Risco aceito (decisão do Josemar, 25/07/2026)
 
 O `docs/data.json` público contém nomes e trechos de posts de colegas (38

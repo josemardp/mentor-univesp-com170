@@ -6,7 +6,10 @@ on:
     # o Josemar avançava no AVA o retrato ficava velho o dia inteiro: chegou a
     # mandar refazer atividade que ele já tinha concluído. Agora relê ao longo
     # do dia. Horários em UTC; Brasília é UTC-3 e não tem horário de verão.
-    - cron: "0 11,14,17,20,23 * * *"  # 8h, 11h, 14h, 17h e 20h de Brasília
+    # Separado para identificar a rodada matinal pelo gatilho, mesmo se o
+    # runner começar atrasado. Usar `date +%H` fazia perder o e-mail das 8h.
+    - cron: "0 11 * * *"           # 8h de Brasília: site + e-mail
+    - cron: "0 14,17,20,23 * * *"  # 11h, 14h, 17h e 20h: só site
   workflow_dispatch: {}
 
 permissions:
@@ -37,6 +40,7 @@ jobs:
         run: |
           python testes/test_prazos.py
           python testes/test_login.py
+          python testes/test_operacao.py
 
       # A sessão salva é só o atalho. Se não existir ou estiver vencida, o
       # robô loga sozinho com AVA_USUARIO/AVA_SENHA no passo seguinte.
@@ -66,15 +70,37 @@ jobs:
       # Publicar ANTES de avisar. Na ordem antiga o e-mail saía primeiro, e se
       # o push falhasse depois, o e-mail apontava para um site velho.
       - name: Publicar mudanças
+        id: publicar
         run: |
           git config user.name "guia-univesp-bot"
           git config user.email "actions@users.noreply.github.com"
+          PUBLICATION_ID=$(python -c "import json; print(json.load(open('docs/data.json', encoding='utf-8'))['publication_id'])")
           git add docs/
           if git diff --cached --quiet; then
             echo "Sem mudanças nesta leitura."
           else
             git commit -m "Atualização do guia ($(date -u +'%Y-%m-%d %H:%M') UTC)"
             git push
+          fi
+
+          # Push não é deploy. Só libero o e-mail quando o mesmo artefato já
+          # estiver sendo servido pelo Pages.
+          PUBLICADO=""
+          for TENTATIVA in $(seq 1 36); do
+            REMOTO=$(curl -fsS -H "Cache-Control: no-cache" \
+              "https://esdraaline.github.io/mentor-univesp-com170/data.json?run=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${TENTATIVA}" \
+              | python -c "import json,sys; print(json.load(sys.stdin).get('publication_id',''))" \
+              2>/dev/null || true)
+            if [ "$REMOTO" = "$PUBLICATION_ID" ]; then
+              PUBLICADO=1
+              echo "Pages confirmou o artefato $PUBLICATION_ID."
+              break
+            fi
+            sleep 5
+          done
+          if [ -z "$PUBLICADO" ]; then
+            echo "::error::O push terminou, mas o Pages não confirmou o artefato $PUBLICATION_ID em 3 minutos."
+            exit 1
           fi
 
       # Sem continue-on-error: e-mail que para de chegar tem que ficar visível.
@@ -89,12 +115,12 @@ jobs:
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
           EMAIL_PARA: ${{ secrets.EMAIL_PARA }}
           EVENTO: ${{ github.event_name }}
+          AGENDA: ${{ github.event.schedule }}
         run: |
-          HORA=$(date -u +%H)
-          if [ "$HORA" = "11" ] || [ "$EVENTO" = "workflow_dispatch" ]; then
+          if [ "$AGENDA" = "0 11 * * *" ] || [ "$EVENTO" = "workflow_dispatch" ]; then
             python automacao/enviar_email.py
           else
-            echo "Leitura de $HORA UTC: só atualizo o site, o e-mail é o da manhã."
+            echo "Rodada intermediária: só atualizo o site, o e-mail é o da manhã."
           fi
 
       # Falha visível: se a leitura não foi confiável, a Action fica vermelha.

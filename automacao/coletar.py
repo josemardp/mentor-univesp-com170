@@ -25,8 +25,10 @@ Privacidade: o site e publico. Por isso mensagem privada entra so como
 um trecho curto com link pro original.
 """
 import json
+import os
 import re
 import sys
+import tempfile
 import unicodedata
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -599,6 +601,8 @@ def ler_calendario_api(page):
         "timesortto": agora + 86400 * 240,
         "limitnum": 50,   # o Moodle recusa acima de 50
     })
+    if dados is None:
+        return [], False
     eventos = []
     for e in (dados or {}).get("events", []) or []:
         if not e.get("timesort"):
@@ -614,12 +618,13 @@ def ler_calendario_api(page):
             "acao": (e.get("action") or {}).get("name"),
             "cmid": _cmid_de(e.get("url")),
         })
-    return eventos
+    return eventos, True
 
 
 def ler_calendario_dom(page, hoje):
     """Le o calendario pela pagina, quando a API nao coopera."""
     por_id = {}
+    leituras_ok = 0
     try:
         page.goto(f"{AVA}/calendar/view.php?view=upcoming&lookahead=365",
                   wait_until="domcontentloaded", timeout=45000)
@@ -627,6 +632,7 @@ def ler_calendario_dom(page, hoje):
         for e in page.evaluate(JS_EVENTOS_LISTA):
             if e.get("id"):
                 por_id[e["id"]] = e
+        leituras_ok += 1
     except Exception as e:
         print(f"  aviso: lista de eventos falhou ({type(e).__name__})")
 
@@ -640,6 +646,7 @@ def ler_calendario_dom(page, hoje):
             for ev in page.evaluate(JS_EVENTOS_MES):
                 alvo_ev = por_id.setdefault(ev["id"], {"id": ev["id"]})
                 alvo_ev["dia"] = datetime.fromtimestamp(ev["dia_ts"], BR_TZ).date()
+            leituras_ok += 1
         except Exception:
             continue
 
@@ -664,16 +671,30 @@ def ler_calendario_dom(page, hoje):
             "acao": None,
             "cmid": _cmid_de(e.get("url")),
         })
-    return eventos
+    return eventos, leituras_ok > 0
 
 
-def ler_calendario(page, hoje):
-    eventos = ler_calendario_api(page)
+def ler_calendario(page, hoje, diagnostico=None):
+    eventos, api_ok = ler_calendario_api(page)
     if eventos:
         print(f"  calendario pela API: {len(eventos)} evento(s)")
+        if diagnostico is not None:
+            diagnostico.update({"status": "live", "via": "api", "eventos": len(eventos)})
         return eventos
-    eventos = ler_calendario_dom(page, hoje)
+    eventos, dom_ok = ler_calendario_dom(page, hoje)
     print(f"  calendario pela pagina: {len(eventos)} evento(s)")
+    if diagnostico is not None:
+        if eventos:
+            status = "live"
+        elif api_ok or dom_ok:
+            status = "vazio_confirmado"
+        else:
+            status = "falhou"
+        diagnostico.update({
+            "status": status,
+            "via": "dom" if dom_ok else "nenhuma",
+            "eventos": len(eventos),
+        })
     return eventos
 
 
@@ -750,7 +771,7 @@ def _preparar(post, rotulo_forum, url, titulo_alt, hoje):
     return post
 
 
-def varrer_foruns(page, foruns, estado, orcamento, hoje):
+def varrer_foruns(page, foruns, estado, orcamento, hoje, diagnostico=None):
     """Varre todos os foruns do curso e devolve os avisos da janela recente.
 
     O estado guarda, por discussao, a data do ultimo post E os avisos ja
@@ -760,6 +781,7 @@ def varrer_foruns(page, foruns, estado, orcamento, hoje):
     alerta do Modulo 4 se perdeu na segunda execucao.
     """
     coletados = []
+    listas_live = falhas = pulados_orcamento = cache_em_falha = 0
 
     def guardar(chave, ultimo, posts):
         # Desduplica ANTES de cortar: cortar primeiro fazia o teto valer metade.
@@ -782,23 +804,31 @@ def varrer_foruns(page, foruns, estado, orcamento, hoje):
         cache_forum = estado.get(f["url"], {})
         if orcamento <= 0:
             coletados.extend(cache_forum.get("posts", []))
+            pulados_orcamento += 1
             continue
         try:
             page.goto(f["url"], wait_until="domcontentloaded", timeout=45000)
             page.wait_for_timeout(700)
+            if deslogado(page):
+                raise RuntimeError("sessão expirou ao abrir fórum")
             orcamento -= 1
+            listas_live += 1
         except Exception:
             coletados.extend(cache_forum.get("posts", []))
+            falhas += 1
+            cache_em_falha += int(bool(cache_forum.get("posts")))
             continue
 
         try:
             aqui = page.evaluate(JS_POSTS)
         except Exception:
             aqui = []
+            falhas += 1
         try:
             discussoes = page.evaluate(JS_DISCUSSOES)
         except Exception:
             discussoes = []
+            falhas += 1
 
         # forum de discussao unica: os posts estao na propria pagina
         if aqui and not discussoes:
@@ -822,10 +852,14 @@ def varrer_foruns(page, foruns, estado, orcamento, hoje):
             try:
                 page.goto(d["url"], wait_until="domcontentloaded", timeout=45000)
                 page.wait_for_timeout(600)
+                if deslogado(page):
+                    raise RuntimeError("sessão expirou ao abrir discussão")
                 orcamento -= 1
                 posts = page.evaluate(JS_POSTS)
             except Exception:
                 coletados.extend(cache.get("posts", []))
+                falhas += 1
+                cache_em_falha += int(bool(cache.get("posts")))
                 continue
             bons = [_preparar(p, f["label"], d["url"], d.get("titulo"), hoje)
                     for p in posts if post_interessa(p)]
@@ -846,6 +880,25 @@ def varrer_foruns(page, foruns, estado, orcamento, hoje):
         p["novo"] = data >= recente
         saida.append(p)
     saida.sort(key=lambda a: a.get("data") or "", reverse=True)
+    if diagnostico is not None:
+        if not foruns:
+            status = "nao_aplicavel"
+        elif falhas and not listas_live:
+            status = "falhou"
+        elif falhas:
+            status = "degradado"
+        elif pulados_orcamento:
+            status = "parcial"
+        else:
+            status = "live"
+        diagnostico.update({
+            "status": status,
+            "foruns": len(foruns),
+            "listas_live": listas_live,
+            "falhas": falhas,
+            "pulados_orcamento": pulados_orcamento,
+            "cache_usado_em_falha": cache_em_falha,
+        })
     return saida, orcamento
 
 
@@ -961,6 +1014,8 @@ def deslogado(page):
 
 def coletar(estado):
     hoje = datetime.now(BR_TZ).date()
+    leitura_iso = datetime.now(timezone.utc).isoformat()
+    fontes_status = {}
     with sync_playwright() as p:
         nav = p.chromium.launch(headless=True)
         ctx = sessao.novo_contexto(nav)
@@ -979,7 +1034,11 @@ def coletar(estado):
 
         uid = user_id(page)
         print("Lendo calendario, notificacoes e mensagens...")
-        eventos = ler_calendario(page, hoje)
+        calendario_diag = {}
+        eventos = ler_calendario(page, hoje, calendario_diag)
+        if calendario_diag.get("status") in ("live", "vazio_confirmado"):
+            calendario_diag["last_live_at"] = leitura_iso
+        fontes_status["calendario"] = calendario_diag
         notificacoes = ler_notificacoes(page, uid) if uid else []
         mensagens = ler_mensagens(page, uid) if uid else []
         print(f"  {len(eventos)} evento(s), {len(notificacoes)} notificacao(oes), "
@@ -995,6 +1054,11 @@ def coletar(estado):
             eventos_por_curso.setdefault(e["curso_id"], []).append(e)
 
         cronogramas = {}
+        cronograma_esperados = cronograma_live = cronograma_falhas = 0
+        foruns_global = {
+            "foruns": 0, "listas_live": 0, "falhas": 0,
+            "pulados_orcamento": 0, "cache_usado_em_falha": 0,
+        }
         orcamento = MAX_DISCUSSOES_POR_RUN
         cursos = []
 
@@ -1033,9 +1097,14 @@ def coletar(estado):
                 url_crono = CRONOGRAMA_PADRAO
             cronograma = None
             if url_crono:
+                cronograma_esperados += 1
                 if url_crono not in cronogramas:
                     cronogramas[url_crono] = ler_cronograma(page, url_crono)
                 cronograma = cronogramas[url_crono]
+                if cronograma:
+                    cronograma_live += 1
+                else:
+                    cronograma_falhas += 1
 
             # prazo real por cmid
             prazo_por_cmid = {}
@@ -1080,7 +1149,11 @@ def coletar(estado):
                       for s in secoes for it in s["items"]
                       if it["type"] == "forum" and it.get("url")]
             print(f"  {len(foruns)} forum(ns) a varrer (orcamento {orcamento})")
-            avisos, orcamento = varrer_foruns(page, foruns, estado, orcamento, hoje)
+            foruns_diag = {}
+            avisos, orcamento = varrer_foruns(
+                page, foruns, estado, orcamento, hoje, foruns_diag)
+            for chave in foruns_global:
+                foruns_global[chave] += int(foruns_diag.get(chave) or 0)
             novos = sum(1 for a in avisos if a.get("novo"))
             print(f"  {len(avisos)} aviso(s) na janela, {novos} novo(s)")
 
@@ -1105,8 +1178,38 @@ def coletar(estado):
             })
 
         nav.close()
+    if cronograma_falhas:
+        status_crono = "falhou" if not cronograma_live else "degradado"
+    elif cronograma_esperados:
+        status_crono = "live"
+    else:
+        status_crono = "nao_aplicavel"
+    fontes_status["cronograma"] = {
+        "status": status_crono,
+        "esperados": cronograma_esperados,
+        "live": cronograma_live,
+        "falhas": cronograma_falhas,
+    }
+    if status_crono == "live":
+        fontes_status["cronograma"]["last_live_at"] = leitura_iso
+
+    if not foruns_global["foruns"]:
+        status_foruns = "nao_aplicavel"
+    elif foruns_global["falhas"] and not foruns_global["listas_live"]:
+        status_foruns = "falhou"
+    elif foruns_global["falhas"]:
+        status_foruns = "degradado"
+    elif foruns_global["pulados_orcamento"]:
+        status_foruns = "parcial"
+    else:
+        status_foruns = "live"
+    fontes_status["foruns"] = {**foruns_global, "status": status_foruns}
+    if status_foruns in ("live", "parcial"):
+        fontes_status["foruns"]["last_live_at"] = leitura_iso
+
     return {"courses": cursos, "notificacoes": notificacoes,
-            "mensagens": mensagens, "eventos": eventos}, "ok"
+            "mensagens": mensagens, "eventos": eventos,
+            "fontes_status": fontes_status}, "ok"
 
 
 # ---------------------------------------------------------------------------
@@ -1405,6 +1508,7 @@ def validar_cobertura(dados, anterior):
     def chave(c):
         return str(c.get("id") or c.get("code") or "")
 
+    virada = False
     antes = {chave(c): c.get("code") for c in (anterior or {}).get("courses", [])
              if chave(c)}
     agora = {chave(c) for c in cursos if chave(c)}
@@ -1431,13 +1535,31 @@ def validar_cobertura(dados, anterior):
     # robô ficava sem nenhum prazo e dizia que estava tudo certo, que é a
     # omissão silenciosa que ele existe pra evitar.
     agora_f = resumo_fontes(dados)
+    # `anterior["fontes"]` é sempre a última leitura VÁLIDA. Tentativas
+    # incompletas ficam em `fontes_tentativa` e não podem ensinar ao ciclo
+    # seguinte que zero virou normal.
     antes_f = (anterior or {}).get("fontes") or {}
     for chave, nome in (("itens_com_prazo", "nenhum item ficou com prazo"),
                         ("avisos", "não li nenhum aviso de fórum"),
                         ("eventos_calendario", "o calendário voltou vazio"),
                         ("cronograma", "não li o cronograma de nenhuma disciplina")):
-        if antes_f.get(chave, 0) > 0 and agora_f.get(chave, 0) == 0:
-            problemas.append(f"{nome} (ontem eram {antes_f[chave]})")
+        antes_n = int(antes_f.get(chave, 0) or 0)
+        agora_n = int(agora_f.get(chave, 0) or 0)
+        if virada or antes_n <= 0:
+            continue
+        if agora_n == 0:
+            problemas.append(f"{nome} (na última leitura válida eram {antes_n})")
+        elif agora_n < antes_n * 0.5:
+            problemas.append(
+                f"{chave} caiu de {antes_n} para {agora_n} "
+                "(menos da metade da última leitura válida)")
+
+    for fonte, info in (dados.get("fontes_status") or {}).items():
+        status = (info or {}).get("status")
+        if status in ("falhou", "degradado"):
+            falhas = (info or {}).get("falhas")
+            detalhe = f", {falhas} falha(s)" if falhas else ""
+            problemas.append(f"fonte {fonte} não foi conferida por inteiro ({status}{detalhe})")
 
     return (not problemas), problemas
 
@@ -1460,25 +1582,74 @@ def resumo_fontes(dados):
     }
 
 
+def _preparar_json(caminho, conteudo):
+    """Cria e sincroniza um temporário único, no mesmo volume do destino."""
+    caminho.parent.mkdir(parents=True, exist_ok=True)
+    fd, nome = tempfile.mkstemp(
+        prefix=f".{caminho.name}.", suffix=".tmp", dir=str(caminho.parent))
+    temp = Path(nome)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as arq:
+            json.dump(conteudo, arq, ensure_ascii=False, indent=2)
+            arq.flush()
+            os.fsync(arq.fileno())
+        return temp
+    except Exception:
+        temp.unlink(missing_ok=True)
+        raise
+
+
 def gravar_json(caminho, conteudo):
-    """Grava num temporário e só então substitui.
+    """Substitui um JSON atomicamente e remove temporários em qualquer falha."""
+    temp = _preparar_json(caminho, conteudo)
+    try:
+        os.replace(temp, caminho)
+    finally:
+        temp.unlink(missing_ok=True)
 
-    write_text direto deixa o arquivo pela metade se a execução for
-    interrompida, e o carregar() seguinte trata arquivo corrompido igual a
-    arquivo ausente: perde o retrato anterior sem dizer nada.
+
+def gravar_snapshot(data, estado):
+    """Grava cache e dados como um snapshot com `data.json` por último.
+
+    Não existe transação multi-arquivo portátil. Preparar ambos antes e trocar
+    o cache primeiro faz `data.json` funcionar como marcador de commit: se a
+    execução cair no meio, o site continua no retrato anterior. Cache adiantado
+    é seguro porque ainda contém os posts necessários à próxima coleta.
     """
-    temp = caminho.with_suffix(caminho.suffix + ".tmp")
-    temp.write_text(json.dumps(conteudo, ensure_ascii=False, indent=2), encoding="utf-8")
-    temp.replace(caminho)
+    temp_estado = _preparar_json(ESTADO_PATH, estado)
+    temp_data = _preparar_json(DATA_PATH, data)
+    try:
+        os.replace(temp_estado, ESTADO_PATH)
+        os.replace(temp_data, DATA_PATH)
+    finally:
+        temp_estado.unlink(missing_ok=True)
+        temp_data.unlink(missing_ok=True)
 
 
-def carregar(caminho, padrao):
+def carregar(caminho, padrao, critico=False):
     if caminho.exists():
         try:
             return json.loads(caminho.read_text(encoding="utf-8"))
-        except Exception:
+        except Exception as e:
+            mensagem = f"JSON corrompido em {caminho}: {type(e).__name__}"
+            if critico:
+                raise RuntimeError(mensagem) from e
+            print(f"::warning::{mensagem}; vou reconstruir esta fonte.")
             return padrao
     return padrao
+
+
+def identidade_item(curso, secao, item):
+    """Identidade estável: ID Moodle, URL e só então seção+rótulo."""
+    cmid = item.get("cmid")
+    if cmid is not None and str(cmid).strip():
+        return curso.get("code"), "cmid", str(cmid).strip()
+    url = (item.get("url") or "").strip()
+    if url:
+        return curso.get("code"), "url", url
+    secao_id = secao.get("id") or secao.get("title") or ""
+    return (curso.get("code"), "fallback", str(secao_id),
+            sem_acento(item.get("label") or ""))
 
 
 def novidades(anterior, dados):
@@ -1487,18 +1658,21 @@ def novidades(anterior, dados):
     for c in (anterior or {}).get("courses", []):
         for s in c.get("sections", []):
             for it in s.get("items", []):
-                # Chave pelo cmid do Moodle: dois itens podem ter o mesmo
-                # rótulo em seções diferentes ("S1 - Videoaulas" em cada
-                # semana), e aí um mascarava a mudança do outro.
-                antes[(c.get("code"), it.get("cmid") or it.get("label"))] = it.get("status")
+                antes[identidade_item(c, s, it)] = it.get("status")
     for c in dados["courses"]:
         for s in c["sections"]:
             for it in s["items"]:
-                k = (c["code"], it.get("cmid") or it.get("label"))
+                k = identidade_item(c, s, it)
                 if k not in antes and it.get("status") is not None:
-                    mudou.append({"curso": c["code"], "label": it["label"], "kind": "novo"})
+                    mudou.append({
+                        "curso": c["code"], "label": it["label"], "kind": "novo",
+                        "cmid": str(it["cmid"]) if it.get("cmid") is not None else None,
+                    })
                 elif antes.get(k) != it.get("status") and it.get("status") == "Concluído":
-                    mudou.append({"curso": c["code"], "label": it["label"], "kind": "concluido"})
+                    mudou.append({
+                        "curso": c["code"], "label": it["label"], "kind": "concluido",
+                        "cmid": str(it["cmid"]) if it.get("cmid") is not None else None,
+                    })
         for a in c.get("avisos", []):
             if a.get("novo"):   # os antigos ficam no site, mas nao contam como mudanca
                 mudou.append({"curso": c["code"], "label": a.get("titulo") or "novo post",
@@ -1507,15 +1681,18 @@ def novidades(anterior, dados):
 
 
 def main():
-    anterior = carregar(DATA_PATH, None)
+    anterior = carregar(DATA_PATH, None, critico=True)
     estado = carregar(ESTADO_PATH, {})
     agora = datetime.now(timezone.utc).isoformat()
     dados, status = coletar(estado)
 
     if status == "session_expired":
-        saida = anterior or {"courses": []}
+        saida = dict(anterior or {"courses": []})
         saida["status"] = "session_expired"
-        saida["checked_at"] = agora
+        saida["snapshot_at"] = saida.get("snapshot_at") or saida.get("checked_at")
+        saida["attempted_at"] = agora
+        saida["publication_id"] = agora
+        saida["problemas"] = ["não consegui autenticar no AVA nesta tentativa"]
         gravar_json(DATA_PATH, saida)
         print("SESSAO EXPIRADA - mantive o ultimo retrato e avisei no site.")
         return 0
@@ -1527,11 +1704,14 @@ def main():
     if not confiavel:
         # Falhar fechado: melhor um site dizendo "não consegui ler" do que um
         # site dizendo "tudo em dia" porque a leitura voltou vazia.
-        saida = anterior or {"courses": []}
+        saida = dict(anterior or {"courses": []})
         saida["status"] = "coleta_incompleta"
-        saida["checked_at"] = agora
+        saida["snapshot_at"] = saida.get("snapshot_at") or saida.get("checked_at")
+        saida["attempted_at"] = agora
+        saida["publication_id"] = agora
         saida["problemas"] = problemas
-        saida["fontes"] = fontes
+        saida["fontes_tentativa"] = fontes
+        saida["fontes_status_tentativa"] = dados.get("fontes_status") or {}
         gravar_json(DATA_PATH, saida)
         print("COLETA INCOMPLETA, mantive o ultimo retrato valido:")
         for p in problemas:
@@ -1540,8 +1720,10 @@ def main():
 
     acoes, encerrados, higiene, confirmar = montar_acoes(dados, hoje)
     saida = {
-        "status": "ok", "checked_at": agora,
+        "status": "ok", "checked_at": agora, "snapshot_at": agora,
+        "attempted_at": agora, "publication_id": agora,
         "fontes": fontes, "problemas": [],
+        "fontes_status": dados.get("fontes_status") or {},
         "courses": dados["courses"],
         "notificacoes": dados.get("notificacoes", []),
         "mensagens": dados.get("mensagens", []),
@@ -1549,8 +1731,7 @@ def main():
         "higiene": higiene, "confirmar": confirmar,
         "novidades": novidades(anterior, dados),
     }
-    gravar_json(DATA_PATH, saida)
-    gravar_json(ESTADO_PATH, estado)
+    gravar_snapshot(saida, estado)
     print(f"OK. {len(acoes)} acao(oes), {len(higiene)} de higiene, "
           f"{len(confirmar)} a confirmar, {len(encerrados)} encerrada(s). Fontes: {fontes}")
     return 0
