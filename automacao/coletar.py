@@ -92,12 +92,20 @@ async ([nome, args]) => {
 
 
 def api(page, metodo, args):
+    """Chama a API interna do Moodle. Devolve None quando nao der, sempre
+    dizendo o porque: erro engolido aqui deixa a coleta cega."""
     try:
         r = page.evaluate(JS_API, [metodo, args])
     except Exception as e:
-        print(f"  aviso: API {metodo} falhou ({e})")
+        print(f"  aviso: API {metodo} nao executou ({type(e).__name__})")
         return None
-    if not r or r.get("error"):
+    if not r:
+        print(f"  aviso: API {metodo} nao respondeu")
+        return None
+    if r.get("error"):
+        excecao = r.get("exception") or {}
+        motivo = (excecao.get("message") or r.get("motivo") or "sem detalhe")
+        print(f"  aviso: API {metodo} recusou: {str(motivo)[:160]}")
         return None
     return r.get("data")
 
@@ -207,6 +215,39 @@ JS_CRONOGRAMA = """
 () => [...document.querySelectorAll('tr')]
   .map(tr => tr.innerText.replace(/\\s+/g, ' ').trim())
   .filter(t => /Semana\\s+\\d/i.test(t))
+"""
+
+# Plano B do calendario: ler a propria pagina. A visao "proximos eventos" traz
+# curso, titulo e link da atividade; a visao de mes traz a data exata em
+# data-day-timestamp. Casando os dois pelo id do evento sai a mesma informacao
+# que a API daria.
+JS_EVENTOS_LISTA = """
+() => [...document.querySelectorAll('.event[data-event-id]')].map(e => {
+  const link = e.querySelector('a[href*="/mod/"]');
+  const hora = ((e.innerText || '').match(/\\d{1,2}:\\d{2}/) || [null])[0];
+  return {
+    id: e.getAttribute('data-event-id'),
+    curso_id: e.getAttribute('data-course-id'),
+    titulo: e.getAttribute('data-event-title'),
+    tipo: e.getAttribute('data-event-eventtype'),
+    url: link ? link.href : null,
+    hora: hora,
+  };
+})
+"""
+
+JS_EVENTOS_MES = """
+() => {
+  const saida = [];
+  document.querySelectorAll('td[data-day-timestamp]').forEach(td => {
+    const ts = parseInt(td.getAttribute('data-day-timestamp'), 10);
+    if (!ts) return;
+    td.querySelectorAll('[data-event-id]').forEach(e => {
+      saida.push({ id: e.getAttribute('data-event-id'), dia_ts: ts });
+    });
+  });
+  return saida;
+}
 """
 
 
@@ -347,40 +388,94 @@ def ler_cronograma(page, url):
 # ---------------------------------------------------------------------------
 # Fontes estruturadas: calendario, notificacoes, mensagens
 # ---------------------------------------------------------------------------
-def ler_calendario(page):
+def _cmid_de(url):
+    m = re.search(r"id=(\d+)", url or "")
+    return m.group(1) if m else ""
+
+
+def ler_calendario_api(page):
     agora = int(datetime.now(timezone.utc).timestamp())
-    pedido = {
+    dados = api(page, "core_calendar_get_action_events_by_timesort", {
         "timesortfrom": agora - 86400 * 60,
         "timesortto": agora + 86400 * 240,
         "limitnum": 200,
-    }
-    # Numa sessao recem-criada por login automatico esta chamada volta vazia se
-    # for feita do painel. Abrir o calendario antes resolve, aparentemente
-    # porque e ai que o Moodle prepara o servico pra sessao.
-    try:
-        page.goto(f"{AVA}/calendar/view.php?view=upcoming",
-                  wait_until="domcontentloaded", timeout=45000)
-        page.wait_for_timeout(1800)
-    except Exception:
-        pass
-    dados = api(page, "core_calendar_get_action_events_by_timesort", pedido)
-    if not (dados or {}).get("events"):
-        page.wait_for_timeout(1500)
-        dados = api(page, "core_calendar_get_action_events_by_timesort", pedido)
+    })
     eventos = []
     for e in (dados or {}).get("events", []) or []:
+        if not e.get("timesort"):
+            continue
         curso = e.get("course") or {}
         eventos.append({
             "nome": e.get("name"),
-            "quando": datetime.fromtimestamp(e["timesort"], BR_TZ).isoformat() if e.get("timesort") else None,
+            "quando": datetime.fromtimestamp(e["timesort"], BR_TZ).isoformat(),
             "curso_id": str(curso.get("id") or ""),
             "curso": curso.get("shortname"),
             "atividade": e.get("activityname"),
             "url": e.get("url"),
             "acao": (e.get("action") or {}).get("name"),
-            "cmid": str((re.search(r"id=(\d+)", e.get("url") or "") or [None, ""])[1]),
+            "cmid": _cmid_de(e.get("url")),
         })
-    return [e for e in eventos if e["quando"]]
+    return eventos
+
+
+def ler_calendario_dom(page, hoje):
+    """Le o calendario pela pagina, quando a API nao coopera."""
+    por_id = {}
+    try:
+        page.goto(f"{AVA}/calendar/view.php?view=upcoming&lookahead=365",
+                  wait_until="domcontentloaded", timeout=45000)
+        page.wait_for_timeout(1500)
+        for e in page.evaluate(JS_EVENTOS_LISTA):
+            if e.get("id"):
+                por_id[e["id"]] = e
+    except Exception as e:
+        print(f"  aviso: lista de eventos falhou ({type(e).__name__})")
+
+    base = datetime(hoje.year, hoje.month, 15, 12, 0, tzinfo=BR_TZ)
+    for salto in range(-1, 5):
+        alvo = base + timedelta(days=31 * salto)
+        try:
+            page.goto(f"{AVA}/calendar/view.php?view=month&time={int(alvo.timestamp())}",
+                      wait_until="domcontentloaded", timeout=45000)
+            page.wait_for_timeout(900)
+            for ev in page.evaluate(JS_EVENTOS_MES):
+                alvo_ev = por_id.setdefault(ev["id"], {"id": ev["id"]})
+                alvo_ev["dia"] = datetime.fromtimestamp(ev["dia_ts"], BR_TZ).date()
+        except Exception:
+            continue
+
+    eventos = []
+    for e in por_id.values():
+        if not e.get("dia"):
+            continue
+        hh, mm = 23, 59
+        if e.get("hora"):
+            try:
+                hh, mm = [int(x) for x in e["hora"].split(":")]
+            except ValueError:
+                pass
+        d = e["dia"]
+        eventos.append({
+            "nome": e.get("titulo"),
+            "quando": datetime(d.year, d.month, d.day, hh, mm, tzinfo=BR_TZ).isoformat(),
+            "curso_id": str(e.get("curso_id") or ""),
+            "curso": None,
+            "atividade": e.get("titulo"),
+            "url": e.get("url"),
+            "acao": None,
+            "cmid": _cmid_de(e.get("url")),
+        })
+    return eventos
+
+
+def ler_calendario(page, hoje):
+    eventos = ler_calendario_api(page)
+    if eventos:
+        print(f"  calendario pela API: {len(eventos)} evento(s)")
+        return eventos
+    eventos = ler_calendario_dom(page, hoje)
+    print(f"  calendario pela pagina: {len(eventos)} evento(s)")
+    return eventos
 
 
 def ler_notificacoes(page, uid):
@@ -649,7 +744,7 @@ def coletar(estado):
 
         uid = user_id(page)
         print("Lendo calendario, notificacoes e mensagens...")
-        eventos = ler_calendario(page)
+        eventos = ler_calendario(page, hoje)
         notificacoes = ler_notificacoes(page, uid) if uid else []
         mensagens = ler_mensagens(page, uid) if uid else []
         print(f"  {len(eventos)} evento(s), {len(notificacoes)} notificacao(oes), "
