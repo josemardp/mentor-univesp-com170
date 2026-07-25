@@ -1,0 +1,250 @@
+{
+  "origem": {
+    "coleta": "GitHub Actions 30178957812",
+    "data": "2026-07-25",
+    "observacao": "Fixture sanitizada e reduzida do retrato real; nomes pessoais e textos de colegas foram substituídos."
+  },
+  "hoje": "2026-07-25",
+  "dados": {
+    "courses": [
+      {
+        "id": "18870",
+        "code": "REG100",
+        "name": "Disciplina regular sanitizada",
+        "modelo": "regular",
+        "cronograma": {
+          "fonte": "https://fonte.exemplo/cronograma",
+          "semanas": [
+            {
+              "n": 1,
+              "inicio": "2026-07-20",
+              "vencimento": "2026-07-29T23:59:00-03:00",
+              "carencia": "2026-08-02T23:59:00-03:00"
+            }
+          ]
+        },
+        "avisos": [],
+        "sections": [
+          {
+            "id": "reg-s1",
+            "title": "Semana 1",
+            "fase": "regular",
+            "locked": null,
+            "items": [
+              {
+                "cmid": "1001",
+                "label": "Atividade avaliativa sanitizada",
+                "type": "quiz",
+                "url": "https://ava.univesp.br/mod/quiz/view.php?id=1001",
+                "status": "Pendente",
+                "conta_nota": true,
+                "aberto": true,
+                "prazo": "2026-08-02T23:59:00-03:00",
+                "prazo_fonte": "calendário do AVA",
+                "carencia": null
+              },
+              {
+                "cmid": "1002",
+                "label": "Referência sanitizada",
+                "type": "page",
+                "url": "https://ava.univesp.br/mod/page/view.php?id=1002",
+                "status": "Pendente",
+                "conta_nota": false,
+                "aberto": true,
+                "prazo": null,
+                "prazo_fonte": null,
+                "carencia": null
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "18922",
+        "code": "COM170",
+        "name": "COM170 sanitizada",
+        "modelo": "quinzenal",
+        "cronograma": null,
+        "avisos": [
+          {
+            "autor": "Equipe institucional",
+            "autoridade": "institucional",
+            "titulo": "Aviso oficial sanitizado",
+            "url": "https://ava.univesp.br/mod/forum/discuss.php?d=oficial",
+            "prazos": [
+              {
+                "rotulo": "Fechamento das submissões",
+                "quando": "2026-07-26T23:59:00-03:00",
+                "trecho": "26/07 às 23:59",
+                "tipo": "fim",
+                "hora_certa": true,
+                "escopo": {
+                  "familia": "modulo",
+                  "numeros": [
+                    4
+                  ],
+                  "txt": "Módulo 4"
+                },
+                "confianca": "alta",
+                "frase": "Módulo 4: fechamento das submissões em 26/07 às 23:59."
+              }
+            ]
+          },
+          {
+            "autor": "Colega sanitizado",
+            "autoridade": "colega",
+            "titulo": "Conversa sanitizada",
+            "url": "https://ava.univesp.br/mod/forum/discuss.php?d=colega",
+            "prazos": [
+              {
+                "rotulo": "Talvez haja encontro",
+                "quando": "2026-07-30T23:59:00-03:00",
+                "trecho": "30/07",
+                "tipo": "fim",
+                "hora_certa": false,
+                "escopo": null,
+                "confianca": "baixa",
+                "frase": "Talvez haja encontro em 30/07."
+              }
+            ]
+          }
+        ],
+        "sections": [
+          {
+            "id": "com-m1",
+            "title": "Módulo 1",
+            "fase": "regular",
+            "locked": null,
+            "items": [
+              {
+                "cmid": "2001",
+                "label": "M1 - Quiz sanitizado",
+                "type": "quiz",
+                "url": "https://ava.univesp.br/mod/quiz/view.php?id=2001",
+                "status": "Pendente",
+                "conta_nota": true,
+                "aberto": true,
+                "prazo": null,
+                "prazo_fonte": null,
+                "carencia": null
+              }
+            ]
+          },
+          {
+            "id": "com-m4",
+            "title": "Módulo 4",
+            "fase": "regular",
+            "locked": "Disponível se: A atividade M1 - Quiz sanitizado esteja marcada como concluída",
+            "items": []
+          }
+        ]
+      }
+    ],
+    "eventos": [
+      {
+        "nome": "Atividade avaliativa sanitizada",
+        "quando": "2026-08-02T23:59:00-03:00",
+        "curso_id": "18870",
+        "cmid": "1001"
+      }
+    ],
+    "notificacoes": [
+      {
+        "assunto": "Notificação sanitizada",
+        "lida": false
+      }
+    ],
+    "mensagens": [],
+    "fontes_status": {
+      "calendario": {
+        "status": "live",
+        "quantidade_atual": 1,
+        "from_cache": false
+      },
+      "cronograma": {
+        "status": "live",
+        "quantidade_atual": 1,
+        "from_cache": false
+      },
+      "foruns": {
+        "status": "live",
+        "quantidade_atual": 2,
+        "from_cache": false
+      }
+    }
+  },
+  "esperado": {
+    "acoes": [
+      {
+        "curso": "COM170",
+        "secao": "Módulo 1",
+        "o_que": "M1 - Quiz sanitizado",
+        "prazo": null,
+        "prioridade_ate": "2026-07-26T23:59:00-03:00",
+        "urgencia": "amanha"
+      },
+      {
+        "curso": "COM170",
+        "secao": "Módulo 4",
+        "o_que": "Módulo 4 · Fechamento das submissões",
+        "prazo": "2026-07-26T23:59:00-03:00",
+        "prioridade_ate": null,
+        "urgencia": "amanha"
+      },
+      {
+        "curso": "REG100",
+        "secao": "Semana 1",
+        "o_que": "Atividade avaliativa sanitizada",
+        "prazo": "2026-08-02T23:59:00-03:00",
+        "prioridade_ate": null,
+        "urgencia": "depois"
+      }
+    ],
+    "fontes": {
+      "disciplinas": 2,
+      "secoes": 3,
+      "itens": 3,
+      "avisos": 2,
+      "eventos_calendario": 1,
+      "notificacoes": 1,
+      "cronograma": 1,
+      "itens_com_prazo": 1
+    },
+    "estados": [
+      {
+        "curso": "REG100",
+        "secao": "Semana 1",
+        "cmid": "1001",
+        "status": "Pendente",
+        "aberto": true,
+        "prazo": "2026-08-02T23:59:00-03:00"
+      },
+      {
+        "curso": "REG100",
+        "secao": "Semana 1",
+        "cmid": "1002",
+        "status": "Pendente",
+        "aberto": true,
+        "prazo": null
+      },
+      {
+        "curso": "COM170",
+        "secao": "Módulo 1",
+        "cmid": "2001",
+        "status": "Pendente",
+        "aberto": true,
+        "prazo": null
+      }
+    ],
+    "higiene": [
+      "Referência sanitizada"
+    ],
+    "confirmar": [
+      {
+        "curso": "COM170",
+        "quando": "2026-07-30T23:59:00-03:00",
+        "autor": "Colega sanitizado"
+      }
+    ]
+  }
+}
