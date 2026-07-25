@@ -241,6 +241,29 @@ GATILHOS_PRAZO = [
     "data:", "horario:", "acontece", "sera realizada", "live",
 ]
 
+# Data de abertura NAO e prazo. O aviso do facilitador diz "Abertura das
+# submissoes: 27 jul, 00:00" e "Fechamento das submissoes: 01 ago, 23:59";
+# sem separar os dois, o robo anunciava que o Modulo 6 "vencia" no dia em
+# que ele na verdade abria.
+GATILHOS_INICIO = ["abertura", "abre em", "abre ", "abrem", "inicio de", "inicia",
+                   "comeca", "disponivel a partir", "libera em", "liberacao"]
+GATILHOS_FIM = ["fechamento", "ate ", "vencimento", "vence", "encerra",
+                "encerramento", "limite", "entregue", "entregar", "entrega", "prazo"]
+
+
+def _tipo_prazo(fragmento, contexto):
+    """'inicio' quando a data marca abertura, 'fim' quando marca prazo.
+    Na duvida devolve 'fim', que e o caso comum e o que gera alerta."""
+    for alvo in (sem_acento(fragmento), sem_acento(contexto)):
+        pos_ini = min((alvo.find(g) for g in GATILHOS_INICIO if g in alvo), default=-1)
+        pos_fim = min((alvo.find(g) for g in GATILHOS_FIM if g in alvo), default=-1)
+        if pos_ini < 0 and pos_fim < 0:
+            continue           # nada decisivo aqui, tenta o contexto
+        if pos_ini >= 0 and (pos_fim < 0 or pos_ini < pos_fim):
+            return "inicio"
+        return "fim"
+    return "fim"
+
 
 ABREV_MES = r"\b(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\."
 
@@ -278,6 +301,7 @@ def extrair_prazos(texto, ano_padrao):
             vistos.add(chave)
             prazos.append({
                 "rotulo": rotulo, "quando": quando.isoformat(), "trecho": trecho,
+                "tipo": _tipo_prazo(f, contexto),
                 "frase": contexto if len(contexto) <= 220 else contexto[:217] + "...",
             })
     return prazos
@@ -696,11 +720,17 @@ def coletar(estado):
 # Acoes
 # ---------------------------------------------------------------------------
 def casar_prazo(titulo_secao, prazos_aviso):
-    """Acha, entre os prazos lidos dos avisos, o que fala desta secao."""
+    """Acha, entre os prazos lidos dos avisos, o que fala desta secao.
+
+    So considera data de fechamento: data de abertura nao e prazo e viraria
+    alerta falso ("Modulo 6 vence 27/07" quando 27/07 e o dia que ele abre).
+    """
     chave = sem_acento(titulo_secao)
     if not chave:
         return None
     for pz in prazos_aviso:
+        if pz.get("tipo") == "inicio":
+            continue
         if chave in sem_acento(pz["rotulo"] + " " + pz["frase"]):
             return pz
     return None

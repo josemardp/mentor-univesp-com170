@@ -220,8 +220,9 @@ def render_aviso(curso, a):
     prazos = ""
     if a.get("prazos"):
         itens = "".join(
-            f'<li><b>{esc(fmt_dmhm(p["quando"]))}</b> · {esc(p["rotulo"])}</li>'
-            for p in a["prazos"][:4])
+            f'<li><b>{"abre" if p.get("tipo") == "inicio" else "até"} '
+            f'{esc(fmt_dmhm(p["quando"]))}</b> · {esc(p["rotulo"])}</li>'
+            for p in a["prazos"][:5])
         prazos = f'<ul class="prazos-lidos">{itens}</ul>'
 
     links = ""
