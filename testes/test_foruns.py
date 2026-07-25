@@ -7,6 +7,8 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "automacao"))
 
 from fontes import foruns as F  # noqa: E402
+import enviar_email as E  # noqa: E402
+import render as R  # noqa: E402
 
 
 def post(numero, autor, prazos=False, texto=None):
@@ -16,7 +18,14 @@ def post(numero, autor, prazos=False, texto=None):
         "data": f"2026-07-25T10:{numero % 60:02d}:00-03:00",
         "texto": texto or f"Post {numero}",
         "prazos": (
-            [{"quando": "2026-08-01T23:59:00-03:00", "confianca": "alta"}]
+            [
+                {
+                    "quando": "2026-08-01T23:59:00-03:00",
+                    "confianca": "alta",
+                    "tipo": "fim",
+                    "rotulo": "Entrega sanitizada",
+                }
+            ]
             if prazos
             else []
         ),
@@ -77,3 +86,43 @@ ordem = [
 ]
 assert ordem == ["Avisos", "Grupo G4", "Dúvidas", "Temático"]
 print("ok | orçamento visita Avisos e grupo antes dos demais")
+
+aviso_oficial = {
+    **post(501, "Docente A", prazos=True),
+    "autoridade": "institucional",
+    "titulo": "Orientação oficial",
+    "forum": "Avisos",
+    "url": "https://ava.univesp.br/mod/forum/discuss.php?d=501",
+}
+aviso_colega = {
+    **post(502, "Colega X", prazos=True),
+    "autoridade": "colega",
+    "titulo": "Conversa",
+    "forum": "Dúvidas",
+    "url": "https://ava.univesp.br/mod/forum/discuss.php?d=502",
+}
+html_oficial = R.render_aviso("COM170", aviso_oficial)
+html_colega = R.render_aviso("COM170", aviso_colega)
+assert 'class="aviso oficial"' in html_oficial
+assert "aviso oficial" in html_oficial
+assert 'class="aviso colega"' in html_colega
+assert "post de colega" in html_colega
+texto_email = E.montar_texto(
+    {
+        "status": "ok",
+        "acoes": [],
+        "higiene": [],
+        "courses": [
+            {
+                "code": "COM170",
+                "avisos": [aviso_colega, aviso_oficial],
+            }
+        ],
+        "mensagens": [],
+        "notificacoes": [],
+    }
+)
+assert texto_email.index("[OFICIAL]") < texto_email.index("[colega]")
+assert "prazo oficial" in texto_email
+assert "data para conferir" in texto_email
+print("ok | site e e-mail distinguem aviso oficial de conversa")

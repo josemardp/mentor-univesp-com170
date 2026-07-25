@@ -150,14 +150,30 @@ def render_recado(data):
 
 
 def render_fontes_status(data):
-    estados = (data.get("fontes_status_tentativa")
-               if data.get("status") != "ok"
-               else data.get("fontes_status")) or {}
+    estados = (
+        data.get("fontes_status_tentativa")
+        if data.get("status") in ("coleta_incompleta", "session_expired")
+        else data.get("fontes_status")
+    ) or {}
     if not estados:
         return ""
-    nomes = {"calendario": "calendário", "cronograma": "cronogramas", "foruns": "fóruns"}
+    nomes = {
+        "disciplinas": "disciplinas",
+        "calendario": "calendário",
+        "cronograma": "cronogramas",
+        "foruns": "fóruns",
+        "itens": "itens",
+        "notificacoes": "notificações",
+    }
     partes, degradou = [], False
-    for chave in ("calendario", "cronograma", "foruns"):
+    for chave in (
+        "disciplinas",
+        "calendario",
+        "cronograma",
+        "foruns",
+        "itens",
+        "notificacoes",
+    ):
         info = estados.get(chave) or {}
         status = info.get("status")
         if not status:
@@ -170,8 +186,19 @@ def render_fontes_status(data):
                     BR_TZ).strftime("%H:%M")
             except Exception:
                 pass
-        sufixo = f" às {quando}" if quando else ""
-        partes.append(f"{nomes[chave]}: {status.replace('_', ' ')}{sufixo}")
+        sufixos = []
+        if info.get("quantidade_atual") is not None:
+            sufixos.append(str(info["quantidade_atual"]))
+        if info.get("from_cache"):
+            sufixos.append("cache")
+        if info.get("truncado"):
+            sufixos.append("truncado")
+        if quando:
+            sufixos.append(f"último ao vivo {quando}")
+        detalhe = f" ({', '.join(sufixos)})" if sufixos else ""
+        partes.append(
+            f"{nomes[chave]}: {status.replace('_', ' ')}{detalhe}"
+        )
     if not partes:
         return ""
     classe = "sourcebar degraded" if degradou else "sourcebar"
@@ -193,6 +220,8 @@ def render_acao(a):
                      f'{esc(fmt_dm(a["prioridade_ate"]))}</span>')
     if a.get("conta_nota"):
         chips.append('<span class="status ok">vale nota</span>')
+    if a.get("autoridade") == "institucional":
+        chips.append('<span class="status ok">aviso oficial</span>')
 
     alvo = esc(a["o_que"])
     if a.get("url"):
@@ -320,8 +349,16 @@ def render_aviso(curso, a):
             for l in quentes[:2]) + "</div>")
 
     selo = '<span class="status pend">novo</span>' if a.get("novo") else ""
-    return (f'<li class="aviso">'
+    institucional = a.get("autoridade") == "institucional"
+    autoridade = (
+        '<span class="status ok">aviso oficial</span>'
+        if institucional
+        else '<span class="status neutral">post de colega</span>'
+    )
+    classe = "aviso oficial" if institucional else "aviso colega"
+    return (f'<li class="{classe}">'
             f'<div class="acao-chips"><span class="status brick">{esc(curso)}</span>{selo}'
+            f'{autoridade}'
             f'<span class="muted">{esc(a.get("forum") or "")} · {esc(quando)}</span></div>'
             f'<div class="acao-txt">{titulo}</div>'
             f'<p class="aviso-txt">{esc((a.get("texto") or "")[:300])}…</p>'
@@ -333,11 +370,12 @@ def render_novidades(data):
     linhas = []
     for c in data.get("courses", []):
         for a in (c.get("avisos") or [])[:4]:
-            linhas.append((0 if a.get("novo") else 1, a.get("data") or "",
+            autoridade = 0 if a.get("autoridade") == "institucional" else 1
+            linhas.append((autoridade, 0 if a.get("novo") else 1, a.get("data") or "",
                            render_aviso(c["code"], a)))
-    linhas.sort(key=lambda x: x[1], reverse=True)   # mais recente primeiro
-    linhas.sort(key=lambda x: x[0])                 # e os novos no topo (ordenacao estavel)
-    avisos_html = "".join(h for _, _, h in linhas[:8])
+    linhas.sort(key=lambda x: x[2], reverse=True)
+    linhas.sort(key=lambda x: (x[0], x[1]))
+    avisos_html = "".join(h for _, _, _, h in linhas[:8])
 
     extras = []
     nao_lidas = [n for n in data.get("notificacoes", []) if not n.get("lida")]
@@ -441,7 +479,13 @@ def render_confirmar(data):
         return ""
     li = []
     for c in itens[:10]:
-        origem = esc(f"aviso de {c['autor']}" if c.get("autor") else "aviso do fórum")
+        institucional = c.get("autoridade") == "institucional"
+        tipo_autor = "aviso oficial" if institucional else "post de colega"
+        origem = esc(
+            f"{tipo_autor} de {c['autor']}"
+            if c.get("autor")
+            else tipo_autor
+        )
         if c.get("url"):
             origem = (f'<a href="{esc(c["url"])}" target="_blank" '
                       f'rel="noopener">{origem}</a>')
@@ -585,6 +629,13 @@ def render_html(data):
             '<div class="alertbar"><b>Leitura incompleta.</b> Mantive o último '
             f'retrato válido. Tentativa: {esc(tentativa_txt or "horário desconhecido")}. '
             f'{esc(problemas)}</div>')
+    elif data.get("status") == "coleta_degradada":
+        problemas = "; ".join(data.get("problemas") or [])
+        banners.append(
+            '<div class="alertbar"><b>Leitura parcial.</b> Atualizei o que '
+            'respondeu e mantive o último dado válido da fonte indisponível. '
+            f'{esc(problemas)}</div>'
+        )
     # Este elemento sempre existe. O JavaScript recalcula a idade enquanto a
     # página está aberta; HTML estático não envelhece sozinho.
     banners.append(
@@ -673,6 +724,8 @@ TEMPLATE = """<!doctype html>
   .grupo .muted{color:var(--ink-soft);font-weight:400;}
   .acoes{list-style:none;margin:0;padding:0;}
   .acao,.aviso{padding:10px 0;border-top:1px solid var(--line);}
+  .aviso.oficial{border-left:3px solid var(--ok);padding-left:9px;}
+  .aviso.colega{opacity:.78;}
   .acoes li:first-child{border-top:none;}
   .acao-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:5px;}
   .acao-txt{font-size:14.5px;line-height:1.45;}

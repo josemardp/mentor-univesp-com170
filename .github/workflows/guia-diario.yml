@@ -138,3 +138,7 @@ jobs:
             echo "::error::Entrei no AVA mas a leitura veio incompleta, então mantive o último retrato válido. Motivos no docs/data.json (campo problemas) e no log do passo 'Gerar guia'. Provável mudança de layout do Moodle."
             exit 1
           fi
+          if grep -q '"status": "coleta_degradada"' docs/data.json; then
+            echo "::error::Atualizei as fontes saudáveis, mas pelo menos uma fonte falhou e usou cache. Consulte fontes_status no docs/data.json."
+            exit 1
+          fi

@@ -120,6 +120,13 @@ def montar_texto(data):
                    "Confira direto no AVA. Motivos:"]
         linhas += [f"  - {p}" for p in (data.get("problemas") or [])]
         linhas.append("")
+    elif data.get("status") == "coleta_degradada":
+        linhas += [
+            "ATENCAO: uma fonte falhou. Atualizei as demais e mantive o último",
+            "resultado válido da fonte indisponível. Confira a saúde no site.",
+        ]
+        linhas += [f"  - {p}" for p in (data.get("problemas") or [])]
+        linhas.append("")
 
     acoes = data.get("acoes") or []
     if not acoes:
@@ -152,17 +159,36 @@ def montar_texto(data):
     avisos = [(a.get("data") or "", c["code"], a)
               for c in data.get("courses", []) for a in (c.get("avisos") or [])]
     avisos.sort(reverse=True)
+    avisos.sort(
+        key=lambda item: (
+            0 if item[2].get("autoridade") == "institucional" else 1
+        )
+    )
     if avisos:
         linhas.append("Chegou novo nos foruns:")
         for _, code, a in avisos[:6]:
             titulo = a.get("titulo") or "post"
-            linhas.append(f"- [{code}] {titulo} ({a.get('forum') or ''})")
+            origem = (
+                "OFICIAL"
+                if a.get("autoridade") == "institucional"
+                else "colega"
+            )
+            linhas.append(
+                f"- [{code}] [{origem}] {titulo} ({a.get('forum') or ''})"
+            )
             for p in (a.get("prazos") or [])[:2]:
                 try:
                     quando = datetime.fromisoformat(p["quando"]).strftime("%d/%m às %H:%M")
                 except Exception:
                     quando = p["quando"]
-                linhas.append(f"    prazo lido: {quando} - {p['rotulo']}")
+                rotulo = (
+                    "prazo oficial"
+                    if a.get("autoridade") == "institucional"
+                    else "data para conferir"
+                )
+                linhas.append(
+                    f"    {rotulo}: {quando} - {p['rotulo']}"
+                )
         linhas.append("")
 
     msgs = data.get("mensagens") or []
@@ -189,6 +215,8 @@ def assunto(data):
         return f"[Univesp {hoje:%d/%m}] sessao do AVA expirou"
     if data.get("status") == "coleta_incompleta":
         return f"[Univesp {hoje:%d/%m}] leitura incompleta, confira no AVA"
+    if data.get("status") == "coleta_degradada":
+        return f"[Univesp {hoje:%d/%m}] leitura parcial, confira as fontes"
     # O assunto é o que ele vê primeiro: diz a decisão, não a contagem.
     # "2 coisas vencendo" era impreciso quando uma delas não tinha prazo.
     primeira = next((a for a in acoes if a["urgencia"] in ("hoje", "amanha")), None)
