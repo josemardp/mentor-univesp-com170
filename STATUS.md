@@ -92,6 +92,39 @@ reproduzidos e todos corrigidos:**
   `gerar_guia` retornava antes do render. A correção mais importante da rodada
   1 estava pela metade.
 
+## Auditoria rodada 3 (25/07/2026)
+
+Relatório em `AUDITORIA-INDEPENDENTE-RODADA-3-2026-07-25.md`. Sete achados,
+sete reproduzidos, sete corrigidos. **Quatro caíram na mesma camada**: extração
+de prazo de texto livre. Terceiro round seguido em que o conserto resolve o
+caso relatado e abre o vizinho.
+
+Por isso a mudança aqui não foi outro remendo de regex, foi **trocar o modo de
+falhar**. Todo prazo lido de aviso agora carrega confiança:
+
+- **alta** (dono e tipo inequívocos) → vira tarefa com data;
+- **baixa** → vai pro bloco "Confirme se isto é prazo mesmo", com a frase
+  original e o link do aviso.
+
+Isso converte a pior falha (prazo inventado) na mais barata (prazo pedindo
+conferência) e resolve como classe, não como caso. Corrigidos:
+
+- assunto novo sem dois pontos ("LIVE MAGNA será realizada em 30/07") colava a
+  data no módulo anterior. Título em caixa alta encerra o escopo; prosa corrida
+  não, porque o aviso real descreve o Módulo 4 em várias linhas seguidas;
+- subtítulo fora da lista de fases ("Grupo A:") deixava o prazo órfão;
+- gatilho antes e depois da data discordando escondia o fechamento;
+- **negação virava obrigação**: "Não haverá entrega em 30/07" criava entrega em
+  30/07. Agora derruba o candidato;
+- disciplina nova perdoava a perda de outra, e sem `id` a checagem se desligava
+  calada;
+- dedup cortava o rótulo em 60 caracteres e colapsava obrigações distintas;
+- item que o robô não conseguiu abrir aparecia igual a um verificado.
+
+Produto, decidido pelo Josemar: higiene do AVA saiu da fila principal (18
+itens) para bloco recolhido; e-mail ganhou topo decisório e manteve a lista
+completa embaixo; assunto diz a decisão, não a contagem.
+
 ## Risco aceito (decisão do Josemar, 25/07/2026)
 
 O `docs/data.json` público contém nomes e trechos de posts de colegas (38
