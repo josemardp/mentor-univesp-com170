@@ -150,6 +150,9 @@ def render_acao(a):
             coisa = ""
     frase = f'<b>{esc(a["verbo"])}</b>{" " + esc(coisa) if coisa else ""}: {alvo}'
 
+    if a.get("verificacao") == "indefinida":
+        chips.append('<span class="status lock">não verifiquei</span>')
+
     trava = ""
     if a.get("destrava"):
         quando = fmt_dm(a.get("destrava_em")) if a.get("destrava_em") else ""
@@ -371,6 +374,54 @@ def render_cards(data):
     return "".join(cards)
 
 
+def render_confirmar(data):
+    """Prazos que o robô leu num aviso mas não tem certeza de a quem pertencem
+    ou se são início ou fim. Ficam à vista, com a frase original, em vez de
+    virarem tarefa com data que pode estar errada."""
+    itens = data.get("confirmar") or []
+    if not itens:
+        return ""
+    li = []
+    for c in itens[:10]:
+        origem = esc(f"aviso de {c['autor']}" if c.get("autor") else "aviso do fórum")
+        if c.get("url"):
+            origem = (f'<a href="{esc(c["url"])}" target="_blank" '
+                      f'rel="noopener">{origem}</a>')
+        rotulo = "abre" if c.get("tipo_lido") == "inicio" else "prazo"
+        li.append(
+            f'<li class="acao"><div class="acao-chips">'
+            f'<span class="status lock">{esc(c["curso"])}</span>'
+            f'<span class="status pend">{rotulo} {esc(fmt_dmhm(c["quando"]))}?</span>'
+            f'</div><p class="aviso-txt">“{esc((c.get("frase") or "")[:200])}”</p>'
+            f'<div class="acao-pe">{origem}</div></li>')
+    return ('<div class="bloco"><h2>Confirme se isto é prazo mesmo</h2>'
+            '<p class="sub" style="margin:0 0 10px;">Li estas datas em avisos, mas '
+            'não tenho certeza a que atividade pertencem, ou se são de abertura ou '
+            'de entrega. Preferi te mostrar a colocar na lista como se fosse '
+            'certo. A frase é a original do aviso.</p>'
+            f'<ul class="acoes">{"".join(li)}</ul></div>')
+
+
+def render_higiene(data):
+    """Itens sem prazo e sem peso na nota: 'S1 - Início', 'Em síntese',
+    'Referências'. Ficam recolhidos pra não esconder o que vale nota."""
+    itens = data.get("higiene") or []
+    if not itens:
+        return ""
+    li = []
+    for a in itens:
+        nome = esc(a["o_que"])
+        if a.get("url"):
+            nome = f'<a href="{esc(a["url"])}" target="_blank" rel="noopener">{nome}</a>'
+        li.append(f'<li><span class="status neutral">{esc(a["curso"])}</span>'
+                  f'<span class="tlabel">{nome}</span></li>')
+    return ('<details class="bloco"><summary class="enc-sum">'
+            f'Higiene do AVA · {plural(len(itens), "item para marcar", "itens para marcar")}'
+            '</summary><p class="sub">Não valem nota e não têm prazo. Servem só pra '
+            'fechar a barra de progresso do Moodle.</p>'
+            f'<ul class="tasklist">{"".join(li)}</ul></details>')
+
+
 def render_encerrados(data):
     itens = data.get("encerrados") or []
     if not itens:
@@ -431,8 +482,10 @@ def render_html(data):
             .replace("{{BANNER}}", banner)
             .replace("{{RECADO}}", render_recado())
             .replace("{{AGORA}}", render_agora(data))
+            .replace("{{CONFIRMAR}}", render_confirmar(data))
             .replace("{{NOVIDADES}}", render_novidades(data))
             .replace("{{CARDS}}", render_cards(data))
+            .replace("{{HIGIENE}}", render_higiene(data))
             .replace("{{ENCERRADOS}}", render_encerrados(data)))
     (DOCS / "index.html").write_text(html, encoding="utf-8")
 
@@ -558,9 +611,11 @@ TEMPLATE = """<!doctype html>
   {{BANNER}}
   {{RECADO}}
   {{AGORA}}
+  {{CONFIRMAR}}
   {{NOVIDADES}}
   <h2 class="grupo" style="margin-top:26px;">Mapa das disciplinas</h2>
   {{CARDS}}
+  {{HIGIENE}}
   {{ENCERRADOS}}
   <footer>Um robô lê o AVA todo dia: páginas das disciplinas, calendário, todos os fóruns,
   notificações e mensagens. Prazo só aparece aqui com a origem à mostra.<br>

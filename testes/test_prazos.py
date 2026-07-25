@@ -130,7 +130,7 @@ def curso_teste():
 # Módulos travados vêm sem itens do Moodle: a cadeia precisa ser andada
 # pelos textos de bloqueio, não pelos itens.
 dados = curso_teste()
-acoes, encerrados = C.montar_acoes(dados, HOJE)
+acoes, encerrados, higiene, confirmar = C.montar_acoes(dados, HOJE)
 
 def acao(trecho):
     return next((a for a in acoes if trecho.lower() in a["o_que"].lower()), None)
@@ -163,7 +163,7 @@ print("\n== Rótulo e duplicata da obrigação ==")
 dados2 = curso_teste()
 dados2["courses"][0]["avisos"].append(
     {"autor": "formador", "url": "https://ava/y", "prazos": prazos})
-acoes2, _ = C.montar_acoes(dados2, HOJE)
+acoes2, _, _, _ = C.montar_acoes(dados2, HOJE)
 obrig = [a for a in acoes2 if a["tipo"] == "obrigacao"]
 chaves = {(a["secao"], a["prazo"], a["verbo"]) for a in obrig}
 checa(len(obrig) == len(chaves), "prazo repetido em dois avisos não duplica a ação")
@@ -255,6 +255,82 @@ checa(any(s in C.sem_acento("Você precisa fazer login para continuar.")
           for s in C.SINAIS_INDEFINIDO), "página de login não afirma nada sobre a atividade")
 checa(any(s in C.sem_acento("Você não tem permissão para visualizar.")
           for s in C.SINAIS_INDEFINIDO), "página sem permissão não afirma nada")
+
+# ---------------------------------------------------------------------------
+print("\n== Achados da auditoria rodada 3 ==")
+
+# negação não pode virar obrigação
+checa(C.extrair_prazos("Não haverá entrega em 30/07.", REF) == [],
+      "frase que NEGA a entrega não vira prazo")
+checa(C.extrair_prazos("Sem entrega em 30/07.", REF) == [],
+      "'sem entrega' também não vira prazo")
+
+# mudança de assunto sem dois pontos
+pz_live = C.extrair_prazos(
+    "Módulo 4: entrega até 26/07.\nLIVE MAGNA será realizada em 30/07.", REF)
+m4 = C.casar_prazos("Módulo 4", pz_live)
+checa([p["quando"][:10] for p in m4] == ["2026-07-26"],
+      "título em caixa alta encerra o escopo mesmo sem dois pontos")
+checa(any(p["confianca"] == "baixa" and p["quando"][:10] == "2026-07-30"
+          for p in pz_live), "a data da live fica marcada como duvidosa")
+
+# fechamento depois da data: não pode virar abertura silenciosa
+pz_par = C.extrair_prazos(
+    "27/07 (abertura das inscrições), 01/08 (fechamento das inscrições).", REF)
+checa(all(p["confianca"] == "baixa" for p in pz_par),
+      "gatilho antes e depois discordando marca o prazo como duvidoso")
+checa(C.casar_prazos("Módulo 4", pz_par) == [],
+      "prazo duvidoso não entra na fila como se fosse certo")
+
+# subtítulo que não é fase
+pz_grupo = C.extrair_prazos(
+    "Módulo 4: orientações.\nGrupo A: entrega até 26/07.", REF)
+checa(pz_grupo and pz_grupo[0]["confianca"] == "baixa",
+      "subtítulo desconhecido rebaixa a confiança em vez de perder o prazo")
+
+# o aviso real não pode regredir
+altas = [p for p in prazos if p["confianca"] == "alta"]
+checa({p["quando"][:10] for p in altas} >= {"2026-07-26", "2026-08-01", "2026-08-04"},
+      "aviso real: os três prazos de verdade seguem confiáveis")
+
+# cobertura: disciplina nova não perdoa disciplina perdida
+ant2 = {"courses": [{"id": 1, "code": "A"}, {"id": 2, "code": "B"}]}
+nova2 = {"courses": [curso(2, "B"), curso(3, "C")]}
+ok, _ = C.validar_cobertura(nova2, ant2)
+checa(not ok, "entrar disciplina nova não mascara a perda de outra")
+
+sem_ids = {"courses": [{"code": "A"}, {"code": "B"}]}
+ok, _ = C.validar_cobertura({"courses": [curso(None, "A")]}, sem_ids)
+checa(not ok, "sem id no histórico, a checagem cai pro código em vez de desligar")
+
+# dedup por rótulo inteiro
+longos = [_pz("Entrega da atividade final para composição da avaliação do módulo individual",
+              "2026-08-01T23:59:00-03:00"),
+          _pz("Entrega da atividade final para composição da avaliação do módulo em grupo",
+              "2026-08-01T23:59:00-03:00")]
+d4 = {"courses": [{"code": "COM170", "modelo": "quinzenal",
+      "avisos": [{"autor": "L", "url": "u", "prazos": longos}],
+      "sections": [{"title": "Módulo 6", "fase": "regular", "locked": None, "items": []}]}]}
+checa(len([a for a in C.montar_acoes(d4, HOJE)[0] if a["tipo"] == "obrigacao"]) == 2,
+      "rótulos longos que só diferem no fim não colapsam")
+
+# item que não deu pra verificar vai marcado
+d5 = {"courses": [{"code": "COM100", "modelo": "regular", "avisos": [],
+     "sections": [{"title": "Semana 1", "fase": "regular", "locked": None, "items": [
+        {"label": "S1 - Atividade Avaliativa", "type": "quiz", "status": "Pendente",
+         "conta_nota": True, "aberto": None, "url": "#"}]}]}]}
+a5 = C.montar_acoes(d5, HOJE)[0][0]
+checa(a5.get("verificacao") == "indefinida",
+      "item que o robô não conseguiu abrir sai marcado como não verificado")
+
+# higiene sai da fila principal
+d6 = {"courses": [{"code": "COM100", "modelo": "regular", "avisos": [],
+     "sections": [{"title": "Semana 1", "fase": "regular", "locked": None, "items": [
+        {"label": "S1 - Início", "type": "page", "status": "Marcar como feito",
+         "conta_nota": False, "aberto": True, "url": "#"}]}]}]}
+ac6, _, hig6, _ = C.montar_acoes(d6, HOJE)
+checa(not ac6 and len(hig6) == 1,
+      "item sem prazo e sem nota vai pra higiene, não pra fila principal")
 
 # ---------------------------------------------------------------------------
 print("\n== Urgência ==")

@@ -49,9 +49,59 @@ def linha_acao(a):
     extra = [a["curso"]]
     if a.get("prazo_txt"):
         extra.append(a["prazo_txt"])
+    elif a.get("prioridade_ate"):
+        extra.append("sem prazo próprio")
     if a.get("conta_nota"):
         extra.append("vale nota")
+    if a.get("verificacao") == "indefinida":
+        extra.append("não consegui verificar se está aberta")
     return f"- {txt}  ({' · '.join(extra)})"
+
+
+def curto(texto, limite=64):
+    """Título de atividade vem com a referência bibliográfica inteira. No
+    e-mail isso vira parede de texto e atrapalha achar o que importa."""
+    t = (texto or "").split(" | ")[0].strip()
+    return t if len(t) <= limite else t[:limite - 1].rstrip() + "…"
+
+
+def topo_decisorio(data, acoes):
+    """As primeiras linhas, que é o que ele lê no celular às 8h."""
+    linhas = []
+    primeira = next((a for a in acoes if a["urgencia"] in ("hoje", "amanha")), None)
+    if primeira:
+        linhas.append("FAÇA AGORA")
+        alvo = f"{primeira['curso']}: {curto(primeira['o_que'])}"
+        linhas.append(f"- {alvo}")
+        if primeira.get("destrava"):
+            linhas.append(f"  Não tem prazo próprio. Está no topo porque destrava "
+                          f"{primeira['destrava']}.")
+        elif primeira.get("prazo_txt"):
+            linhas.append(f"  {primeira['prazo_txt']}.")
+        linhas.append("")
+
+    duros = [a for a in acoes if a.get("prazo")][:6]
+    if duros:
+        linhas.append("PRAZOS FIRMES")
+        por_data = {}
+        for a in duros:
+            por_data.setdefault(a["prazo"][:10], []).append(a)
+        for dia in sorted(por_data):
+            quando = datetime.fromisoformat(por_data[dia][0]["prazo"])
+            itens = por_data[dia]
+            nomes = ", ".join(f"{a['curso']} ({curto(a['o_que'], 40)})" for a in itens[:3])
+            if len(itens) > 3:
+                nomes += f" e mais {len(itens) - 3}"
+            linhas.append(f"- {quando:%d/%m} às {quando:%H:%M}: {nomes}")
+        linhas.append("")
+
+    pendentes_confirmar = data.get("confirmar") or []
+    if pendentes_confirmar:
+        linhas.append(f"CONFIRA ({len(pendentes_confirmar)})")
+        linhas.append("- Li datas em avisos e não tenho certeza se são prazo. "
+                      "Estão no site, com a frase original.")
+        linhas.append("")
+    return linhas
 
 
 def montar_texto(data):
@@ -71,22 +121,31 @@ def montar_texto(data):
         linhas.append("")
 
     acoes = data.get("acoes") or []
-    urgentes = [a for a in acoes if a["urgencia"] in ("hoje", "amanha")]
-    if urgentes:
-        linhas.append("** " + plural(len(urgentes), "coisa apertada", "coisas apertadas") + " **")
-    elif acoes:
-        linhas.append(plural(len(acoes), "coisa na fila", "coisas na fila")
-                      + ", nada vencendo hoje ou amanha.")
-    else:
+    if not acoes:
         linhas.append("Nada pendente. Tudo em dia.")
-    linhas.append("")
+        linhas.append("")
 
+    # Topo: a decisão. Embaixo: a lista inteira, pra não precisar abrir o site.
+    linhas += topo_decisorio(data, acoes)
+
+    if acoes:
+        linhas.append("-" * 58)
+        linhas.append("LISTA COMPLETA")
+        linhas.append("")
     for chave, titulo in TITULOS.items():
         grupo = [a for a in acoes if a["urgencia"] == chave]
         if not grupo:
             continue
         linhas.append(f"{titulo}:")
         linhas += [linha_acao(a) for a in grupo[:12]]
+        linhas.append("")
+
+    hig = data.get("higiene") or []
+    if hig:
+        linhas.append(f"Higiene do AVA ({len(hig)} itens a marcar, não valem nota):")
+        linhas += [f"- {a['curso']}: {curto(a['o_que'], 50)}" for a in hig[:12]]
+        if len(hig) > 12:
+            linhas.append(f"  ... e mais {len(hig) - 12}, no site.")
         linhas.append("")
 
     avisos = [(a.get("data") or "", c["code"], a)
@@ -129,8 +188,18 @@ def assunto(data):
         return f"[Univesp {hoje:%d/%m}] sessao do AVA expirou"
     if data.get("status") == "coleta_incompleta":
         return f"[Univesp {hoje:%d/%m}] leitura incompleta, confira no AVA"
-    if urgentes:
-        return f"[Univesp {hoje:%d/%m}] " + plural(len(urgentes), "coisa vencendo", "coisas vencendo")
+    # O assunto é o que ele vê primeiro: diz a decisão, não a contagem.
+    # "2 coisas vencendo" era impreciso quando uma delas não tinha prazo.
+    primeira = next((a for a in acoes if a["urgencia"] in ("hoje", "amanha")), None)
+    if primeira:
+        alvo = curto(primeira["o_que"], 34)
+        duro = next((a for a in acoes if a.get("prazo")
+                     and a["urgencia"] in ("hoje", "amanha")), None)
+        if duro is not None and duro is not primeira:
+            q = datetime.fromisoformat(duro["prazo"])
+            return (f"[Univesp {hoje:%d/%m}] Hoje: {primeira['curso']} {alvo}"
+                    f"; entrega {q:%d/%m} {q:%H:%M}")
+        return f"[Univesp {hoje:%d/%m}] Hoje: {primeira['curso']} {alvo}"
     if acoes:
         return f"[Univesp {hoje:%d/%m}] {len(acoes)} na fila, nada urgente"
     return f"[Univesp {hoje:%d/%m}] tudo em dia"

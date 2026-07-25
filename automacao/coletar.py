@@ -375,10 +375,23 @@ def _tipo_prazo(fragmento, contexto, pos_data=None):
     if pos_data is not None and (ini or fim):
         antes_ini = [p for p in ini if p <= pos_data]
         antes_fim = [p for p in fim if p <= pos_data]
+        depois_ini = [p for p in ini if p > pos_data]
+        depois_fim = [p for p in fim if p > pos_data]
+
+        por_antes = por_depois = None
         if antes_ini or antes_fim:
-            return "inicio" if max(antes_ini or [-1]) > max(antes_fim or [-1]) else "fim"
-        # nada antes da data: cai pro mais próximo depois dela
-        return "inicio" if min(ini or [10 ** 9]) < min(fim or [10 ** 9]) else "fim"
+            por_antes = "inicio" if max(antes_ini or [-1]) > max(antes_fim or [-1]) else "fim"
+        if depois_ini or depois_fim:
+            por_depois = ("inicio" if min(depois_ini or [10 ** 9])
+                          < min(depois_fim or [10 ** 9]) else "fim")
+
+        # A palavra que governa a data costuma vir antes dela. Mas quando a de
+        # trás e a da frente discordam ("27/07 (abertura), 01/08 (fechamento)"),
+        # não dá pra ter certeza: devolvemos o palpite E o aviso de incerteza,
+        # pra o prazo ir parar no bloco de confirmação em vez da fila.
+        escolhido = por_antes or por_depois or "fim"
+        seguro = (por_antes is None or por_depois is None or por_antes == por_depois)
+        return escolhido, seguro
 
     # Sem posição utilizável, decide pela primeira palavra do trecho e, se ele
     # não disser nada, pelo contexto ao redor.
@@ -387,9 +400,9 @@ def _tipo_prazo(fragmento, contexto, pos_data=None):
         if pi < 0 and pf < 0:
             continue
         if pi >= 0 and (pf < 0 or pi < pf):
-            return "inicio"
-        return "fim"
-    return "fim"
+            return "inicio", True
+        return "fim", True
+    return "fim", True
 
 
 # "Modulo 6 e 7: ..." seguido de uma lista de datas. O escopo vale para as
@@ -419,6 +432,45 @@ PALAVRAS_FASE = ("abertura", "fechamento", "encerramento", "inicio", "fim",
                  "vencimento", "atencao", "obs")
 
 ROTULO_RE = re.compile(r"^([^:]{2,60}):")
+
+
+# Frase que NEGA a obrigação. "Não haverá entrega em 30/07" criava um prazo de
+# entrega no dia 30/07: o robô lia a negação e inventava a obrigação negada.
+NEGACAO_RE = re.compile(
+    r"\b(nao\s+(?:hav|have|tera|tem|ha|sera|have?ra)\w*|sem\s+(?:entrega|prazo|"
+    r"atividade|submissao)|fica\s+sem|nao\s+e\s+necessario)\b")
+
+
+def tem_negacao(texto):
+    return bool(NEGACAO_RE.search(sem_acento(texto or "")))
+
+
+def eh_fase(fragmento):
+    """O trecho é uma fase da obrigação aberta ("Fechamento das submissões:")?"""
+    m = ROTULO_RE.match((fragmento or "").strip())
+    if not m:
+        return False
+    return any(p in sem_acento(m.group(1)) for p in PALAVRAS_FASE)
+
+
+# Título em caixa alta é como estes avisos marcam assunto novo:
+# "LIVE INICIAL: ...", "LIVE MAGNA será realizada em ...".
+CAIXA_ALTA_RE = re.compile(r"^[A-ZÀ-Ý][A-ZÀ-Ý]+(\s+[A-ZÀ-Ý0-9]{2,}){1,}")
+
+
+def muda_assunto(fragmento):
+    """O trecho abre um assunto diferente do módulo que estava em pauta?
+
+    Prosa corrida NÃO muda assunto: o aviso real descreve o Módulo 4 em várias
+    linhas seguidas, e tratar cada linha como assunto novo rebaixava um prazo
+    que é confiável. O que muda assunto é um rótulo antes de dois pontos que
+    não seja fase, ou um título em caixa alta.
+    """
+    f = (fragmento or "").strip()
+    if CAIXA_ALTA_RE.match(f):
+        return True
+    m = ROTULO_RE.match(f)
+    return bool(m) and not eh_fase(f)
 
 
 def encerra_escopo(fragmento):
@@ -470,18 +522,24 @@ def extrair_prazos(texto, referencia):
                for t in re.split(r"[\n;]|\.\s+", protegido) if t.strip()]
 
     prazos, vistos = [], set()
-    escopo = None
+    escopo, escopo_forte = None, False
     for i, f in enumerate(trechos):
         achado = _escopo_de(f)
         if achado:
-            escopo = achado          # vale para as datas seguintes
-        elif encerra_escopo(f):
-            escopo = None            # assunto novo: o módulo anterior não vale mais
+            escopo, escopo_forte = achado, True   # vale para as datas seguintes
+        elif escopo is not None and muda_assunto(f):
+            # Assunto novo depois de um módulo: não dá mais pra afirmar que a
+            # data pertence àquele módulo. Não jogamos o escopo fora (isso
+            # deixaria o prazo órfão e invisível): rebaixamos a confiança, e
+            # ele vai pro bloco de conferência em vez da fila de tarefas.
+            escopo_forte = False
         if not (4 <= len(f) <= 300):
             continue
         contexto = " ".join(trechos[max(0, i - 2):i + 1])
         if _tem(sem_acento(contexto), GATILHOS_PRAZO) < 0:
             continue
+        if tem_negacao(f):
+            continue                 # frase que nega não vira obrigação
         for quando, trecho, hora_certa, pos in achar_datas(f, referencia):
             rotulo = f.split(":")[0].strip() if ":" in f[:70] else contexto
             rotulo = rotulo[:87] + "..." if len(rotulo) > 90 else rotulo
@@ -489,10 +547,11 @@ def extrair_prazos(texto, referencia):
             if chave in vistos:
                 continue
             vistos.add(chave)
+            tipo, tipo_seguro = _tipo_prazo(f, contexto, pos)
             prazos.append({
                 "rotulo": rotulo, "quando": quando.isoformat(), "trecho": trecho,
-                "tipo": _tipo_prazo(f, contexto, pos), "hora_certa": hora_certa,
-                "escopo": escopo,
+                "tipo": tipo, "hora_certa": hora_certa, "escopo": escopo,
+                "confianca": "alta" if (escopo_forte and tipo_seguro) else "baixa",
                 "frase": contexto if len(contexto) <= 220 else contexto[:217] + "...",
             })
     return prazos
@@ -1046,7 +1105,7 @@ def coletar(estado):
 # ---------------------------------------------------------------------------
 # Acoes
 # ---------------------------------------------------------------------------
-def casar_prazos(titulo_secao, prazos_aviso):
+def casar_prazos(titulo_secao, prazos_aviso, so_confiaveis=True):
     """Acha, entre os prazos lidos dos avisos, o que fala desta secao.
 
     So considera data de fechamento: data de abertura nao e prazo e viraria
@@ -1067,7 +1126,9 @@ def casar_prazos(titulo_secao, prazos_aviso):
                 chave in sem_acento(pz.get("rotulo") or "")):
             saida.append(pz)
     saida.sort(key=lambda p: p["quando"])
-    return saida
+    if not so_confiaveis:
+        return saida
+    return [p for p in saida if p.get("confianca", "alta") == "alta"]
 
 
 def rotulo_fase(pz):
@@ -1106,10 +1167,32 @@ def fase_de(pz):
 
 
 def montar_acoes(dados, hoje):
-    acoes, encerrados = [], []
+    acoes, encerrados, confirmar, higiene = [], [], [], []
     for c in dados["courses"]:
         prazos_aviso = [{**pz, "aviso": a} for a in c.get("avisos", [])
                         for pz in a.get("prazos", [])]
+
+        # Prazo que o robô leu mas não tem certeza de a quem pertence ou se é
+        # início ou fim. Em vez de chutar (e às vezes inventar prazo), vai pra
+        # um bloco de conferência, com a frase original e o link do aviso.
+        vistos_conf = set()
+        for pz in prazos_aviso:
+            if pz.get("confianca", "alta") == "alta":
+                continue
+            urg, txt = urgencia_de(pz["quando"], hoje, pz.get("hora_certa", True))
+            if urg == "vencido":
+                continue
+            k = (pz["quando"], sem_acento(pz.get("rotulo") or ""))
+            if k in vistos_conf:
+                continue
+            vistos_conf.add(k)
+            confirmar.append({
+                "curso": c["code"], "quando": pz["quando"], "quando_txt": txt,
+                "tipo_lido": pz.get("tipo"), "rotulo": pz.get("rotulo"),
+                "frase": pz.get("frase"),
+                "autor": (pz.get("aviso") or {}).get("autor"),
+                "url": (pz.get("aviso") or {}).get("url"),
+            })
         for s in c["sections"]:
             # --- obrigacoes da secao, vindas de aviso ---------------------
             # Uma obrigacao pode ter mais de uma fase com prazos diferentes:
@@ -1127,7 +1210,7 @@ def montar_acoes(dados, hoje):
                 # rotulo inteiro, e nao o verbo: "submissao individual" e
                 # "submissao do grupo" caem no mesmo verbo e no mesmo horario,
                 # e com chave por verbo uma das duas sumia.
-                chave_fase = (pz["quando"], sem_acento(pz.get("rotulo") or "")[:60])
+                chave_fase = (pz["quando"], sem_acento(pz.get("rotulo") or ""))
                 if chave_fase in vistos_fase:
                     continue
                 vistos_fase.add(chave_fase)
@@ -1171,15 +1254,28 @@ def montar_acoes(dados, hoje):
                 if urg == "vencido":
                     encerrados.append({**base, "motivo": txt})
                     continue
-                acoes.append({**base, "prazo": prazo, "prazo_txt": txt, "prazo_fonte": fonte,
-                              "fonte_url": None, "carencia": it.get("carencia"),
-                              "hora_certa": True, "urgencia": urg})
+                registro = {**base, "prazo": prazo, "prazo_txt": txt,
+                            "prazo_fonte": fonte, "fonte_url": None,
+                            "carencia": it.get("carencia"), "hora_certa": True,
+                            "urgencia": urg}
+                # Item que o robô não conseguiu abrir (login, permissão) não
+                # pode aparecer igual a um que ele conferiu.
+                if it.get("aberto") is None and it.get("status") == "Pendente":
+                    registro["verificacao"] = "indefinida"
+                # Sem prazo e sem peso na nota: é higiene do Moodle, não tarefa.
+                # Sai da fila principal pra não esconder o que vale nota.
+                if not prazo and not it.get("conta_nota"):
+                    higiene.append(registro)
+                    continue
+                acoes.append(registro)
 
     propagar_urgencia(acoes, dados, hoje)
-    acoes.sort(key=lambda a: (ORDEM.get(a["urgencia"], 9),
-                              a.get("prazo") or a.get("prioridade_ate") or "9999",
-                              0 if a["conta_nota"] else 1, a["curso"]))
-    return acoes, encerrados
+    ordenar = lambda xs: sorted(xs, key=lambda a: (  # noqa: E731
+        ORDEM.get(a["urgencia"], 9),
+        a.get("prazo") or a.get("prioridade_ate") or "9999",
+        0 if a["conta_nota"] else 1, a["curso"]))
+    confirmar.sort(key=lambda x: x["quando"])
+    return ordenar(acoes), encerrados, ordenar(higiene), confirmar
 
 
 FAMILIA_RE = re.compile(r"(\D+?)\s*(\d+)\s*$")
@@ -1293,20 +1389,26 @@ def validar_cobertura(dados, anterior):
     if not cursos:
         problemas.append("não encontrei nenhuma disciplina em Meus cursos")
 
-    # Contar disciplina não basta: com o limiar antigo (< metade), perder 2 de 4
-    # passava como coleta boa. Agora comparamos por ID. Se alguma some e nenhuma
-    # nova aparece, é falha de leitura. Se TODAS trocam, é virada de bimestre.
-    ids_antes = {str(c.get("id")) for c in (anterior or {}).get("courses", [])
-                 if c.get("id")}
-    ids_agora = {str(c.get("id")) for c in cursos if c.get("id")}
-    if ids_antes:
-        sumiram = ids_antes - ids_agora
-        novas = ids_agora - ids_antes
-        if sumiram and not novas:
-            codigos = [c.get("code") for c in (anterior or {}).get("courses", [])
-                       if str(c.get("id")) in sumiram]
+    # Contar disciplina não basta: o limiar antigo (< metade) deixava perder 2
+    # de 4 em silêncio. Comparar por ID também tinha dois furos: se o ID não
+    # viesse no JSON a checagem se desligava calada, e qualquer disciplina nova
+    # perdoava a perda de outra. Agora a chave cai pro código quando não há ID,
+    # e só a troca COMPLETA (todas saem, outras entram) é aceita como virada de
+    # bimestre.
+    def chave(c):
+        return str(c.get("id") or c.get("code") or "")
+
+    antes = {chave(c): c.get("code") for c in (anterior or {}).get("courses", [])
+             if chave(c)}
+    agora = {chave(c) for c in cursos if chave(c)}
+    if antes:
+        sumiram = set(antes) - agora
+        novas = agora - set(antes)
+        virada = sumiram == set(antes) and bool(novas)
+        if sumiram and not virada:
+            perdidas = [antes[k] for k in sumiram if antes.get(k)]
             problemas.append("disciplina que existia ontem sumiu hoje: "
-                             + ", ".join(x for x in codigos if x))
+                             + ", ".join(perdidas or sorted(sumiram)))
 
     sem_secao = [c["code"] for c in cursos if not c.get("sections")]
     if sem_secao:
@@ -1398,7 +1500,7 @@ def main():
             print(f"  - {p}")
         return 2
 
-    acoes, encerrados = montar_acoes(dados, hoje)
+    acoes, encerrados, higiene, confirmar = montar_acoes(dados, hoje)
     saida = {
         "status": "ok", "checked_at": agora,
         "fontes": fontes, "problemas": [],
@@ -1406,11 +1508,13 @@ def main():
         "notificacoes": dados.get("notificacoes", []),
         "mensagens": dados.get("mensagens", []),
         "acoes": acoes, "encerrados": encerrados,
+        "higiene": higiene, "confirmar": confirmar,
         "novidades": novidades(anterior, dados),
     }
     DATA_PATH.write_text(json.dumps(saida, ensure_ascii=False, indent=2), encoding="utf-8")
     ESTADO_PATH.write_text(json.dumps(estado, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"OK. {len(acoes)} acao(oes), {len(encerrados)} encerrada(s). Fontes: {fontes}")
+    print(f"OK. {len(acoes)} acao(oes), {len(higiene)} de higiene, "
+          f"{len(confirmar)} a confirmar, {len(encerrados)} encerrada(s). Fontes: {fontes}")
     return 0
 
 
