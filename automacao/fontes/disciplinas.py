@@ -113,7 +113,31 @@ def ler_curso(page, curso):
     secoes = bruto.get("secoes") or []
     for secao in secoes:
         secao["locked"] = limpar_bloqueio(secao.get("locked"))
+        for item in secao.get("items") or []:
+            item["status"] = normalizar_status(item.get("status"))
     return secoes, bruto.get("links") or {}
+
+
+# Estados que o resto do código compara por igualdade.
+STATUS_CONHECIDOS = ("Concluído", "Pendente", "Marcar como feito")
+
+
+def normalizar_status(bruto):
+    """Devolve um dos estados conhecidos, ou None.
+
+    Segunda barreira contra o mesmo problema que o JS já trata: o Moodle
+    misturou o balão de ajuda no bloco de conclusão e o texto virou
+    "Concluído ... Você deve ... Feito: ... Ver M1 - ...". Como a comparação é
+    por igualdade, todo item concluído voltava a aparecer como pendente. Aqui
+    reconhecemos pelo começo do texto, não pelo texto inteiro.
+    """
+    if not bruto:
+        return None
+    texto = " ".join(str(bruto).split())
+    for conhecido in STATUS_CONHECIDOS:
+        if texto.startswith(conhecido):
+            return conhecido
+    return texto[:40] or None
 
 
 def codigo_de(curso):

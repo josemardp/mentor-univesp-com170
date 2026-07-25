@@ -416,3 +416,28 @@ if falhas:
         print("  - " + f)
     sys.exit(1)
 print("Todos os testes passaram.")
+
+
+# ---------------------------------------------------------------------------
+print("\n== Status poluído pelo balão de ajuda do Moodle (25/07) ==")
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "automacao"))
+from fontes.disciplinas import normalizar_status  # noqa: E402
+
+sujo = ("Concluído\n\n\n   Você deve\n\n   Feito:\n   "
+        "Ver M1 - O que é (e o que não é) IA")
+checa(normalizar_status(sujo) == "Concluído",
+      "'Concluído' seguido do balão de ajuda continua sendo Concluído")
+checa(normalizar_status("Pendente\n Você deve\n Feito:") == "Pendente",
+      "'Pendente' com texto extra continua sendo Pendente")
+checa(normalizar_status("Marcar como feito") == "Marcar como feito",
+      "'Marcar como feito' não é alterado")
+checa(normalizar_status(None) is None, "sem bloco de conclusão continua None")
+
+print("\n" + "=" * 62)
+if falhas:
+    print(f"{len(falhas)} FALHA(S):")
+    for f in falhas:
+        print("  - " + f)
+    sys.exit(1)
+print("Todos os testes passaram.")

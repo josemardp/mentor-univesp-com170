@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Leitura incremental de fóruns com prioridade para avisos oficiais."""
+import copy
 import re
 from datetime import datetime, timedelta
 
@@ -151,7 +152,7 @@ def priorizar_posts(posts, autores_institucionais, limite=MAX_POSTS_POR_DISCUSSA
     autores = {sem_acento(autor) for autor in autores_institucionais if autor}
     classificados = []
     for original in posts:
-        post = dict(original)
+        post = copy.deepcopy(original)
         institucional = sem_acento(post.get("autor") or "") in autores
         post["autoridade"] = "institucional" if institucional else "colega"
         if not institucional:
@@ -175,6 +176,16 @@ def autores_institucionais_do_forum(forum, posts):
     if not forum_de_avisos(forum):
         return set()
     return {post.get("autor") for post in posts if post.get("autor")}
+
+
+def acumular_autores_institucionais(estado, curso_id, forum, posts):
+    """Acumula autores observados em Avisos ao longo das execuções."""
+    chave_curso = str(curso_id or "__sem_curso__")
+    por_curso = estado.setdefault("_autores_institucionais", {})
+    autores = set(por_curso.get(chave_curso) or [])
+    autores.update(autores_institucionais_do_forum(forum, posts))
+    por_curso[chave_curso] = sorted(autores)
+    return autores
 
 
 def post_interessa(post):
