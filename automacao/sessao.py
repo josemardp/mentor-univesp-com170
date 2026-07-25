@@ -28,9 +28,14 @@ CAMPOS_USUARIO = ['input[name="username"]', "#username",
 CAMPOS_SENHA = ['input[name="password"]', "#password", 'input[type="password"]']
 BOTOES = ["#loginbtn", 'button[type="submit"]', 'input[type="submit"]',
           'button:has-text("Acessar")', 'button:has-text("Entrar")']
+# Primeira etapa do fluxo da Univesp: informa o e-mail e segue pro SSO.
+BOTOES_CONTINUAR = ["#login-button-default", 'button:has-text("Continuar")',
+                    'button:has-text("Próxima")', 'button[type="submit"]', "#loginbtn"]
 
 ERROS_LOGIN = ["invalid login", "nome de usuário ou senha", "usuário ou senha",
-               "credenciais inválidas", "senha incorreta"]
+               "credenciais inválidas", "senha incorreta", "senha incorretos",
+               "incorreta ou usuário", "não foi possível autenticar",
+               "usuário não encontrado"]
 
 
 def novo_contexto(navegador):
@@ -72,27 +77,68 @@ def _fazer_login(page):
         return False, ("sem AVA_USUARIO/AVA_SENHA configurados "
                        "(rode automacao/salvar_credenciais.bat)")
 
-    try:
-        page.goto(LOGIN_URL, wait_until="domcontentloaded", timeout=60000)
-        page.wait_for_timeout(1200)
-    except Exception as e:
-        return False, f"nao consegui abrir a tela de login ({type(e).__name__})"
+    # Se o AVA ja nos jogou na tela de login, ficamos nela: navegar de novo
+    # pode cair numa variante diferente do formulario.
+    if "login" not in (page.url or ""):
+        try:
+            page.goto(LOGIN_URL, wait_until="domcontentloaded", timeout=60000)
+            page.wait_for_timeout(1200)
+        except Exception as e:
+            return False, f"nao consegui abrir a tela de login ({type(e).__name__})"
 
+    # O login da Univesp tem duas telas: primeiro o e-mail/CPF no proprio AVA,
+    # depois a senha no SSO (login.univesp.br). Na primeira tela o campo de
+    # senha existe no HTML mas fica escondido, entao nao adianta procurar os
+    # dois de uma vez: e preciso passar da etapa 1 pra etapa 2. Moodle puro,
+    # que mostra os dois juntos, continua funcionando pelo mesmo caminho.
     campo_usuario = _primeiro(page, CAMPOS_USUARIO)
     campo_senha = _primeiro(page, CAMPOS_SENHA)
-    if not campo_usuario or not campo_senha:
+    if not campo_usuario and not campo_senha:
         return False, ("a tela de login mudou de formato, nao achei os campos "
                        f"(URL: {page.url})")
 
     try:
-        campo_usuario.fill(usuario)
+        if campo_usuario:
+            campo_usuario.fill(usuario)
+
+        if not campo_senha:
+            seguir = _primeiro(page, BOTOES_CONTINUAR)
+            if seguir:
+                seguir.click()
+            elif campo_usuario:
+                campo_usuario.press("Enter")
+            # a senha so aparece depois de trocar de tela
+            try:
+                page.wait_for_selector('input[type="password"]', state="visible",
+                                       timeout=25000)
+            except Exception:
+                return False, ("informei o usuario mas a tela da senha nao abriu "
+                               f"(URL: {page.url})")
+            page.wait_for_timeout(600)
+            campo_senha = _primeiro(page, CAMPOS_SENHA)
+
+        if not campo_senha:
+            return False, f"nao achei o campo de senha (URL: {page.url})"
+
+        # no SSO o usuario vai num campo escondido, ja preenchido; se vier
+        # vazio, preenche por script (fill nao funciona em campo invisivel)
+        try:
+            page.evaluate(
+                """([sel, valor]) => {
+                    const c = document.querySelector(sel);
+                    if (c && !c.value) c.value = valor;
+                }""",
+                ['input[name="username"]', usuario])
+        except Exception:
+            pass
+
         campo_senha.fill(senha)          # o valor nao vai pra log
         botao = _primeiro(page, BOTOES)
         if botao:
             botao.click()
         else:
             campo_senha.press("Enter")
-        page.wait_for_timeout(3500)
+        page.wait_for_timeout(4000)
         page.wait_for_load_state("domcontentloaded", timeout=45000)
     except Exception as e:
         return False, f"falhei ao enviar o formulario ({type(e).__name__})"
