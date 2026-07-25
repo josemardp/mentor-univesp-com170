@@ -989,15 +989,23 @@ def rotulo_fase(pz):
 
 
 def fase_de(pz):
-    """Verbo e nome da fase, lidos do proprio aviso."""
-    alvo = sem_acento(f"{pz.get('rotulo', '')} {pz.get('frase', '')}")
-    if "avaliacao por pares" in alvo or "avaliacoes por pares" in alvo \
-            or "revisao entre pares" in alvo or "avaliar" in alvo:
-        return "Avalie", "o trabalho do outro grupo"
-    if "submissao" in alvo or "submissoes" in alvo or "entrega" in alvo \
-            or "entregue" in alvo:
-        return "Entregue", "o trabalho"
-    return "Conclua", ""
+    """Verbo e nome da fase, lidos do proprio aviso.
+
+    O rotulo manda, e a frase de contexto so decide quando o rotulo nao diz
+    nada: a frase do bloco cita entrega E revisao entre pares, entao usa-la
+    primeiro fazia "Fechamento das submissoes" virar "Avalie".
+    """
+    def classificar(alvo):
+        if any(k in alvo for k in ("avaliacao por pares", "avaliacoes por pares",
+                                   "revisao entre pares", "avaliar")):
+            return "Avalie", "o trabalho do outro grupo"
+        if any(k in alvo for k in ("submissao", "submissoes", "entrega", "entregue")):
+            return "Entregue", "o trabalho"
+        return None
+
+    return (classificar(sem_acento(pz.get("rotulo") or ""))
+            or classificar(sem_acento(pz.get("frase") or ""))
+            or ("Conclua", ""))
 
 
 def montar_acoes(dados, hoje):

@@ -170,6 +170,13 @@ checa(len(obrig) == len(chaves), "prazo repetido em dois avisos não duplica a a
 checa(not [a for a in obrig if len(a["o_que"]) > 80],
       "rótulo da fase é curto e legível")
 
+# o bloco cita entrega E revisão entre pares; o rótulo é que decide o verbo
+verbo_por_data = {a["prazo"][:10]: a["verbo"] for a in obrig}
+checa(verbo_por_data.get("2026-08-01") == "Entregue",
+      "fechamento das submissões vira 'Entregue', não 'Avalie'")
+checa(verbo_por_data.get("2026-08-04") == "Avalie",
+      "fechamento das avaliações por pares vira 'Avalie'")
+
 # ---------------------------------------------------------------------------
 print("\n== Falhar fechado ==")
 
