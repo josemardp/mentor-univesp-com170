@@ -247,16 +247,32 @@ def varrer_foruns(
     autores = set(autores_por_curso.get(chave_curso) or [])
 
     def atualizar_autores(forum, posts):
-        novos = autores_institucionais_do_forum(forum, posts)
-        if novos:
-            autores.update(novos)
-            autores_por_curso[chave_curso] = sorted(autores)
+        autores.update(
+            acumular_autores_institucionais(
+                estado, chave_curso, forum, posts
+            )
+        )
 
     def normalizar_cache(posts):
         guardados, _, _ = priorizar_posts(
             posts, autores, MAX_POSTS_POR_DISCUSSAO
         )
         return guardados
+
+    def usar_cache(cache):
+        nonlocal truncado, institucionais_vistos, institucionais_guardados
+        posts = cache.get("posts", [])
+        institucionais = sum(
+            post.get("autoridade") == "institucional" for post in posts
+        )
+        institucionais_vistos += int(
+            cache.get("posts_institucionais_vistos", institucionais) or 0
+        )
+        institucionais_guardados += int(
+            cache.get("posts_institucionais_guardados", institucionais) or 0
+        )
+        truncado = truncado or bool(cache.get("truncado"))
+        return normalizar_cache(posts)
 
     def guardar(chave, ultimo, posts):
         nonlocal truncado, institucionais_vistos, institucionais_guardados
@@ -291,7 +307,8 @@ def varrer_foruns(
     for _, forum in ordenar_foruns(foruns):
         cache_forum = estado.get(forum["url"], {})
         if orcamento <= 0:
-            coletados.extend(normalizar_cache(cache_forum.get("posts", [])))
+            atualizar_autores(forum, cache_forum.get("posts", []))
+            coletados.extend(usar_cache(cache_forum))
             pulados_orcamento += 1
             continue
         try:
@@ -304,7 +321,8 @@ def varrer_foruns(
             orcamento -= 1
             listas_live += 1
         except (PlaywrightError, TimeoutError, FalhaFonte):
-            coletados.extend(normalizar_cache(cache_forum.get("posts", [])))
+            atualizar_autores(forum, cache_forum.get("posts", []))
+            coletados.extend(usar_cache(cache_forum))
             falhas += 1
             cache_em_falha += int(bool(cache_forum.get("posts")))
             continue
@@ -326,6 +344,7 @@ def varrer_foruns(
             if (
                 mais_novo > (cache_forum.get("ultimo") or "")
                 or "posts" not in cache_forum
+                or cache_forum.get("schema_version") != VERSAO_CACHE
             ):
                 preparados = [
                     preparar(
@@ -345,9 +364,8 @@ def varrer_foruns(
                 ]
                 coletados.extend(guardar(forum["url"], mais_novo, bons))
             else:
-                coletados.extend(
-                    normalizar_cache(cache_forum.get("posts", []))
-                )
+                atualizar_autores(forum, cache_forum.get("posts", []))
+                coletados.extend(usar_cache(cache_forum))
             continue
 
         for discussao in discussoes:
@@ -357,9 +375,11 @@ def varrer_foruns(
                 and discussao.get("ultimo")
                 and discussao["ultimo"] <= cache["ultimo"]
                 and "posts" in cache
+                and cache.get("schema_version") == VERSAO_CACHE
             )
             if parada or orcamento <= 0:
-                coletados.extend(normalizar_cache(cache.get("posts", [])))
+                atualizar_autores(forum, cache.get("posts", []))
+                coletados.extend(usar_cache(cache))
                 if orcamento <= 0:
                     pulados_orcamento += 1
                 continue
@@ -375,7 +395,8 @@ def varrer_foruns(
                 orcamento -= 1
                 posts = page.evaluate(JS_POSTS)
             except (PlaywrightError, TimeoutError, FalhaFonte):
-                coletados.extend(normalizar_cache(cache.get("posts", [])))
+                atualizar_autores(forum, cache.get("posts", []))
+                coletados.extend(usar_cache(cache))
                 falhas += 1
                 cache_em_falha += int(bool(cache.get("posts")))
                 continue

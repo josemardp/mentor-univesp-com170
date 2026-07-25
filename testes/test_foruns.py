@@ -58,6 +58,19 @@ assert por_autor["Docente A"] == "institucional"
 assert por_autor["Colega X"] == "colega"
 print("ok | autores de Avisos são institucionais nos outros fóruns do curso")
 
+estado_autores = {}
+F.acumular_autores_institucionais(
+    estado_autores, "18922", aviso, [post(211, "Docente A")]
+)
+F.acumular_autores_institucionais(
+    estado_autores, "18922", aviso, [post(212, "Facilitadora B")]
+)
+assert estado_autores["_autores_institucionais"]["18922"] == [
+    "Docente A",
+    "Facilitadora B",
+]
+print("ok | autores institucionais acumulam entre leituras do curso")
+
 colega_com_data = post(301, "Colega X", prazos=True)
 classificados, _, _ = F.priorizar_posts([colega_com_data], autores, 10)
 assert classificados[0]["prazos"]

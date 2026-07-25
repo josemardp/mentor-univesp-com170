@@ -110,17 +110,26 @@ def _curso_anterior(anterior, curso_id, codigo):
 
 def _status_agregado(resultados, checked_at, nao_aplicavel=False):
     ativos = [resultado for resultado in resultados if resultado is not None]
-    if not ativos and nao_aplicavel:
+    relevantes = [
+        resultado
+        for resultado in ativos
+        if resultado.status != "nao_aplicavel"
+    ]
+    if (not ativos or not relevantes) and nao_aplicavel:
         return SourceResult(
             status="nao_aplicavel",
             dados=[],
             checked_at=checked_at,
             quantidade_atual=0,
         )
-    falhas = [resultado for resultado in ativos if resultado.status == "falhou"]
+    falhas = [
+        resultado
+        for resultado in relevantes
+        if resultado.status == "falhou"
+    ]
     vivos = [
         resultado
-        for resultado in ativos
+        for resultado in relevantes
         if resultado.status in ("live", "vazio_confirmado")
     ]
     if falhas and not vivos:
@@ -128,7 +137,7 @@ def _status_agregado(resultados, checked_at, nao_aplicavel=False):
     elif falhas:
         status = "degradado"
     else:
-        status = "live" if ativos else "nao_aplicavel"
+        status = "live" if relevantes else "nao_aplicavel"
     return SourceResult(
         status=status,
         dados=[resultado.dados for resultado in ativos],
@@ -140,11 +149,13 @@ def _status_agregado(resultados, checked_at, nao_aplicavel=False):
         checked_at=checked_at,
         from_cache=any(resultado.from_cache for resultado in ativos),
         truncado=any(resultado.truncado for resultado in ativos),
-        quantidade_atual=sum(resultado.quantidade_atual for resultado in ativos),
+        quantidade_atual=sum(
+            resultado.quantidade_atual for resultado in relevantes
+        ),
         last_live_at=checked_at if vivos else None,
         detalhes={
             "falhas": len(falhas),
-            "esperados": len(ativos),
+            "esperados": len(relevantes),
             "live": len(vivos),
         },
     )
@@ -469,7 +480,7 @@ def executar_coleta(estado, anterior=None):
         },
     )
     resultado_itens = SourceResult(
-        status="degradado" if indefinidos else "live",
+        status="parcial" if indefinidos else "live",
         dados=None,
         problemas=(
             [f"{indefinidos} item(ns) com abertura indefinida"]
