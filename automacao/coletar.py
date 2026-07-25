@@ -973,6 +973,21 @@ def casar_prazos(titulo_secao, prazos_aviso):
     return saida
 
 
+def rotulo_fase(pz):
+    """Nome curto da fase pro site.
+
+    Quando o aviso escreve "Fechamento das submissões: <data>", o rótulo sai
+    pronto e bom. Quando a data está solta no meio de um parágrafo, o rótulo
+    vira a frase inteira e fica ilegível ("Módulo 4 · O mesmo vale para o 3 e
+    o 4 O Módulo..."), então preferimos o nome da fase.
+    """
+    r = (pz.get("rotulo") or "").strip()
+    if 3 < len(r) <= 55 and not r.endswith("..."):
+        return r
+    verbo, _ = fase_de(pz)
+    return {"Avalie": "avaliação por pares", "Entregue": "entrega"}.get(verbo, "conclusão")
+
+
 def fase_de(pz):
     """Verbo e nome da fase, lidos do proprio aviso."""
     alvo = sem_acento(f"{pz.get('rotulo', '')} {pz.get('frase', '')}")
@@ -996,15 +1011,22 @@ def montar_acoes(dados, hoje):
             # o trabalho em grupo fecha 01/08 e a avaliacao por pares 04/08.
             # Antes so a primeira virava acao e a segunda, que tambem vale
             # nota, ficava invisivel. Agora cada fase vira uma acao propria.
+            vistos_fase = set()
             for pz in casar_prazos(s["title"], prazos_aviso):
                 urg, txt = urgencia_de(pz["quando"], hoje, pz.get("hora_certa", True))
                 if urg == "vencido":
                     continue
                 verbo, coisa = fase_de(pz)
+                # O facilitador repete o mesmo prazo em mais de um aviso; sem
+                # isto a obrigacao aparecia duas vezes na fila.
+                chave_fase = (pz["quando"], verbo)
+                if chave_fase in vistos_fase:
+                    continue
+                vistos_fase.add(chave_fase)
                 acoes.append({
                     "curso": c["code"], "secao": s["title"], "fase": s.get("fase", "regular"),
                     "verbo": verbo, "coisa": coisa,
-                    "o_que": f"{s['title']} · {pz['rotulo'][:60]}",
+                    "o_que": f"{s['title']} · {rotulo_fase(pz)}",
                     "tipo": "obrigacao", "url": None, "conta_nota": True,
                     "prazo": pz["quando"], "prazo_txt": txt,
                     "prazo_fonte": f"aviso de {pz['aviso'].get('autor') or 'facilitador'}",

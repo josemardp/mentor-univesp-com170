@@ -157,6 +157,20 @@ checa(opcional is None or not opcional.get("prioridade_ate"),
       "item sem dependência declarada não herda prioridade")
 
 # ---------------------------------------------------------------------------
+print("\n== Rótulo e duplicata da obrigação ==")
+
+# o facilitador repete o mesmo prazo em mais de um aviso
+dados2 = curso_teste()
+dados2["courses"][0]["avisos"].append(
+    {"autor": "formador", "url": "https://ava/y", "prazos": prazos})
+acoes2, _ = C.montar_acoes(dados2, HOJE)
+obrig = [a for a in acoes2 if a["tipo"] == "obrigacao"]
+chaves = {(a["secao"], a["prazo"], a["verbo"]) for a in obrig}
+checa(len(obrig) == len(chaves), "prazo repetido em dois avisos não duplica a ação")
+checa(not [a for a in obrig if len(a["o_que"]) > 80],
+      "rótulo da fase é curto e legível")
+
+# ---------------------------------------------------------------------------
 print("\n== Falhar fechado ==")
 
 ok, probs = C.validar_cobertura({"courses": []}, {"courses": [{"code": "X"}]})
