@@ -39,6 +39,16 @@ jobs:
         if: always()
         run: rm -f automacao/storage_state.json
 
+      - name: Enviar resumo por e-mail
+        continue-on-error: true
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          EMAIL_PARA: ${{ secrets.EMAIL_PARA }}
+        run: python automacao/enviar_email.py
+
       - name: Publicar mudanças
         run: |
           git config user.name "guia-univesp-bot"
