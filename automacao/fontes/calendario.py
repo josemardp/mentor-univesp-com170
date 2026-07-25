@@ -3,6 +3,8 @@
 import re
 from datetime import datetime, timedelta, timezone
 
+from playwright.sync_api import Error as PlaywrightError
+
 from configuracao import AVA, BR_TZ
 from fontes.moodle import api_opcional
 from modelos import SourceResult
@@ -90,7 +92,7 @@ def ler_dom(page, hoje):
             if evento.get("id"):
                 por_id[evento["id"]] = evento
         leituras_ok += 1
-    except Exception as erro:
+    except PlaywrightError as erro:
         print(
             f"  aviso: lista de eventos falhou ({type(erro).__name__})"
         )
@@ -113,7 +115,7 @@ def ler_dom(page, hoje):
                     evento["dia_ts"], BR_TZ
                 ).date()
             leituras_ok += 1
-        except Exception:
+        except PlaywrightError:
             continue
 
     eventos = []

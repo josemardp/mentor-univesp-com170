@@ -3,7 +3,7 @@
 from datetime import datetime
 
 from configuracao import AVA, BR_TZ
-from fontes.moodle import api_opcional
+from fontes.moodle import api, api_opcional
 
 
 def ler_notificacoes(page, uid):
@@ -55,3 +55,52 @@ def ler_mensagens(page, uid):
             }
         )
     return saida
+
+
+def ler_sinais(page, uid):
+    """Leitura estrita usada pelo pipeline; falha operacional não vira vazio."""
+    dados_notificacoes = api(
+        page,
+        "message_popup_get_popup_notifications",
+        {"useridto": uid, "limit": 40, "offset": 0},
+    )
+    notificacoes = []
+    for notificacao in (dados_notificacoes or {}).get(
+        "notifications", []
+    ) or []:
+        quando = notificacao.get("timecreated")
+        notificacoes.append(
+            {
+                "assunto": notificacao.get("subject"),
+                "quando": (
+                    datetime.fromtimestamp(quando, BR_TZ).isoformat()
+                    if quando
+                    else None
+                ),
+                "lida": bool(notificacao.get("read")),
+                "url": notificacao.get("contexturl"),
+            }
+        )
+    dados_mensagens = api(
+        page,
+        "core_message_get_conversations",
+        {"userid": uid, "limitnum": 20},
+    )
+    mensagens = []
+    for conversa in (dados_mensagens or {}).get("conversations", []) or []:
+        nao_lidas = conversa.get("unreadcount") or 0
+        if not nao_lidas:
+            continue
+        nomes = [
+            membro.get("fullname")
+            for membro in (conversa.get("members") or [])
+            if membro.get("fullname")
+        ]
+        mensagens.append(
+            {
+                "de": ", ".join(nomes[:3]) or "alguém no AVA",
+                "nao_lidas": nao_lidas,
+                "url": f"{AVA}/message/index.php?id={conversa.get('id')}",
+            }
+        )
+    return {"notificacoes": notificacoes, "mensagens": mensagens}

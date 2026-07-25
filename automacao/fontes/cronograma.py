@@ -3,6 +3,8 @@
 import re
 from datetime import datetime
 
+from playwright.sync_api import Error as PlaywrightError
+
 from configuracao import BR_TZ
 from dominio.datas import achar_datas
 from modelos import SourceResult
@@ -19,7 +21,7 @@ def ler(page, url):
         page.goto(url, wait_until="domcontentloaded", timeout=45000)
         page.wait_for_timeout(800)
         linhas = page.evaluate(JS_CRONOGRAMA)
-    except Exception as erro:
+    except PlaywrightError as erro:
         print(f"  aviso: cronograma {url} falhou ({erro})")
         return None
     semanas = []

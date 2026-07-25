@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """Estado aberto, fechado ou indefinido de uma atividade."""
+from playwright.sync_api import Error as PlaywrightError
+
 from dominio.datas import sem_acento
 
 SINAIS_FECHADO = [
@@ -37,7 +39,7 @@ def item_aberto(page, url):
         page.goto(url, wait_until="domcontentloaded", timeout=40000)
         page.wait_for_timeout(500)
         corpo = sem_acento(page.locator("body").inner_text()[:4000])
-    except Exception:
+    except PlaywrightError:
         return None
     if any(sinal in corpo for sinal in SINAIS_INDEFINIDO):
         return None

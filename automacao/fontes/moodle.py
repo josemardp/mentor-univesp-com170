@@ -25,7 +25,7 @@ async ([nome, args]) => {
 def api(page, metodo, args):
     try:
         resposta = page.evaluate(JS_API, [metodo, args])
-    except (PlaywrightTimeoutError, PlaywrightError) as erro:
+    except (PlaywrightTimeoutError, PlaywrightError, TimeoutError) as erro:
         raise FalhaFonte(
             f"API {metodo} não executou ({type(erro).__name__})"
         ) from erro
@@ -56,7 +56,7 @@ def user_id(page):
         return page.evaluate(
             "() => (window.M && M.cfg && M.cfg.userId) || null"
         )
-    except (PlaywrightTimeoutError, PlaywrightError):
+    except (PlaywrightTimeoutError, PlaywrightError, TimeoutError):
         return None
 
 
@@ -70,7 +70,7 @@ def navegar(page, url, timeout=45000, espera_ms=0):
         page.goto(url, wait_until="domcontentloaded", timeout=timeout)
         if espera_ms:
             page.wait_for_timeout(espera_ms)
-    except (PlaywrightTimeoutError, PlaywrightError) as erro:
+    except (PlaywrightTimeoutError, PlaywrightError, TimeoutError) as erro:
         raise FalhaFonte(
             f"não consegui abrir {url} ({type(erro).__name__})"
         ) from erro

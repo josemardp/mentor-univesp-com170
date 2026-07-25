@@ -11,7 +11,9 @@ sys.path.insert(0, str(ROOT / "automacao"))
 
 from dominio.acoes import montar_acoes  # noqa: E402
 from fontes.moodle import FalhaFonte  # noqa: E402
+from modelos import SourceResult  # noqa: E402
 from pipeline import Fonte, executar_fonte, executar_fontes, politica_publicacao  # noqa: E402
+from saude import completar_idade_fontes  # noqa: E402
 
 fixture = json.loads(
     (ROOT / "testes" / "fixtures" / "snapshot_dourado_sanitizado.json")
@@ -87,3 +89,24 @@ except TypeError:
     print("ok | exceção inesperada propaga e derruba a execução")
 else:
     raise AssertionError("TypeError foi engolido como fonte vazia")
+
+status = completar_idade_fontes(
+    {
+        "foruns": SourceResult(
+            status="falhou",
+            dados=[],
+            checked_at=agora,
+            from_cache=True,
+            truncado=True,
+            quantidade_atual=10,
+        ).para_status()
+    },
+    {"foruns": {"last_live_at": "2026-07-25T19:00:00-03:00"}},
+    agora,
+)
+assert status["foruns"]["status"] == "falhou"
+assert status["foruns"]["idade_segundos"] == 3600
+assert status["foruns"]["quantidade_atual"] == 10
+assert status["foruns"]["from_cache"] is True
+assert status["foruns"]["truncado"] is True
+print("ok | status expõe estado, idade, quantidade, cache e truncamento")

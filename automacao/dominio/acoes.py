@@ -252,3 +252,70 @@ def montar_acoes(dados, hoje):
 
     confirmar.sort(key=lambda item: item["quando"])
     return ordenar(acoes), encerrados, ordenar(higiene), confirmar
+
+
+def identidade_item(curso, secao, item):
+    """Identidade estável: ID Moodle, URL e só então seção+rótulo."""
+    cmid = item.get("cmid")
+    if cmid is not None and str(cmid).strip():
+        return curso.get("code"), "cmid", str(cmid).strip()
+    url = (item.get("url") or "").strip()
+    if url:
+        return curso.get("code"), "url", url
+    secao_id = secao.get("id") or secao.get("title") or ""
+    return (
+        curso.get("code"),
+        "fallback",
+        str(secao_id),
+        sem_acento(item.get("label") or ""),
+    )
+
+
+def novidades(anterior, dados):
+    mudancas = []
+    antes = {}
+    for curso in (anterior or {}).get("courses", []):
+        for secao in curso.get("sections", []):
+            for item in secao.get("items", []):
+                antes[identidade_item(curso, secao, item)] = item.get("status")
+    for curso in dados["courses"]:
+        for secao in curso["sections"]:
+            for item in secao["items"]:
+                chave = identidade_item(curso, secao, item)
+                cmid = (
+                    str(item["cmid"])
+                    if item.get("cmid") is not None
+                    else None
+                )
+                if chave not in antes and item.get("status") is not None:
+                    mudancas.append(
+                        {
+                            "curso": curso["code"],
+                            "label": item["label"],
+                            "kind": "novo",
+                            "cmid": cmid,
+                        }
+                    )
+                elif (
+                    antes.get(chave) != item.get("status")
+                    and item.get("status") == "Concluído"
+                ):
+                    mudancas.append(
+                        {
+                            "curso": curso["code"],
+                            "label": item["label"],
+                            "kind": "concluido",
+                            "cmid": cmid,
+                        }
+                    )
+        for aviso in curso.get("avisos", []):
+            if aviso.get("novo"):
+                mudancas.append(
+                    {
+                        "curso": curso["code"],
+                        "label": aviso.get("titulo") or "novo post",
+                        "kind": "aviso",
+                        "autoridade": aviso.get("autoridade", "colega"),
+                    }
+                )
+    return mudancas

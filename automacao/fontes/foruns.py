@@ -3,6 +3,8 @@
 import re
 from datetime import datetime, timedelta
 
+from playwright.sync_api import Error as PlaywrightError
+
 from configuracao import (
     BR_TZ,
     JANELA_AVISOS_DIAS,
@@ -13,6 +15,7 @@ from configuracao import (
 )
 from dominio.datas import sem_acento
 from dominio.prazos import GATILHOS_PRAZO, extrair_prazos
+from fontes.moodle import FalhaFonte
 
 JS_DISCUSSOES = """
 () => {
@@ -286,10 +289,10 @@ def varrer_foruns(
             )
             page.wait_for_timeout(700)
             if deslogado(page):
-                raise RuntimeError("sessão expirou ao abrir fórum")
+                raise FalhaFonte("sessão expirou ao abrir fórum")
             orcamento -= 1
             listas_live += 1
-        except Exception:
+        except (PlaywrightError, TimeoutError, FalhaFonte):
             coletados.extend(normalizar_cache(cache_forum.get("posts", [])))
             falhas += 1
             cache_em_falha += int(bool(cache_forum.get("posts")))
@@ -297,12 +300,12 @@ def varrer_foruns(
 
         try:
             aqui = page.evaluate(JS_POSTS)
-        except Exception:
+        except PlaywrightError:
             aqui = []
             falhas += 1
         try:
             discussoes = page.evaluate(JS_DISCUSSOES)
-        except Exception:
+        except PlaywrightError:
             discussoes = []
             falhas += 1
 
@@ -357,10 +360,10 @@ def varrer_foruns(
                 )
                 page.wait_for_timeout(600)
                 if deslogado(page):
-                    raise RuntimeError("sessão expirou ao abrir discussão")
+                    raise FalhaFonte("sessão expirou ao abrir discussão")
                 orcamento -= 1
                 posts = page.evaluate(JS_POSTS)
-            except Exception:
+            except (PlaywrightError, TimeoutError, FalhaFonte):
                 coletados.extend(normalizar_cache(cache.get("posts", [])))
                 falhas += 1
                 cache_em_falha += int(bool(cache.get("posts")))
