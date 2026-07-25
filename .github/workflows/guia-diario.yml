@@ -27,12 +27,25 @@ jobs:
           pip install -r automacao/requirements.txt
           python -m playwright install --with-deps chromium
 
-      - name: Restaurar sessão salva
-        run: echo "$AVA_STORAGE_STATE" > automacao/storage_state.json
+      # A sessão salva é só o atalho. Se não existir ou estiver vencida, o
+      # robô loga sozinho com AVA_USUARIO/AVA_SENHA no passo seguinte.
+      - name: Restaurar sessão salva (se houver)
         env:
           AVA_STORAGE_STATE: ${{ secrets.AVA_STORAGE_STATE }}
+        run: |
+          if [ -n "$AVA_STORAGE_STATE" ]; then
+            echo "$AVA_STORAGE_STATE" > automacao/storage_state.json
+            echo "Sessão salva restaurada."
+          else
+            echo "Sem sessão salva: o robô vai logar com as credenciais."
+          fi
 
+      # Se a sessão salva tiver vencido, o robô loga sozinho com estas
+      # credenciais (guardadas no cofre de Secrets, nunca no repositório).
       - name: Gerar guia
+        env:
+          AVA_USUARIO: ${{ secrets.AVA_USUARIO }}
+          AVA_SENHA: ${{ secrets.AVA_SENHA }}
         run: python automacao/gerar_guia.py
 
       - name: Limpar sessão do runner
@@ -64,6 +77,6 @@ jobs:
       - name: Verificar sessão
         run: |
           if grep -q '"status": "session_expired"' docs/data.json; then
-            echo "::error::Sessão do AVA expirou. Rode 'python automacao/capturar_sessao.py' e depois 'python automacao/publicar_sessao_no_github.py' para renovar."
+            echo "::error::Não consegui entrar no AVA. Se os Secrets AVA_USUARIO/AVA_SENHA existem, a senha da Univesp pode ter mudado: rode automacao/salvar_credenciais.bat. Se ainda não existem, rode esse mesmo script para o robô passar a logar sozinho."
             exit 1
           fi

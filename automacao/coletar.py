@@ -33,9 +33,10 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
+import sessao
+
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"
-STATE_PATH = ROOT / "automacao" / "storage_state.json"
 DATA_PATH = DOCS / "data.json"
 ESTADO_PATH = DOCS / "estado.json"
 
@@ -555,14 +556,19 @@ def coletar(estado):
     hoje = datetime.now(BR_TZ).date()
     with sync_playwright() as p:
         nav = p.chromium.launch(headless=True)
-        ctx = nav.new_context(storage_state=str(STATE_PATH))
+        ctx = sessao.novo_contexto(nav)
         page = ctx.new_page()
 
-        page.goto(f"{AVA}/my/", wait_until="domcontentloaded", timeout=60000)
-        page.wait_for_timeout(1200)
-        if deslogado(page):
+        # Se a sessao salva ainda vale, entra direto. Se venceu, loga sozinho
+        # com as credenciais do cofre. So desiste se nao houver credenciais.
+        ok, como = sessao.garantir(page)
+        if not ok:
+            print(f"  {como}")
             nav.close()
             return None, "session_expired"
+        if como == "login":
+            sessao.salvar_sessao(ctx)
+            print("  sessao renovada sozinha.")
 
         uid = user_id(page)
         print("Lendo calendario, notificacoes e mensagens...")
@@ -595,8 +601,14 @@ def coletar(estado):
                       wait_until="domcontentloaded", timeout=60000)
             page.wait_for_timeout(1500)
             if deslogado(page):
-                nav.close()
-                return None, "session_expired"
+                # caiu no meio da leitura: tenta voltar sozinho antes de desistir
+                ok, _ = sessao.garantir(page)
+                if not ok:
+                    nav.close()
+                    return None, "session_expired"
+                page.goto(f"{AVA}/course/view.php?id={cur['id']}",
+                          wait_until="domcontentloaded", timeout=60000)
+                page.wait_for_timeout(1500)
 
             bruto = page.evaluate(JS_CURSO)
             secoes, links = bruto["secoes"], bruto.get("links") or {}
