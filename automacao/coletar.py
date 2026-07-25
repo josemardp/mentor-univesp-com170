@@ -49,6 +49,44 @@ from configuracao import (
     TRECHO_AVISO,
 )
 from dominio.datas import achar_datas, mes as _mes, sem_acento
+from dominio.acoes import (
+    ORDEM,
+    conta_nota,
+    montar_acoes,
+    urgencia_de,
+    verbo_de,
+)
+from dominio.dependencias import (
+    FAMILIA_RE,
+    PREDECESSOR_RE,
+    predecessor_de,
+    propagar_urgencia,
+    secao_do_predecessor,
+)
+from dominio.prazos import (
+    ABREV_MES,
+    CAIXA_ALTA_RE,
+    ESCOPO_RE,
+    GATILHOS_FIM,
+    GATILHOS_INICIO,
+    GATILHOS_PRAZO,
+    NEGACAO_RE,
+    PALAVRAS_FASE,
+    ROTULO_RE,
+    _escopo_de,
+    _posicoes,
+    _tem,
+    _tipo_prazo,
+    casar_prazos,
+    eh_fase,
+    encerra_escopo,
+    escopo_cobre,
+    extrair_prazos,
+    fase_de,
+    muda_assunto,
+    rotulo_fase,
+    tem_negacao,
+)
 
 
 def limpar_bloqueio(texto):
@@ -1401,6 +1439,38 @@ def propagar_urgencia(acoes, dados, hoje):
                     break
                 secao = secao_do_predecessor(pred, titulos)
     return acoes
+
+
+# Reexports temporários: preservam a API histórica enquanto as fontes ainda
+# vivem neste arquivo. A implementação usada em runtime já é a modular.
+from dominio import acoes as _acoes_mod  # noqa: E402
+from dominio import datas as _datas_mod  # noqa: E402
+from dominio import dependencias as _dependencias_mod  # noqa: E402
+from dominio import prazos as _prazos_mod  # noqa: E402
+
+achar_datas = _datas_mod.achar_datas
+sem_acento = _datas_mod.sem_acento
+_mes = _datas_mod.mes
+_posicoes = _prazos_mod._posicoes
+_tem = _prazos_mod._tem
+_tipo_prazo = _prazos_mod._tipo_prazo
+_escopo_de = _prazos_mod._escopo_de
+tem_negacao = _prazos_mod.tem_negacao
+eh_fase = _prazos_mod.eh_fase
+muda_assunto = _prazos_mod.muda_assunto
+encerra_escopo = _prazos_mod.encerra_escopo
+escopo_cobre = _prazos_mod.escopo_cobre
+extrair_prazos = _prazos_mod.extrair_prazos
+casar_prazos = _prazos_mod.casar_prazos
+rotulo_fase = _prazos_mod.rotulo_fase
+fase_de = _prazos_mod.fase_de
+conta_nota = _acoes_mod.conta_nota
+verbo_de = _acoes_mod.verbo_de
+urgencia_de = _acoes_mod.urgencia_de
+montar_acoes = _acoes_mod.montar_acoes
+predecessor_de = _dependencias_mod.predecessor_de
+secao_do_predecessor = _dependencias_mod.secao_do_predecessor
+propagar_urgencia = _dependencias_mod.propagar_urgencia
 
 
 def validar_cobertura(dados, anterior):
