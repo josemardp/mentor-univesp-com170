@@ -1449,6 +1449,12 @@ from dominio import datas as _datas_mod  # noqa: E402
 from dominio import dependencias as _dependencias_mod  # noqa: E402
 from dominio import prazos as _prazos_mod  # noqa: E402
 from fontes import foruns as _foruns_mod  # noqa: E402
+from fontes import calendario as _calendario_mod  # noqa: E402
+from fontes import cronograma as _cronograma_mod  # noqa: E402
+from fontes import itens as _itens_mod  # noqa: E402
+from fontes import moodle as _moodle_mod  # noqa: E402
+from fontes import notificacoes as _notificacoes_mod  # noqa: E402
+import saude as _saude_mod  # noqa: E402
 
 achar_datas = _datas_mod.achar_datas
 sem_acento = _datas_mod.sem_acento
@@ -1478,6 +1484,25 @@ JS_POSTS = _foruns_mod.JS_POSTS
 post_interessa = _foruns_mod.post_interessa
 _preparar = _foruns_mod.preparar
 varrer_foruns = _foruns_mod.varrer_foruns
+JS_API = _moodle_mod.JS_API
+api = _moodle_mod.api_opcional
+user_id = _moodle_mod.user_id
+deslogado = _moodle_mod.deslogado
+JS_EVENTOS_LISTA = _calendario_mod.JS_EVENTOS_LISTA
+JS_EVENTOS_MES = _calendario_mod.JS_EVENTOS_MES
+_cmid_de = _calendario_mod.cmid_de
+ler_calendario_api = _calendario_mod.ler_api
+ler_calendario_dom = _calendario_mod.ler_dom
+ler_calendario = _calendario_mod.ler
+JS_CRONOGRAMA = _cronograma_mod.JS_CRONOGRAMA
+ler_cronograma = _cronograma_mod.ler
+SINAIS_FECHADO = _itens_mod.SINAIS_FECHADO
+SINAIS_INDEFINIDO = _itens_mod.SINAIS_INDEFINIDO
+item_aberto = _itens_mod.item_aberto
+ler_notificacoes = _notificacoes_mod.ler_notificacoes
+ler_mensagens = _notificacoes_mod.ler_mensagens
+validar_cobertura = _saude_mod.validar_cobertura
+resumo_fontes = _saude_mod.resumo_fontes
 
 
 def validar_cobertura(dados, anterior):
@@ -1577,6 +1602,11 @@ def resumo_fontes(dados):
         "itens_com_prazo": sum(1 for c in cursos for s in c.get("sections") or []
                                for it in s.get("items") or [] if it.get("prazo")),
     }
+
+
+# Reexports de saúde precisam vir depois das definições legadas acima.
+validar_cobertura = _saude_mod.validar_cobertura
+resumo_fontes = _saude_mod.resumo_fontes
 
 
 def _preparar_json(caminho, conteudo):
