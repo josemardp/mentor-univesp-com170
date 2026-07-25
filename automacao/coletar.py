@@ -349,11 +349,22 @@ def ler_cronograma(page, url):
 # ---------------------------------------------------------------------------
 def ler_calendario(page):
     agora = int(datetime.now(timezone.utc).timestamp())
-    dados = api(page, "core_calendar_get_action_events_by_timesort", {
+    pedido = {
         "timesortfrom": agora - 86400 * 60,
         "timesortto": agora + 86400 * 240,
         "limitnum": 200,
-    })
+    }
+    dados = api(page, "core_calendar_get_action_events_by_timesort", pedido)
+    # Logo depois de um login novo a sessao as vezes ainda nao responde a esta
+    # chamada e volta vazia. Uma segunda tentativa, com a pagina do painel
+    # recarregada, resolve sem precisar de nada mais elaborado.
+    if not (dados or {}).get("events"):
+        try:
+            page.goto(f"{AVA}/my/", wait_until="domcontentloaded", timeout=45000)
+            page.wait_for_timeout(2000)
+            dados = api(page, "core_calendar_get_action_events_by_timesort", pedido)
+        except Exception:
+            pass
     eventos = []
     for e in (dados or {}).get("events", []) or []:
         curso = e.get("course") or {}
