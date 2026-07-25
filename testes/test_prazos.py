@@ -44,17 +44,17 @@ casos = [
 ]
 for texto, dia, tem_hora in casos:
     achados = C.achar_datas(texto, REF)
-    ok = any(d.strftime("%d/%m") == dia for d, _, _ in achados)
+    ok = any(d.strftime("%d/%m") == dia for d, _, _, _ in achados)
     checa(ok, f"lê data em {texto!r}")
     if ok:
-        certa = [h for d, _, h in achados if d.strftime("%d/%m") == dia][0]
+        certa = [h for d, _, h, _ in achados if d.strftime("%d/%m") == dia][0]
         checa(certa == tem_hora,
               f"hora_certa={tem_hora} em {texto!r} (não inventa horário)")
 
 # virada de ano: aviso de dezembro falando em janeiro
 ref_dez = datetime(2026, 12, 20, 10, 0, tzinfo=BR)
 achados = C.achar_datas("entregar até 10 de janeiro", ref_dez)
-checa(any(d.year == 2027 for d, _, _ in achados),
+checa(any(d.year == 2027 for d, _, _, _ in achados),
       "aviso de dezembro que cita janeiro cai no ano seguinte")
 
 # ---------------------------------------------------------------------------
@@ -180,23 +180,81 @@ checa(verbo_por_data.get("2026-08-04") == "Avalie",
 # ---------------------------------------------------------------------------
 print("\n== Falhar fechado ==")
 
-ok, probs = C.validar_cobertura({"courses": []}, {"courses": [{"code": "X"}]})
+def curso(cid, code):
+    return {"id": cid, "code": code, "sections": [{"items": [{"label": "x"}]}]}
+
+
+ok, probs = C.validar_cobertura({"courses": []}, {"courses": [{"id": 1, "code": "X"}]})
 checa(not ok, "coleta sem nenhuma disciplina é recusada")
 checa(any("disciplina" in p for p in probs), "e explica o motivo")
 
-anterior = {"courses": [{"code": "A"}, {"code": "B"}, {"code": "C"}, {"code": "D"}]}
-ok, _ = C.validar_cobertura({"courses": [{"code": "A", "sections": [
-    {"items": [{"label": "x"}]}]}]}, anterior)
-checa(not ok, "queda de 4 para 1 disciplina é recusada")
+anterior = {"courses": [curso(i, c) for i, c in enumerate("ABCD", 1)]}
 
-bom = {"courses": [{"code": "A", "sections": [{"items": [{"label": "x"}]}]},
-                   {"code": "B", "sections": [{"items": [{"label": "y"}]}]}]}
-ok, probs = C.validar_cobertura(bom, {"courses": [{"code": "A"}, {"code": "B"}]})
+# O limiar antigo era "< metade", então perder 1 ou 2 de 4 passava calado.
+for n in (3, 2, 1):
+    nova = {"courses": [curso(i, c) for i, c in enumerate("ABCD"[:n], 1)]}
+    ok, _ = C.validar_cobertura(nova, anterior)
+    checa(not ok, f"queda de 4 para {n} disciplina(s) é recusada")
+
+ok, _ = C.validar_cobertura(anterior, anterior)
 checa(ok, "coleta saudável passa")
 
+# virada de bimestre: as antigas somem E entram novas
+virada = {"courses": [curso(i, c) for i, c in enumerate("EFGH", 90)]}
+ok, _ = C.validar_cobertura(virada, anterior)
+checa(ok, "troca de bimestre (todas somem e novas entram) é aceita")
+
 ok, probs = C.validar_cobertura(
-    {"courses": [{"code": "A", "sections": []}]}, None)
+    {"courses": [{"id": 1, "code": "A", "sections": []}]}, None)
 checa(not ok, "disciplina sem seção nenhuma é recusada")
+
+# ---------------------------------------------------------------------------
+print("\n== Achados da auditoria rodada 2 ==")
+
+# escopo não pode vazar para o assunto seguinte
+texto_misto = ("Módulo 4: o trabalho precisa ser entregue até 26/07.\n"
+               "LIVE MAGNA: será realizada em 30/07.\n"
+               "Prova presencial: acontece em 10/09.")
+pz_misto = C.extrair_prazos(texto_misto, REF)
+m4 = C.casar_prazos("Módulo 4", pz_misto)
+checa(len(m4) == 1 and m4[0]["quando"][:10] == "2026-07-26",
+      "assunto novo encerra o escopo: live e prova não viram prazo do Módulo 4")
+
+# abertura e fechamento na mesma frase
+p_par = C.extrair_prazos("A abertura ocorre em 27/07 e o prazo fecha em 01/08.", REF)
+t_par = {p["quando"][:10]: p["tipo"] for p in p_par}
+checa(t_par.get("2026-07-27") == "inicio", "na mesma frase, 27/07 é abertura")
+checa(t_par.get("2026-08-01") == "fim", "na mesma frase, 01/08 é fechamento")
+
+# "abre/fecha" precisam passar no pré-filtro
+p_ab = C.extrair_prazos("A atividade abre em 27/07 e fecha em 01/08.", REF)
+checa(len(p_ab) == 2, "'abre em ... e fecha em ...' não é descartado pelo filtro")
+
+# duas obrigações distintas com mesmo horário e mesmo verbo
+def _pz(rot, quando_iso):
+    return {"rotulo": rot, "quando": quando_iso, "trecho": "", "tipo": "fim",
+            "hora_certa": True, "frase": rot,
+            "escopo": {"familia": "modulo", "numeros": [6], "txt": rot}}
+
+dois = [_pz("Fechamento da submissão individual", "2026-08-01T23:59:00-03:00"),
+        _pz("Fechamento da submissão do grupo", "2026-08-01T23:59:00-03:00")]
+d3 = {"courses": [{"code": "COM170", "modelo": "quinzenal",
+      "avisos": [{"autor": "formador", "url": "u", "prazos": dois}],
+      "sections": [{"title": "Módulo 6", "fase": "regular", "locked": None,
+                    "items": []}]}]}
+obrig3 = [a for a in C.montar_acoes(d3, HOJE)[0] if a["tipo"] == "obrigacao"]
+checa(len(obrig3) == 2,
+      "entrega individual e de grupo, mesmo horário, não colapsam numa só")
+
+# item_aberto: texto real do workshop e páginas que não deixam ver
+checa(any(s in C.sem_acento("Submissões fechadas. Avaliações fechadas.")
+          for s in C.SINAIS_FECHADO), "'Submissões fechadas' conta como fechado")
+checa(any(s in C.sem_acento("O prazo de envio terminou.")
+          for s in C.SINAIS_FECHADO), "'prazo de envio terminou' conta como fechado")
+checa(any(s in C.sem_acento("Você precisa fazer login para continuar.")
+          for s in C.SINAIS_INDEFINIDO), "página de login não afirma nada sobre a atividade")
+checa(any(s in C.sem_acento("Você não tem permissão para visualizar.")
+          for s in C.SINAIS_INDEFINIDO), "página sem permissão não afirma nada")
 
 # ---------------------------------------------------------------------------
 print("\n== Urgência ==")

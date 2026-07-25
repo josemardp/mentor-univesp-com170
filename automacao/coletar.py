@@ -193,9 +193,19 @@ JS_DISCUSSOES = """
 }
 """
 
+# Os tres seletores casam o MESMO post (um e descendente do outro), entao a
+# uniao dos tres duplicava cada post. Como o corte do cache acontecia antes da
+# desduplicacao, o teto de 10 virava 5 posts reais por discussao. Agora usamos
+# o primeiro seletor que encontrar algo, em vez da uniao.
 JS_POSTS = """
-() => [...document.querySelectorAll('article.forum-post-container, [data-region="post"], .forumpost')]
-  .map(p => {
+() => {
+  const seletores = ['article.forum-post-container', '[data-region="post"]', '.forumpost'];
+  let achados = [];
+  for (const s of seletores) {
+    achados = [...document.querySelectorAll(s)];
+    if (achados.length) break;
+  }
+  return achados.map(p => {
     const autor = p.querySelector('a[href*="user/view"]');
     const t = p.querySelector('time');
     const h = p.querySelector('h3, h4, .subject');
@@ -208,7 +218,8 @@ JS_POSTS = """
       links: [...p.querySelectorAll('a[href]')].map(a => a.href)
                .filter(h => h && !h.includes('user/view') && !h.includes('#p')),
     };
-  }).filter(p => p.texto)
+  }).filter(p => p.texto);
+}
 """
 
 JS_CRONOGRAMA = """
@@ -305,24 +316,26 @@ def achar_datas(texto, referencia):
                             (melhor - referencia).days):
                         melhor = cand
                 if melhor:
-                    achados.append((melhor, m.group(0).strip(), hora_certa))
+                    achados.append((melhor, m.group(0).strip(), hora_certa, m.start()))
             except (ValueError, TypeError):
                 continue
     return achados
 
 
-def _tem(alvo, termos):
-    """Posicao do primeiro termo achado, respeitando limite de palavra.
+def _posicoes(alvo, termos):
+    """Todas as posicoes onde algum termo aparece, com limite de palavra.
 
-    Sem o limite, 'inicia' casava dentro de 'LIVE INICIAL' e o aviso da live
-    virava "abertura". Agora 'inicial' nao ativa 'inicia'.
+    O limite existe porque 'inicia' casava dentro de 'LIVE INICIAL' e o aviso
+    da live virava "abertura".
     """
-    posicoes = []
-    for t in termos:
-        m = re.search(r"\b" + re.escape(t.strip()) + r"\b", alvo)
-        if m:
-            posicoes.append(m.start())
-    return min(posicoes) if posicoes else -1
+    return [m.start() for t in termos
+            for m in re.finditer(r"\b" + re.escape(t.strip()) + r"\b", alvo)]
+
+
+def _tem(alvo, termos):
+    """Posicao do primeiro termo achado, ou -1."""
+    pos = _posicoes(alvo, termos)
+    return min(pos) if pos else -1
 
 
 GATILHOS_PRAZO = [
@@ -330,6 +343,8 @@ GATILHOS_PRAZO = [
     "fechamento", "encerramento", "encerra", "submissao", "submissoes",
     "avaliacao por pares", "avaliacoes por pares", "abertura", "limite",
     "data", "horario", "acontece", "sera realizada",
+    # "abre em 27/07 e fecha em 01/08" nao passava no filtro e o prazo sumia
+    "abre", "abrem", "fecha", "fecham",
 ]
 
 # Data de abertura NAO e prazo. O aviso do facilitador lista "Abertura das
@@ -342,15 +357,36 @@ GATILHOS_FIM = ["fechamento", "ate", "vencimento", "vence", "encerra",
                 "prazo", "fecha"]
 
 
-def _tipo_prazo(fragmento, contexto):
+def _tipo_prazo(fragmento, contexto, pos_data=None):
     """'inicio' quando a data marca abertura, 'fim' quando marca prazo.
-    Na duvida devolve 'fim', que e o caso comum e o que gera alerta."""
-    for alvo in (sem_acento(fragmento), sem_acento(contexto)):
-        pos_ini = _tem(alvo, GATILHOS_INICIO)
-        pos_fim = _tem(alvo, GATILHOS_FIM)
-        if pos_ini < 0 and pos_fim < 0:
-            continue           # nada decisivo aqui, tenta o contexto
-        if pos_ini >= 0 and (pos_fim < 0 or pos_ini < pos_fim):
+
+    Classifica pela palavra MAIS PRÓXIMA da data, não pela primeira da frase.
+    Em "A abertura ocorre em 27/07 e o prazo fecha em 01/08" as duas datas
+    saíam como abertura, e o fechamento de 01/08 desaparecia da fila.
+
+    Na dúvida devolve 'fim', que é o caso comum e o que gera alerta.
+    """
+    # No fragmento sabemos onde a data está, então usamos a palavra que a
+    # governa: em português ela vem ANTES ("Abertura das submissões: 27/07").
+    # Distância pura escolhia errado, porque "prazo fecha" ficava mais perto de
+    # 27/07 do que o "abertura" que abre a frase.
+    alvo = sem_acento(fragmento)
+    ini, fim = _posicoes(alvo, GATILHOS_INICIO), _posicoes(alvo, GATILHOS_FIM)
+    if pos_data is not None and (ini or fim):
+        antes_ini = [p for p in ini if p <= pos_data]
+        antes_fim = [p for p in fim if p <= pos_data]
+        if antes_ini or antes_fim:
+            return "inicio" if max(antes_ini or [-1]) > max(antes_fim or [-1]) else "fim"
+        # nada antes da data: cai pro mais próximo depois dela
+        return "inicio" if min(ini or [10 ** 9]) < min(fim or [10 ** 9]) else "fim"
+
+    # Sem posição utilizável, decide pela primeira palavra do trecho e, se ele
+    # não disser nada, pelo contexto ao redor.
+    for texto in (alvo, sem_acento(contexto)):
+        pi, pf = _tem(texto, GATILHOS_INICIO), _tem(texto, GATILHOS_FIM)
+        if pi < 0 and pf < 0:
+            continue
+        if pi >= 0 and (pf < 0 or pi < pf):
             return "inicio"
         return "fim"
     return "fim"
@@ -372,6 +408,34 @@ def _escopo_de(fragmento):
         return None
     familia = sem_acento(m.group(1)).rstrip("s")
     return {"familia": familia, "numeros": numeros, "txt": fragmento[:120]}
+
+
+# Rotulos que sao FASE de uma obrigacao ("Abertura das submissoes:") e portanto
+# continuam dentro do escopo aberto. Qualquer outro rotulo antes de ":" indica
+# assunto novo e encerra o escopo.
+PALAVRAS_FASE = ("abertura", "fechamento", "encerramento", "inicio", "fim",
+                 "prazo", "entrega", "submissao", "submissoes", "avaliacao",
+                 "avaliacoes", "revisao", "data", "horario", "limite",
+                 "vencimento", "atencao", "obs")
+
+ROTULO_RE = re.compile(r"^([^:]{2,60}):")
+
+
+def encerra_escopo(fragmento):
+    """O trecho começa um assunto novo?
+
+    Sem isto o escopo do último "Módulo N" ficava colado em tudo que viesse
+    depois. Um aviso com "Módulo 4: entregue até 26/07" seguido de
+    "LIVE MAGNA: será realizada em 30/07" fazia a data da live virar prazo do
+    Módulo 4 — prazo inventado, que é a pior falha possível aqui.
+    """
+    m = ROTULO_RE.match((fragmento or "").strip())
+    if not m:
+        return False
+    rotulo = sem_acento(m.group(1))
+    if _escopo_de(fragmento):
+        return False              # é um novo escopo, tratado à parte
+    return not any(p in rotulo for p in PALAVRAS_FASE)
 
 
 def escopo_cobre(escopo, titulo_secao):
@@ -411,12 +475,14 @@ def extrair_prazos(texto, referencia):
         achado = _escopo_de(f)
         if achado:
             escopo = achado          # vale para as datas seguintes
+        elif encerra_escopo(f):
+            escopo = None            # assunto novo: o módulo anterior não vale mais
         if not (4 <= len(f) <= 300):
             continue
         contexto = " ".join(trechos[max(0, i - 2):i + 1])
         if _tem(sem_acento(contexto), GATILHOS_PRAZO) < 0:
             continue
-        for quando, trecho, hora_certa in achar_datas(f, referencia):
+        for quando, trecho, hora_certa, pos in achar_datas(f, referencia):
             rotulo = f.split(":")[0].strip() if ":" in f[:70] else contexto
             rotulo = rotulo[:87] + "..." if len(rotulo) > 90 else rotulo
             chave = (quando.isoformat(), rotulo[:40])
@@ -425,7 +491,7 @@ def extrair_prazos(texto, referencia):
             vistos.add(chave)
             prazos.append({
                 "rotulo": rotulo, "quando": quando.isoformat(), "trecho": trecho,
-                "tipo": _tipo_prazo(f, contexto), "hora_certa": hora_certa,
+                "tipo": _tipo_prazo(f, contexto, pos), "hora_certa": hora_certa,
                 "escopo": escopo,
                 "frase": contexto if len(contexto) <= 220 else contexto[:217] + "...",
             })
@@ -445,7 +511,7 @@ def ler_cronograma(page, url):
         m = re.search(r"Semana\s+(\d+)", linha, re.IGNORECASE)
         if not m:
             continue
-        datas = achar_datas(linha, date.today().year)
+        datas = achar_datas(linha, datetime.now(BR_TZ))
         if len(datas) < 2:
             continue
         semanas.append({
@@ -637,7 +703,20 @@ def varrer_foruns(page, foruns, estado, orcamento, hoje):
     coletados = []
 
     def guardar(chave, ultimo, posts):
-        estado[chave] = {"ultimo": ultimo or "", "posts": posts[:MAX_POSTS_POR_DISCUSSAO]}
+        # Desduplica ANTES de cortar: cortar primeiro fazia o teto valer metade.
+        unicos, vistos_post = [], set()
+        for p in posts:
+            k = (p.get("data"), (p.get("texto") or "")[:80])
+            if k in vistos_post:
+                continue
+            vistos_post.add(k)
+            unicos.append(p)
+        cortou = len(unicos) > MAX_POSTS_POR_DISCUSSAO
+        if cortou:
+            print(f"    aviso: {len(unicos)} posts relevantes, guardando "
+                  f"{MAX_POSTS_POR_DISCUSSAO} (truncado) em {chave[-46:]}")
+        estado[chave] = {"ultimo": ultimo or "", "truncado": cortou,
+                         "posts": unicos[:MAX_POSTS_POR_DISCUSSAO]}
         return estado[chave]["posts"]
 
     for f in foruns:
@@ -719,6 +798,16 @@ SINAIS_FECHADO = [
     "nao esta mais disponivel", "esta atividade encerrou",
     "o prazo para envio expirou", "nao e mais possivel",
     "periodo encerrado", "fora do prazo", "esta pesquisa nao esta",
+    # texto real do workshop e das tarefas do AVA, que nao estavam cobertos
+    "submissoes fechadas", "avaliacoes fechadas", "o prazo de envio terminou",
+    "prazo encerrado", "envio encerrado", "atividade encerrada",
+]
+
+# Estas frases nao falam da atividade: falam de que NAO conseguimos ve-la.
+# Tratar isso como "aberto" era afirmar o que a pagina nao afirmou.
+SINAIS_INDEFINIDO = [
+    "precisa fazer login", "voce precisa se identificar", "acesso negado",
+    "nao tem permissao", "sem permissao para", "erro de permissao",
 ]
 
 
@@ -732,7 +821,11 @@ def item_aberto(page, url):
         corpo = sem_acento(page.locator("body").inner_text()[:4000])
     except Exception:
         return None
-    return not any(s in corpo for s in SINAIS_FECHADO)
+    if any(s in corpo for s in SINAIS_INDEFINIDO):
+        return None           # nao sei; quem chama trata como aberto
+    if any(s in corpo for s in SINAIS_FECHADO):
+        return False
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -966,8 +1059,12 @@ def casar_prazos(titulo_secao, prazos_aviso):
     for pz in prazos_aviso:
         if pz.get("tipo") == "inicio":
             continue          # data de abertura nao e prazo
+        # O casamento é pelo escopo lido do aviso. O reserva olha só o RÓTULO,
+        # nunca a frase de contexto: a frase carrega os trechos vizinhos, então
+        # "Módulo 4" vazava para a live e para a prova citadas logo abaixo,
+        # colando nelas um prazo que não era delas.
         if escopo_cobre(pz.get("escopo"), titulo_secao) or (
-                chave in sem_acento(pz["rotulo"] + " " + pz["frase"])):
+                chave in sem_acento(pz.get("rotulo") or "")):
             saida.append(pz)
     saida.sort(key=lambda p: p["quando"])
     return saida
@@ -1026,8 +1123,11 @@ def montar_acoes(dados, hoje):
                     continue
                 verbo, coisa = fase_de(pz)
                 # O facilitador repete o mesmo prazo em mais de um aviso; sem
-                # isto a obrigacao aparecia duas vezes na fila.
-                chave_fase = (pz["quando"], verbo)
+                # isto a obrigacao aparecia duas vezes na fila. A chave usa o
+                # rotulo inteiro, e nao o verbo: "submissao individual" e
+                # "submissao do grupo" caem no mesmo verbo e no mesmo horario,
+                # e com chave por verbo uma das duas sumia.
+                chave_fase = (pz["quando"], sem_acento(pz.get("rotulo") or "")[:60])
                 if chave_fase in vistos_fase:
                     continue
                 vistos_fase.add(chave_fase)
@@ -1193,10 +1293,20 @@ def validar_cobertura(dados, anterior):
     if not cursos:
         problemas.append("não encontrei nenhuma disciplina em Meus cursos")
 
-    antes = [c for c in (anterior or {}).get("courses", [])] if anterior else []
-    if antes and len(cursos) < len(antes) / 2:
-        problemas.append(
-            f"caí de {len(antes)} para {len(cursos)} disciplinas de uma vez")
+    # Contar disciplina não basta: com o limiar antigo (< metade), perder 2 de 4
+    # passava como coleta boa. Agora comparamos por ID. Se alguma some e nenhuma
+    # nova aparece, é falha de leitura. Se TODAS trocam, é virada de bimestre.
+    ids_antes = {str(c.get("id")) for c in (anterior or {}).get("courses", [])
+                 if c.get("id")}
+    ids_agora = {str(c.get("id")) for c in cursos if c.get("id")}
+    if ids_antes:
+        sumiram = ids_antes - ids_agora
+        novas = ids_agora - ids_antes
+        if sumiram and not novas:
+            codigos = [c.get("code") for c in (anterior or {}).get("courses", [])
+                       if str(c.get("id")) in sumiram]
+            problemas.append("disciplina que existia ontem sumiu hoje: "
+                             + ", ".join(x for x in codigos if x))
 
     sem_secao = [c["code"] for c in cursos if not c.get("sections")]
     if sem_secao:

@@ -19,10 +19,23 @@ import render
 def main():
     if "--render-only" in sys.argv:
         return render.main()
+
     codigo = coletar.main()
+
+    # Renderiza SEMPRE, inclusive quando a coleta veio incompleta: é
+    # justamente aí que o site precisa exibir "não consegui ler o AVA". Antes
+    # este return saía antes do render, então o aviso que o coletar gravou no
+    # data.json nunca chegava à tela, nem o e-mail era enviado.
+    saida = render.main()
+    if saida:
+        return saida
+
+    # Coleta ruim não derruba o passo: o site e o e-mail ainda precisam sair
+    # com o alerta. Quem falha a Action é o passo "Verificar saúde da coleta",
+    # depois de publicar.
     if codigo:
-        return codigo
-    return render.main()
+        print("Coleta incompleta: site e e-mail vão sair com o aviso.")
+    return 0
 
 
 if __name__ == "__main__":
