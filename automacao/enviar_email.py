@@ -61,8 +61,14 @@ def montar_texto(data):
     if data.get("status") == "session_expired":
         linhas += [
             "ATENCAO: a sessao do AVA expirou, os dados abaixo sao do ultimo retrato valido.",
-            "Renove com 2 cliques em automacao/renovar_sessao.bat.", "",
+            "Renove com 2 cliques em automacao/salvar_credenciais.bat.", "",
         ]
+    elif data.get("status") == "coleta_incompleta":
+        linhas += ["ATENCAO: entrei no AVA mas a leitura veio incompleta, entao o que",
+                   "vem abaixo e do ultimo retrato que deu certo e PODE ESTAR VELHO.",
+                   "Confira direto no AVA. Motivos:"]
+        linhas += [f"  - {p}" for p in (data.get("problemas") or [])]
+        linhas.append("")
 
     acoes = data.get("acoes") or []
     urgentes = [a for a in acoes if a["urgencia"] in ("hoje", "amanha")]
@@ -121,6 +127,8 @@ def assunto(data):
     urgentes = [a for a in acoes if a["urgencia"] in ("hoje", "amanha")]
     if data.get("status") == "session_expired":
         return f"[Univesp {hoje:%d/%m}] sessao do AVA expirou"
+    if data.get("status") == "coleta_incompleta":
+        return f"[Univesp {hoje:%d/%m}] leitura incompleta, confira no AVA"
     if urgentes:
         return f"[Univesp {hoje:%d/%m}] " + plural(len(urgentes), "coisa vencendo", "coisas vencendo")
     if acoes:

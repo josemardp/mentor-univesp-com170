@@ -125,9 +125,14 @@ def render_recado():
 # ---------------------------------------------------------------------------
 def render_acao(a):
     chips = []
+    cls = {"hoje": "pend", "amanha": "pend", "semana": "brick"}.get(a["urgencia"], "lock")
     if a.get("prazo_txt"):
-        cls = {"hoje": "pend", "amanha": "pend", "semana": "brick"}.get(a["urgencia"], "lock")
         chips.append(f'<span class="status {cls}">{esc(a["prazo_txt"])}</span>')
+    elif a.get("prioridade_ate"):
+        # Não tem prazo próprio: herdou prioridade de uma etapa que tem. O chip
+        # diz "faça antes de", nunca "vence", pra não inventar prazo oficial.
+        chips.append(f'<span class="status {cls}">faça antes de '
+                     f'{esc(fmt_dm(a["prioridade_ate"]))}</span>')
     if a.get("conta_nota"):
         chips.append('<span class="status ok">vale nota</span>')
 
@@ -147,8 +152,11 @@ def render_acao(a):
 
     trava = ""
     if a.get("destrava"):
-        trava = ('<div class="trava">🔑 Faça este primeiro: é ele que destrava a etapa '
-                 'seguinte, que tem prazo.</div>')
+        quando = fmt_dm(a.get("destrava_em")) if a.get("destrava_em") else ""
+        trava = ('<div class="trava">🔑 Este não tem prazo próprio, mas é ele que '
+                 f'destrava <b>{esc(a["destrava"])}</b>'
+                 + (f', que vence {esc(quando)}' if quando else "")
+                 + '. Por isso está aqui em cima.</div>')
     if a.get("bloqueio"):
         trava = (f'<div class="trava">🔒 Ainda não abriu: {esc(a["bloqueio"])}. '
                  'Corra os módulos anteriores pra destravar a tempo.</div>')
@@ -159,6 +167,8 @@ def render_acao(a):
         if a.get("fonte_url"):
             origem = f'<a href="{esc(a["fonte_url"])}" target="_blank" rel="noopener">{origem}</a>'
         rodape.append(origem)
+    elif a.get("prioridade_ate"):
+        rodape.append("sem prazo próprio no AVA")
     if a.get("carencia"):
         rodape.append(f'carência até {esc(fmt_dmhm(a["carencia"]))}')
 
@@ -170,8 +180,31 @@ def render_acao(a):
             f'</li>')
 
 
+def render_lista_acoes(acoes):
+    partes = []
+    for chave, titulo, _ in GRUPOS:
+        do_grupo = [a for a in (acoes or []) if a["urgencia"] == chave]
+        if not do_grupo:
+            continue
+        partes.append(f'<h3 class="grupo">{esc(titulo)} <span class="muted">'
+                      f'{len(do_grupo)}</span></h3>')
+        partes.append('<ul class="acoes">'
+                      + "".join(render_acao(a) for a in do_grupo) + "</ul>")
+    return "".join(partes)
+
+
 def render_agora(data):
     acoes = data.get("acoes")
+    if data.get("status") == "coleta_incompleta":
+        # Nunca dizer "tudo em dia" quando a leitura falhou: o silêncio aqui
+        # é justamente o que faria ele perder prazo achando que estava livre.
+        motivos = "".join(f"<li>{esc(p)}</li>" for p in (data.get("problemas") or []))
+        return ('<div class="bloco destaque"><h2>Não consegui ler o AVA agora</h2>'
+                '<p class="sub" style="margin:0 0 8px;">A lista abaixo é do último '
+                'retrato que deu certo, então <b>pode estar desatualizada</b>. '
+                'Confira direto no AVA antes de confiar nela.</p>'
+                f'<ul class="tasklist">{motivos}</ul></div>'
+                + (render_lista_acoes(acoes) if acoes else ""))
     if acoes is None:
         # data.json ainda no formato antigo: o robo nao rodou com o motor novo.
         # Melhor dizer isso do que fingir que esta tudo em dia.
@@ -184,15 +217,7 @@ def render_agora(data):
         return ('<div class="bloco destaque"><h2>O que fazer agora</h2>'
                 '<p class="sub" style="margin:0;">Nada pendente. Tudo em dia. 🎉</p></div>')
 
-    partes = []
-    for chave, titulo, _ in GRUPOS:
-        do_grupo = [a for a in acoes if a["urgencia"] == chave]
-        if not do_grupo:
-            continue
-        partes.append(f'<h3 class="grupo">{esc(titulo)} <span class="muted">'
-                      f'{len(do_grupo)}</span></h3>')
-        partes.append('<ul class="acoes">' + "".join(render_acao(a) for a in do_grupo) + "</ul>")
-
+    partes = [render_lista_acoes(acoes)]
     urgentes = sum(1 for a in acoes if a["urgencia"] in ("hoje", "amanha"))
     resumo = plural(len(acoes), "coisa na fila", "coisas na fila")
     if urgentes:

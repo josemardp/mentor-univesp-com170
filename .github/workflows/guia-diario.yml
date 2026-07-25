@@ -27,6 +27,13 @@ jobs:
           pip install -r automacao/requirements.txt
           python -m playwright install --with-deps chromium
 
+      # Roda antes de tocar no AVA: se a lógica de prazos quebrou, é melhor
+      # descobrir aqui do que publicar data errada no site.
+      - name: Rodar testes
+        run: |
+          python testes/test_prazos.py
+          python testes/test_login.py
+
       # A sessão salva é só o atalho. Se não existir ou estiver vencida, o
       # robô loga sozinho com AVA_USUARIO/AVA_SENHA no passo seguinte.
       - name: Restaurar sessão salva (se houver)
@@ -74,9 +81,15 @@ jobs:
             git push
           fi
 
-      - name: Verificar sessão
+      # Falha visível: se a leitura não foi confiável, a Action fica vermelha.
+      # Silêncio aqui é o que faria o site dizer "tudo em dia" sem ter lido nada.
+      - name: Verificar saúde da coleta
         run: |
           if grep -q '"status": "session_expired"' docs/data.json; then
             echo "::error::Não consegui entrar no AVA. Se os Secrets AVA_USUARIO/AVA_SENHA existem, a senha da Univesp pode ter mudado: rode automacao/salvar_credenciais.bat. Se ainda não existem, rode esse mesmo script para o robô passar a logar sozinho."
+            exit 1
+          fi
+          if grep -q '"status": "coleta_incompleta"' docs/data.json; then
+            echo "::error::Entrei no AVA mas a leitura veio incompleta, então mantive o último retrato válido. Motivos no docs/data.json (campo problemas) e no log do passo 'Gerar guia'. Provável mudança de layout do Moodle."
             exit 1
           fi

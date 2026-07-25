@@ -258,14 +258,25 @@ def _mes(nome):
     return MESES.get(sem_acento(nome).strip(". "))
 
 
-def achar_datas(texto, ano_padrao):
-    """[(datetime, trecho)] para '26/07', '26 de julho', '01 ago. 2026', com
-    hora opcional ('23:59' ou '23h59')."""
+def achar_datas(texto, referencia):
+    """[(datetime, trecho, hora_certa)] para '26/07', '1º de agosto',
+    '01 ago. 2026', com hora opcional ('23:59' ou '23h59').
+
+    Duas regras que existem pra nao inventar informacao:
+
+      - Se a fonte nao disser a hora, devolvemos 23:59 apenas pra poder
+        ordenar, mas marcamos hora_certa=False, e o site escreve "horario nao
+        informado" em vez de fingir precisao que o aviso nao tem.
+      - Sem ano escrito, escolhemos o ano que deixa a data mais perto da data
+        do proprio aviso. Um post de dezembro que fala em "10 de janeiro" quer
+        dizer janeiro do ano seguinte, nao um janeiro que ja passou.
+    """
     achados = []
     hora = r"(?:[,\s]*(?:às\s*)?(\d{1,2})[:h](\d{2}))?"
     padroes = [
         (r"(\d{1,2})/(\d{1,2})(?:/(\d{4}))?", True),
-        (r"(\d{1,2})\s+(?:de\s+)?([A-Za-zçÇãÃéÉ]{3,10})\.?(?:\s+(?:de\s+)?(\d{4}))?", False),
+        (r"(\d{1,2})(?:º|ª)?\s+(?:de\s+)?([A-Za-zçÇãÃéÉ]{3,10})\.?"
+         r"(?:\s+(?:de\s+)?(\d{4}))?", False),
     ]
     for padrao, numerico in padroes:
         for m in re.finditer(padrao + hora, texto, re.IGNORECASE):
@@ -274,40 +285,69 @@ def achar_datas(texto, ano_padrao):
                 mes = int(m.group(2)) if numerico else _mes(m.group(2))
                 if not mes or not (1 <= mes <= 12) or not (1 <= dia <= 31):
                     continue
-                ano = int(m.group(3)) if m.group(3) else ano_padrao
-                hh = int(m.group(4)) if m.group(4) else 23
-                mm = int(m.group(5)) if m.group(5) else 59
+                hora_certa = m.group(4) is not None
+                hh = int(m.group(4)) if hora_certa else 23
+                mm = int(m.group(5)) if hora_certa else 59
                 if hh > 23 or mm > 59:
                     continue
-                achados.append((datetime(ano, mes, dia, hh, mm, tzinfo=BR_TZ), m.group(0).strip()))
+                if m.group(3):
+                    anos = [int(m.group(3))]
+                else:
+                    base = referencia.year
+                    anos = [base, base + 1, base - 1]
+                melhor = None
+                for ano in anos:
+                    try:
+                        cand = datetime(ano, mes, dia, hh, mm, tzinfo=BR_TZ)
+                    except ValueError:
+                        continue
+                    if melhor is None or abs((cand - referencia).days) < abs(
+                            (melhor - referencia).days):
+                        melhor = cand
+                if melhor:
+                    achados.append((melhor, m.group(0).strip(), hora_certa))
             except (ValueError, TypeError):
                 continue
     return achados
 
 
+def _tem(alvo, termos):
+    """Posicao do primeiro termo achado, respeitando limite de palavra.
+
+    Sem o limite, 'inicia' casava dentro de 'LIVE INICIAL' e o aviso da live
+    virava "abertura". Agora 'inicial' nao ativa 'inicia'.
+    """
+    posicoes = []
+    for t in termos:
+        m = re.search(r"\b" + re.escape(t.strip()) + r"\b", alvo)
+        if m:
+            posicoes.append(m.start())
+    return min(posicoes) if posicoes else -1
+
+
 GATILHOS_PRAZO = [
-    "prazo", "ate ", "vencimento", "vence", "entrega", "entregar", "entregue",
+    "prazo", "ate", "vencimento", "vence", "entrega", "entregar", "entregue",
     "fechamento", "encerramento", "encerra", "submissao", "submissoes",
     "avaliacao por pares", "avaliacoes por pares", "abertura", "limite",
-    "data:", "horario:", "acontece", "sera realizada", "live",
+    "data", "horario", "acontece", "sera realizada",
 ]
 
-# Data de abertura NAO e prazo. O aviso do facilitador diz "Abertura das
-# submissoes: 27 jul, 00:00" e "Fechamento das submissoes: 01 ago, 23:59";
-# sem separar os dois, o robo anunciava que o Modulo 6 "vencia" no dia em
-# que ele na verdade abria.
-GATILHOS_INICIO = ["abertura", "abre em", "abre ", "abrem", "inicio de", "inicia",
-                   "comeca", "disponivel a partir", "libera em", "liberacao"]
-GATILHOS_FIM = ["fechamento", "ate ", "vencimento", "vence", "encerra",
-                "encerramento", "limite", "entregue", "entregar", "entrega", "prazo"]
+# Data de abertura NAO e prazo. O aviso do facilitador lista "Abertura das
+# submissoes: 27 jul" e "Fechamento das submissoes: 01 ago"; sem separar as
+# duas, o robo anunciava que o Modulo 6 "vencia" no dia em que ele abria.
+GATILHOS_INICIO = ["abertura", "abre", "abrem", "inicia", "iniciam", "comeca",
+                   "comecam", "disponivel a partir", "libera", "liberacao"]
+GATILHOS_FIM = ["fechamento", "ate", "vencimento", "vence", "encerra",
+                "encerramento", "limite", "entregue", "entregar", "entrega",
+                "prazo", "fecha"]
 
 
 def _tipo_prazo(fragmento, contexto):
     """'inicio' quando a data marca abertura, 'fim' quando marca prazo.
     Na duvida devolve 'fim', que e o caso comum e o que gera alerta."""
     for alvo in (sem_acento(fragmento), sem_acento(contexto)):
-        pos_ini = min((alvo.find(g) for g in GATILHOS_INICIO if g in alvo), default=-1)
-        pos_fim = min((alvo.find(g) for g in GATILHOS_FIM if g in alvo), default=-1)
+        pos_ini = _tem(alvo, GATILHOS_INICIO)
+        pos_fim = _tem(alvo, GATILHOS_FIM)
         if pos_ini < 0 and pos_fim < 0:
             continue           # nada decisivo aqui, tenta o contexto
         if pos_ini >= 0 and (pos_fim < 0 or pos_ini < pos_fim):
@@ -316,10 +356,39 @@ def _tipo_prazo(fragmento, contexto):
     return "fim"
 
 
+# "Modulo 6 e 7: ..." seguido de uma lista de datas. O escopo vale para as
+# datas seguintes ate aparecer outro; sem isso, o "Fechamento das avaliacoes
+# por pares" ficava orfao e a fase de avaliacao sumia da fila.
+ESCOPO_RE = re.compile(r"\b(m[óo]dulos?|semanas?|quinzenas?)\b([\s\d,ee]{0,20})",
+                       re.IGNORECASE)
+
+
+def _escopo_de(fragmento):
+    m = ESCOPO_RE.search(fragmento or "")
+    if not m:
+        return None
+    numeros = [int(x) for x in re.findall(r"\d+", m.group(2))]
+    if not numeros:
+        return None
+    familia = sem_acento(m.group(1)).rstrip("s")
+    return {"familia": familia, "numeros": numeros, "txt": fragmento[:120]}
+
+
+def escopo_cobre(escopo, titulo_secao):
+    """O escopo lido do aviso fala desta secao?"""
+    if not escopo:
+        return False
+    m = FAMILIA_RE.match(titulo_secao or "")
+    if not m:
+        return False
+    familia = sem_acento(m.group(1)).strip().rstrip("s")
+    return familia == escopo["familia"] and int(m.group(2)) in escopo["numeros"]
+
+
 ABREV_MES = r"\b(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\."
 
 
-def extrair_prazos(texto, ano_padrao):
+def extrair_prazos(texto, referencia):
     """So aceita data que aparece perto de uma palavra de prazo.
 
     Duas manhas necessarias no texto real dos avisos:
@@ -337,13 +406,17 @@ def extrair_prazos(texto, ano_padrao):
                for t in re.split(r"[\n;]|\.\s+", protegido) if t.strip()]
 
     prazos, vistos = [], set()
+    escopo = None
     for i, f in enumerate(trechos):
+        achado = _escopo_de(f)
+        if achado:
+            escopo = achado          # vale para as datas seguintes
         if not (4 <= len(f) <= 300):
             continue
         contexto = " ".join(trechos[max(0, i - 2):i + 1])
-        if not any(g in sem_acento(contexto) for g in GATILHOS_PRAZO):
+        if _tem(sem_acento(contexto), GATILHOS_PRAZO) < 0:
             continue
-        for quando, trecho in achar_datas(f, ano_padrao):
+        for quando, trecho, hora_certa in achar_datas(f, referencia):
             rotulo = f.split(":")[0].strip() if ":" in f[:70] else contexto
             rotulo = rotulo[:87] + "..." if len(rotulo) > 90 else rotulo
             chave = (quando.isoformat(), rotulo[:40])
@@ -352,7 +425,8 @@ def extrair_prazos(texto, ano_padrao):
             vistos.add(chave)
             prazos.append({
                 "rotulo": rotulo, "quando": quando.isoformat(), "trecho": trecho,
-                "tipo": _tipo_prazo(f, contexto),
+                "tipo": _tipo_prazo(f, contexto), "hora_certa": hora_certa,
+                "escopo": escopo,
                 "frase": contexto if len(contexto) <= 220 else contexto[:217] + "...",
             })
     return prazos
@@ -534,18 +608,24 @@ NOVO_ATE_DIAS = 3
 MAX_POSTS_POR_DISCUSSAO = 10
 
 
-def _preparar(post, rotulo_forum, url, titulo_alt, ano):
+def _preparar(post, rotulo_forum, url, titulo_alt, hoje):
     post["forum"] = rotulo_forum
     post["url"] = url
     post["titulo"] = post.get("titulo") or titulo_alt
-    post["prazos"] = extrair_prazos(post.get("texto", ""), ano)
+    # A data do proprio post e a referencia pra resolver ano omitido: um aviso
+    # de dezembro que fala em "10 de janeiro" quer dizer o janeiro seguinte.
+    try:
+        referencia = datetime.fromisoformat(post["data"])
+    except (KeyError, TypeError, ValueError):
+        referencia = datetime(hoje.year, hoje.month, hoje.day, tzinfo=BR_TZ)
+    post["prazos"] = extrair_prazos(post.get("texto", ""), referencia)
     post["texto"] = (post.get("texto") or "")[:TRECHO_AVISO]
     post["links"] = [l for l in (post.get("links") or []) if l][:6]
     post.pop("url_forum", None)
     return post
 
 
-def varrer_foruns(page, foruns, estado, ano, orcamento, hoje):
+def varrer_foruns(page, foruns, estado, orcamento, hoje):
     """Varre todos os foruns do curso e devolve os avisos da janela recente.
 
     O estado guarda, por discussao, a data do ultimo post E os avisos ja
@@ -586,7 +666,7 @@ def varrer_foruns(page, foruns, estado, ano, orcamento, hoje):
         if aqui and not discussoes:
             mais_novo = max((p.get("data") or "") for p in aqui)
             if mais_novo > (cache_forum.get("ultimo") or "") or "posts" not in cache_forum:
-                bons = [_preparar(p, f["label"], f["url"], f["label"], ano)
+                bons = [_preparar(p, f["label"], f["url"], f["label"], hoje)
                         for p in aqui if post_interessa(p)]
                 bons.sort(key=lambda p: p.get("data") or "", reverse=True)
                 coletados.extend(guardar(f["url"], mais_novo, bons))
@@ -609,7 +689,7 @@ def varrer_foruns(page, foruns, estado, ano, orcamento, hoje):
             except Exception:
                 coletados.extend(cache.get("posts", []))
                 continue
-            bons = [_preparar(p, f["label"], d["url"], d.get("titulo"), ano)
+            bons = [_preparar(p, f["label"], d["url"], d.get("titulo"), hoje)
                     for p in posts if post_interessa(p)]
             bons.sort(key=lambda p: p.get("data") or "", reverse=True)
             coletados.extend(guardar(d["url"], d.get("ultimo"), bons))
@@ -698,19 +778,22 @@ def verbo_de(item):
     return "Abra e conclua", "página"
 
 
-def urgencia_de(prazo_iso, hoje):
+def urgencia_de(prazo_iso, hoje, hora_certa=True):
+    """(urgencia, texto). Se a fonte nao informou hora, o texto nao inventa
+    uma: dizer 'às 23:59' quando o aviso so disse o dia e precisao falsa."""
     if not prazo_iso:
         return "sem_prazo", ""
     q = datetime.fromisoformat(prazo_iso)
     dias = (q.date() - hoje).days
+    hora = f" às {q:%H:%M}" if hora_certa else " (horário não informado)"
     if dias < 0:
         return "vencido", f"venceu em {q:%d/%m}"
     if dias == 0:
-        return "hoje", f"vence hoje às {q:%H:%M}"
+        return "hoje", f"vence hoje{hora}"
     if dias == 1:
-        return "amanha", f"vence amanhã, {q:%d/%m} às {q:%H:%M}"
+        return "amanha", f"vence amanhã, {q:%d/%m}{hora}"
     if dias <= 7:
-        return "semana", f"vence {q:%d/%m} às {q:%H:%M}"
+        return "semana", f"vence {q:%d/%m}{hora}"
     return "depois", f"vence {q:%d/%m}"
 
 
@@ -838,8 +921,7 @@ def coletar(estado):
                       for s in secoes for it in s["items"]
                       if it["type"] == "forum" and it.get("url")]
             print(f"  {len(foruns)} forum(ns) a varrer (orcamento {orcamento})")
-            avisos, orcamento = varrer_foruns(page, foruns, estado, hoje.year,
-                                              orcamento, hoje)
+            avisos, orcamento = varrer_foruns(page, foruns, estado, orcamento, hoje)
             novos = sum(1 for a in avisos if a.get("novo"))
             print(f"  {len(avisos)} aviso(s) na janela, {novos} novo(s)")
 
@@ -871,7 +953,7 @@ def coletar(estado):
 # ---------------------------------------------------------------------------
 # Acoes
 # ---------------------------------------------------------------------------
-def casar_prazo(titulo_secao, prazos_aviso):
+def casar_prazos(titulo_secao, prazos_aviso):
     """Acha, entre os prazos lidos dos avisos, o que fala desta secao.
 
     So considera data de fechamento: data de abertura nao e prazo e viraria
@@ -879,13 +961,28 @@ def casar_prazo(titulo_secao, prazos_aviso):
     """
     chave = sem_acento(titulo_secao)
     if not chave:
-        return None
+        return []
+    saida = []
     for pz in prazos_aviso:
         if pz.get("tipo") == "inicio":
-            continue
-        if chave in sem_acento(pz["rotulo"] + " " + pz["frase"]):
-            return pz
-    return None
+            continue          # data de abertura nao e prazo
+        if escopo_cobre(pz.get("escopo"), titulo_secao) or (
+                chave in sem_acento(pz["rotulo"] + " " + pz["frase"])):
+            saida.append(pz)
+    saida.sort(key=lambda p: p["quando"])
+    return saida
+
+
+def fase_de(pz):
+    """Verbo e nome da fase, lidos do proprio aviso."""
+    alvo = sem_acento(f"{pz.get('rotulo', '')} {pz.get('frase', '')}")
+    if "avaliacao por pares" in alvo or "avaliacoes por pares" in alvo \
+            or "revisao entre pares" in alvo or "avaliar" in alvo:
+        return "Avalie", "o trabalho do outro grupo"
+    if "submissao" in alvo or "submissoes" in alvo or "entrega" in alvo \
+            or "entregue" in alvo:
+        return "Entregue", "o trabalho"
+    return "Conclua", ""
 
 
 def montar_acoes(dados, hoje):
@@ -894,27 +991,31 @@ def montar_acoes(dados, hoje):
         prazos_aviso = [{**pz, "aviso": a} for a in c.get("avisos", [])
                         for pz in a.get("prazos", [])]
         for s in c["sections"]:
-            if s.get("locked"):
-                # Secao fechada nao gera tarefa... a nao ser que um aviso diga
-                # que ela tem prazo. E o caso classico do "Modulo 4 vence
-                # domingo" enquanto o modulo so abre depois de concluir o 1.
-                # Sem isso, o item mais urgente do bimestre ficaria invisivel.
-                pz = casar_prazo(s["title"], prazos_aviso)
-                if not pz:
-                    continue
-                urg, txt = urgencia_de(pz["quando"], hoje)
+            # --- obrigacoes da secao, vindas de aviso ---------------------
+            # Uma obrigacao pode ter mais de uma fase com prazos diferentes:
+            # o trabalho em grupo fecha 01/08 e a avaliacao por pares 04/08.
+            # Antes so a primeira virava acao e a segunda, que tambem vale
+            # nota, ficava invisivel. Agora cada fase vira uma acao propria.
+            for pz in casar_prazos(s["title"], prazos_aviso):
+                urg, txt = urgencia_de(pz["quando"], hoje, pz.get("hora_certa", True))
                 if urg == "vencido":
                     continue
+                verbo, coisa = fase_de(pz)
                 acoes.append({
                     "curso": c["code"], "secao": s["title"], "fase": s.get("fase", "regular"),
-                    "verbo": "Destrave e entregue", "coisa": "", "o_que": s["title"],
-                    "tipo": "bloqueado", "url": None, "conta_nota": True,
+                    "verbo": verbo, "coisa": coisa,
+                    "o_que": f"{s['title']} · {pz['rotulo'][:60]}",
+                    "tipo": "obrigacao", "url": None, "conta_nota": True,
                     "prazo": pz["quando"], "prazo_txt": txt,
                     "prazo_fonte": f"aviso de {pz['aviso'].get('autor') or 'facilitador'}",
                     "fonte_url": pz["aviso"].get("url"), "carencia": None,
-                    "urgencia": urg, "bloqueio": s["locked"],
+                    "hora_certa": pz.get("hora_certa", True),
+                    "urgencia": urg, "bloqueio": s.get("locked"),
                 })
-                continue
+            if s.get("locked"):
+                continue     # secao fechada nao tem item pra listar
+
+            # --- itens da secao -------------------------------------------
             for it in s["items"]:
                 if it.get("status") == "Concluído":
                     continue
@@ -931,76 +1032,167 @@ def montar_acoes(dados, hoje):
                     encerrados.append({**base, "motivo": it.get("motivo_fechado", "encerrado")})
                     continue
 
-                prazo, fonte, fonte_url = it.get("prazo"), it.get("prazo_fonte"), None
-                if not prazo:
-                    pz = casar_prazo(s["title"], prazos_aviso)
-                    if pz:
-                        prazo = pz["quando"]
-                        fonte = f"aviso de {pz['aviso'].get('autor') or 'facilitador'}"
-                        fonte_url = pz["aviso"].get("url")
-
+                # Prazo de item so vem de fonte que fala DO ITEM: calendario
+                # (por cmid) ou cronograma (por semana). Prazo de aviso fala da
+                # secao inteira, entao virava data falsa em material opcional
+                # da mesma secao; ele agora aparece como obrigacao, acima.
+                prazo, fonte = it.get("prazo"), it.get("prazo_fonte")
                 urg, txt = urgencia_de(prazo, hoje)
                 if urg == "vencido":
                     encerrados.append({**base, "motivo": txt})
                     continue
                 acoes.append({**base, "prazo": prazo, "prazo_txt": txt, "prazo_fonte": fonte,
-                              "fonte_url": fonte_url, "carencia": it.get("carencia"),
-                              "urgencia": urg})
+                              "fonte_url": None, "carencia": it.get("carencia"),
+                              "hora_certa": True, "urgencia": urg})
 
-    propagar_urgencia(acoes, hoje)
-    acoes.sort(key=lambda a: (ORDEM.get(a["urgencia"], 9), a["prazo"] or "9999",
+    propagar_urgencia(acoes, dados, hoje)
+    acoes.sort(key=lambda a: (ORDEM.get(a["urgencia"], 9),
+                              a.get("prazo") or a.get("prioridade_ate") or "9999",
                               0 if a["conta_nota"] else 1, a["curso"]))
     return acoes, encerrados
 
 
 FAMILIA_RE = re.compile(r"(\D+?)\s*(\d+)\s*$")
 
+# "Disponivel se: A atividade M3 - O custo invisivel da IA esteja marcada como
+# concluida" -> queremos o nome da atividade que trava. O Moodle as vezes corta
+# a frase ("...esteja" e mais nada), entao nao exigimos o "marcada como
+# concluida" no fim, so o verbo.
+PREDECESSOR_RE = re.compile(
+    r"atividade\s+(.+?)\s+(?:esteja|estiver|for|seja)\b", re.IGNORECASE)
 
-def propagar_urgencia(acoes, hoje):
-    """Se o Modulo 4 vence amanha, mas so abre depois de concluir o 1, 2 e 3,
-    entao o que falta no Modulo 1 tambem e pra agora.
 
-    Sem isso o item que destrava tudo (o quiz do Modulo 1) aparecia la no fim
-    da lista, sem prazo, enquanto o prazo real corria. So propaga quando o
-    bloqueio e por conclusao de etapa; bloqueio por data ('disponivel a partir
-    de 27/07') nao encadeia nada.
+def predecessor_de(bloqueio):
+    if not bloqueio:
+        return None
+    m = PREDECESSOR_RE.search(bloqueio)
+    return m.group(1).strip(" .:-") if m else None
+
+
+def secao_do_predecessor(pred, titulos):
+    """Em que secao mora a atividade citada no bloqueio.
+
+    Modulos travados vem sem itens, entao a cadeia nao pode ser andada so
+    pelos itens lidos. Aqui casamos "M3 - O custo invisivel" com a secao
+    "Modulo 3" pela inicial e pelo numero. Isso serve APENAS pra continuar
+    andando na cadeia; quem recebe prioridade e sempre uma atividade real e
+    pendente encontrada no fim dela.
+    """
+    m = re.match(r"\s*([A-Za-zÀ-ÿ]{1,12})\s*0*(\d+)", pred or "")
+    if not m:
+        return None
+    inicial, numero = sem_acento(m.group(1))[:1], int(m.group(2))
+    for t in titulos:
+        mm = FAMILIA_RE.match(t or "")
+        if mm and int(mm.group(2)) == numero and sem_acento(mm.group(1))[:1] == inicial:
+            return t
+    return None
+
+
+def propagar_urgencia(acoes, dados, hoje):
+    """Marca o que precisa ser feito ANTES de uma etapa com prazo.
+
+    O Modulo 4 vence amanha e so abre depois do M3, que so abre depois do M2,
+    que so abre depois do quiz do M1. Logo, o quiz do M1 e pra agora.
+
+    Duas diferencas em relacao a versao anterior, ambas pedidas na auditoria:
+
+      - A cadeia agora vem da condicao real do AVA ("a atividade X esteja
+        marcada como concluida"), seguida nome a nome. Antes bastava o numero
+        da secao ser menor, o que era palpite disfarcado de dependencia.
+      - O item herda PRIORIDADE, nunca prazo. Continua sem `prazo` e sem
+        `prazo_fonte`, porque nenhuma fonte oficial deu prazo a ele. O site
+        mostra "faca antes de X" e explica por que, em vez de fingir que o
+        AVA marcou uma data que nao marcou.
     """
     por_curso = {}
     for a in acoes:
         por_curso.setdefault(a["curso"], []).append(a)
 
-    for lista in por_curso.values():
-        travas = []
-        for a in lista:
-            m = FAMILIA_RE.match(a.get("secao") or "")
-            if not m or not a.get("prazo"):
-                continue
-            if a.get("bloqueio") and "conclu" not in sem_acento(a["bloqueio"]):
-                continue  # bloqueio por data nao forma cadeia
-            travas.append((sem_acento(m.group(1)).strip(), int(m.group(2)), a["prazo"],
-                           a.get("prazo_fonte"), a.get("fonte_url")))
-        if not travas:
+    for c in dados["courses"]:
+        lista = por_curso.get(c["code"], [])
+        if not lista:
             continue
-        for a in lista:
-            if a.get("prazo"):
-                continue
-            m = FAMILIA_RE.match(a.get("secao") or "")
-            if not m:
-                continue
-            familia, numero = sem_acento(m.group(1)).strip(), int(m.group(2))
-            adiante = [t for t in travas if t[0] == familia and t[1] > numero]
-            if not adiante:
-                continue
-            _, _, prazo, fonte, fonte_url = min(adiante, key=lambda t: t[2])
-            urg, txt = urgencia_de(prazo, hoje)
-            a["prazo"] = prazo
-            a["urgencia"] = urg
-            a["prazo_txt"] = txt
-            a["destrava"] = True
-            # o prazo e o mesmo da etapa travada, entao a origem tambem e
-            a["prazo_fonte"] = a.get("prazo_fonte") or fonte
-            a["fonte_url"] = a.get("fonte_url") or fonte_url
+        # quem trava quem, pelo texto de bloqueio de cada secao
+        trava_de = {}
+        for s in c["sections"]:
+            pred = predecessor_de(s.get("locked"))
+            if pred:
+                trava_de[s["title"]] = pred
+        if not trava_de:
+            continue
+        por_label = {sem_acento(a["o_que"]): a for a in lista}
+
+        titulos = [s["title"] for s in c["sections"]]
+        for alvo in sorted([a for a in lista if a.get("prazo")],
+                           key=lambda a: a["prazo"]):
+            secao, visitados = alvo.get("secao"), set()
+            prazo = alvo["prazo"]
+            # anda pra tras na cadeia: M4 <- M3 <- M2 <- M1, ate encontrar uma
+            # atividade que exista de verdade e ainda esteja pendente
+            while secao and secao in trava_de and secao not in visitados:
+                visitados.add(secao)
+                pred = trava_de[secao]
+                anterior = por_label.get(sem_acento(pred))
+                if anterior:
+                    if not anterior.get("prazo") and not anterior.get("prioridade_ate"):
+                        urg, _ = urgencia_de(prazo, hoje)
+                        anterior["prioridade_ate"] = prazo
+                        anterior["urgencia"] = urg
+                        anterior["prazo_txt"] = ""      # nao ha prazo proprio
+                        anterior["destrava"] = alvo.get("secao")
+                        anterior["destrava_em"] = prazo
+                    break
+                secao = secao_do_predecessor(pred, titulos)
     return acoes
+
+
+def validar_cobertura(dados, anterior):
+    """A coleta parece confiável? Devolve (ok, problemas).
+
+    Existe porque a falha mais perigosa deste robô não é errar: é ficar mudo.
+    Se o Moodle mudar o HTML e a leitura voltar vazia, sem esta checagem o
+    arquivo era gravado como 'ok', a Action passava verde e o site anunciava
+    "Nada pendente. Tudo em dia" — omitindo tudo, com cara de sucesso.
+
+    Não fixa "sempre 4 disciplinas": compara com a última coleta boa e exige
+    invariantes mínimas, pra continuar valendo no próximo bimestre.
+    """
+    problemas = []
+    cursos = dados.get("courses") or []
+    if not cursos:
+        problemas.append("não encontrei nenhuma disciplina em Meus cursos")
+
+    antes = [c for c in (anterior or {}).get("courses", [])] if anterior else []
+    if antes and len(cursos) < len(antes) / 2:
+        problemas.append(
+            f"caí de {len(antes)} para {len(cursos)} disciplinas de uma vez")
+
+    sem_secao = [c["code"] for c in cursos if not c.get("sections")]
+    if sem_secao:
+        problemas.append("disciplina sem nenhuma seção: " + ", ".join(sem_secao))
+
+    sem_item = [c["code"] for c in cursos
+                if not any(s.get("items") for s in c.get("sections", []))]
+    if sem_item:
+        problemas.append("disciplina sem nenhuma atividade: " + ", ".join(sem_item))
+
+    return (not problemas), problemas
+
+
+def resumo_fontes(dados):
+    """Quanto cada fonte trouxe. Vai pro site pra a coleta ser auditável."""
+    cursos = dados.get("courses") or []
+    return {
+        "disciplinas": len(cursos),
+        "secoes": sum(len(c.get("sections") or []) for c in cursos),
+        "itens": sum(len(s.get("items") or [])
+                     for c in cursos for s in c.get("sections") or []),
+        "avisos": sum(len(c.get("avisos") or []) for c in cursos),
+        "eventos_calendario": len(dados.get("eventos") or []),
+        "notificacoes": len(dados.get("notificacoes") or []),
+        "cronograma": sum(1 for c in cursos if c.get("cronograma")),
+    }
 
 
 def carregar(caminho, padrao):
@@ -1049,9 +1241,27 @@ def main():
         return 0
 
     hoje = datetime.now(BR_TZ).date()
+    fontes = resumo_fontes(dados)
+    confiavel, problemas = validar_cobertura(dados, anterior)
+
+    if not confiavel:
+        # Falhar fechado: melhor um site dizendo "não consegui ler" do que um
+        # site dizendo "tudo em dia" porque a leitura voltou vazia.
+        saida = anterior or {"courses": []}
+        saida["status"] = "coleta_incompleta"
+        saida["checked_at"] = agora
+        saida["problemas"] = problemas
+        saida["fontes"] = fontes
+        DATA_PATH.write_text(json.dumps(saida, ensure_ascii=False, indent=2), encoding="utf-8")
+        print("COLETA INCOMPLETA, mantive o ultimo retrato valido:")
+        for p in problemas:
+            print(f"  - {p}")
+        return 2
+
     acoes, encerrados = montar_acoes(dados, hoje)
     saida = {
         "status": "ok", "checked_at": agora,
+        "fontes": fontes, "problemas": [],
         "courses": dados["courses"],
         "notificacoes": dados.get("notificacoes", []),
         "mensagens": dados.get("mensagens", []),
@@ -1060,7 +1270,7 @@ def main():
     }
     DATA_PATH.write_text(json.dumps(saida, ensure_ascii=False, indent=2), encoding="utf-8")
     ESTADO_PATH.write_text(json.dumps(estado, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"OK. {len(acoes)} acao(oes), {len(encerrados)} encerrada(s).")
+    print(f"OK. {len(acoes)} acao(oes), {len(encerrados)} encerrada(s). Fontes: {fontes}")
     return 0
 
 
