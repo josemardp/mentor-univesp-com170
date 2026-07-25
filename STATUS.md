@@ -63,6 +63,35 @@ Uma segunda IA auditou o projeto com acesso ao AVA. Relatório em
 - **Sem testes versionados.** Agora `testes/` roda na Action antes de tocar
   no AVA.
 
+## Auditoria rodada 2 (25/07/2026)
+
+Segunda auditoria, focada em derrubar as correções da rodada 1. Relatório em
+`AUDITORIA-INDEPENDENTE-RODADA-2-2026-07-25.md`. **Sete achados, todos
+reproduzidos e todos corrigidos:**
+
+- **Escopo do aviso não era encerrado.** "Módulo 4: até 26/07" seguido de
+  "LIVE MAGNA: 30/07" e "Prova presencial: 10/09" colava as três datas no
+  Módulo 4. Rótulo de assunto novo agora encerra o escopo, e o casamento de
+  reserva olha só o rótulo, não a frase de contexto.
+- **Início/fim classificado pela frase inteira.** Em "A abertura ocorre em
+  27/07 e o prazo fecha em 01/08" as duas viravam abertura e o fechamento
+  sumia. Agora cada data usa a palavra que vem antes dela. "abre"/"fecha"
+  passaram a valer no pré-filtro.
+- **Contrato de saúde aceitava perder metade das disciplinas** (`< len/2`).
+  Agora compara IDs; sumiu disciplina e nenhuma nova entrou, falha fechado.
+  Virada de bimestre segue aceita.
+- **Dedup de fase colapsava obrigações distintas** (chave por verbo). Entrega
+  individual e de grupo, mesmo horário, viravam uma. Passa a usar o rótulo.
+- **Teto de posts valia metade.** Os três seletores casavam o mesmo elemento e
+  o corte vinha antes da desduplicação: 10 guardados eram 5 reais, em nove
+  fóruns. Corrigido, e o truncamento agora aparece no log.
+- **`item_aberto` tratava ausência de frase como prova de abertura.**
+  "Submissões fechadas" e "o prazo de envio terminou" passavam como abertas.
+  Página de login ou sem permissão devolve indefinido.
+- **O aviso de coleta incompleta nunca chegava ao site nem ao e-mail**, porque
+  `gerar_guia` retornava antes do render. A correção mais importante da rodada
+  1 estava pela metade.
+
 ## Risco aceito (decisão do Josemar, 25/07/2026)
 
 O `docs/data.json` público contém nomes e trechos de posts de colegas (38
@@ -91,18 +120,25 @@ escolha consciente, não descuido. Se mudar de ideia, o ponto de corte é
 - As sub-seções do AIA no COM170 não são lidas (ficam atrás de uma página
   separada). Sem impacto: o AIA encerrou em 20/07.
 
-Da auditoria, ainda não feito (ordem sugerida):
+Das auditorias, ainda não feito (ordem sugerida):
 
-- **Prova presencial não é rastreada**, e vale 60% da nota. Fonte é o
-  calendário oficial de provas da Univesp, fora do Moodle.
-- Truncamento silencioso: 10 posts por discussão, 15 avisos por curso, 60
-  discussões por execução. Nada avisa quando corta.
+- **Prova presencial não é rastreada**, e vale 60% da nota. A rodada 2 apurou:
+  o calendário público ainda não lista as 4 disciplinas atuais, e a fonte que
+  prevalece é o Sistema de Prova (`acesso.univesp.br`), que pede autenticação
+  própria, separada do AVA. Precisa de coletor à parte.
+- **O filtro de fórum é permissivo demais.** Com o truncamento agora visível,
+  dá pra medir: um fórum acusou 250 posts "relevantes" e outro 353, quando os
+  avisos oficiais são poucos. Falta priorizar autor institucional em vez de
+  palavra-chave genérica.
 - Calendário: sem paginação (teto de 50) e o DOM só entra se a API vier vazia,
   em vez de somar as duas fontes.
-- `item_aberto()` já abre a página do quiz, que mostra "Aberto" e "Fecha", mas
-  só procura frase de encerramento. Dado de graça sendo descartado.
+- `item_aberto()` abre a página do quiz, que mostra "Aberto", "Fecha",
+  tentativas e estado de envio, e só procura frase de encerramento.
 - Sem retry/backoff e sem alerta externo se o cron não rodar.
-- Notificação de feedback devolvido não vira ação.
+- Notificação de feedback devolvido não vira ação; boletim não é lido (a
+  COM170 segue com "Erro no cálculo do item de nota Média AVA").
+- Cache sem versão de esquema: post guardado por um extrator antigo continua
+  com o formato velho até a discussão receber post novo.
 
 ## Decisões que valem lembrar
 
