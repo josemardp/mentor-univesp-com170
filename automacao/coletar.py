@@ -24,46 +24,31 @@ Privacidade: o site e publico. Por isso mensagem privada entra so como
 "tem mensagem nova de fulano" (sem conteudo), e de post de forum guardamos
 um trecho curto com link pro original.
 """
-import json
-import os
+import os  # reexport temporário: testes antigos injetam falha em os.replace
 import re
 import sys
-import tempfile
-import unicodedata
-from datetime import date, datetime, timedelta, timezone
-from pathlib import Path
+from datetime import datetime, timedelta, timezone
 
 from playwright.sync_api import sync_playwright
 
 import sessao
-
-ROOT = Path(__file__).resolve().parent.parent
-DOCS = ROOT / "docs"
-DATA_PATH = DOCS / "data.json"
-ESTADO_PATH = DOCS / "estado.json"
-
-BR_TZ = timezone(timedelta(hours=-3))
-AVA = "https://ava.univesp.br"
-CRONOGRAMA_PADRAO = "https://assets.univesp.br/cronograma/2026/cronograma_regular_3.html"
-
-# Limites pra nao estourar o tempo da GitHub Action.
-MAX_DISCUSSOES_POR_RUN = 60
-MAX_ITENS_CONFERIDOS = 45
-TRECHO_AVISO = 400
-
-MESES = {
-    "janeiro": 1, "fevereiro": 2, "marco": 3, "abril": 4, "maio": 5, "junho": 6,
-    "julho": 7, "agosto": 8, "setembro": 9, "outubro": 10, "novembro": 11,
-    "dezembro": 12, "jan": 1, "fev": 2, "mar": 3, "abr": 4, "mai": 5, "jun": 6,
-    "jul": 7, "ago": 8, "set": 9, "out": 10, "nov": 11, "dez": 12,
-}
-
-
-def sem_acento(s):
-    return "".join(
-        c for c in unicodedata.normalize("NFD", s or "")
-        if unicodedata.category(c) != "Mn"
-    ).lower()
+import persistencia as _persistencia
+from configuracao import (
+    AVA,
+    BR_TZ,
+    CRONOGRAMA_PADRAO,
+    DATA_PATH,
+    DOCS,
+    ESTADO_PATH,
+    JANELA_AVISOS_DIAS,
+    MAX_DISCUSSOES_POR_RUN,
+    MAX_ITENS_CONFERIDOS,
+    MAX_POSTS_POR_DISCUSSAO,
+    NOVO_ATE_DIAS,
+    ROOT,
+    TRECHO_AVISO,
+)
+from dominio.datas import achar_datas, mes as _mes, sem_acento
 
 
 def limpar_bloqueio(texto):
@@ -262,66 +247,6 @@ JS_EVENTOS_MES = """
   return saida;
 }
 """
-
-
-# ---------------------------------------------------------------------------
-# Datas em texto livre
-# ---------------------------------------------------------------------------
-def _mes(nome):
-    return MESES.get(sem_acento(nome).strip(". "))
-
-
-def achar_datas(texto, referencia):
-    """[(datetime, trecho, hora_certa)] para '26/07', '1º de agosto',
-    '01 ago. 2026', com hora opcional ('23:59' ou '23h59').
-
-    Duas regras que existem pra nao inventar informacao:
-
-      - Se a fonte nao disser a hora, devolvemos 23:59 apenas pra poder
-        ordenar, mas marcamos hora_certa=False, e o site escreve "horario nao
-        informado" em vez de fingir precisao que o aviso nao tem.
-      - Sem ano escrito, escolhemos o ano que deixa a data mais perto da data
-        do proprio aviso. Um post de dezembro que fala em "10 de janeiro" quer
-        dizer janeiro do ano seguinte, nao um janeiro que ja passou.
-    """
-    achados = []
-    hora = r"(?:[,\s]*(?:às\s*)?(\d{1,2})[:h](\d{2}))?"
-    padroes = [
-        (r"(\d{1,2})/(\d{1,2})(?:/(\d{4}))?", True),
-        (r"(\d{1,2})(?:º|ª)?\s+(?:de\s+)?([A-Za-zçÇãÃéÉ]{3,10})\.?"
-         r"(?:\s+(?:de\s+)?(\d{4}))?", False),
-    ]
-    for padrao, numerico in padroes:
-        for m in re.finditer(padrao + hora, texto, re.IGNORECASE):
-            try:
-                dia = int(m.group(1))
-                mes = int(m.group(2)) if numerico else _mes(m.group(2))
-                if not mes or not (1 <= mes <= 12) or not (1 <= dia <= 31):
-                    continue
-                hora_certa = m.group(4) is not None
-                hh = int(m.group(4)) if hora_certa else 23
-                mm = int(m.group(5)) if hora_certa else 59
-                if hh > 23 or mm > 59:
-                    continue
-                if m.group(3):
-                    anos = [int(m.group(3))]
-                else:
-                    base = referencia.year
-                    anos = [base, base + 1, base - 1]
-                melhor = None
-                for ano in anos:
-                    try:
-                        cand = datetime(ano, mes, dia, hh, mm, tzinfo=BR_TZ)
-                    except ValueError:
-                        continue
-                    if melhor is None or abs((cand - referencia).days) < abs(
-                            (melhor - referencia).days):
-                        melhor = cand
-                if melhor:
-                    achados.append((melhor, m.group(0).strip(), hora_certa, m.start()))
-            except (ValueError, TypeError):
-                continue
-    return achados
 
 
 def _posicoes(alvo, termos):
@@ -747,11 +672,6 @@ def post_interessa(post):
     if any(k in (l or "") for l in post.get("links", []) for k in LINKS_QUENTES):
         return True
     return any(c in titulo or c in alvo for c in CHAVES_AVISO)
-
-
-JANELA_AVISOS_DIAS = 45
-NOVO_ATE_DIAS = 3
-MAX_POSTS_POR_DISCUSSAO = 10
 
 
 def _preparar(post, rotulo_forum, url, titulo_alt, hoje):
@@ -1583,60 +1503,20 @@ def resumo_fontes(dados):
 
 
 def _preparar_json(caminho, conteudo):
-    """Cria e sincroniza um temporário único, no mesmo volume do destino."""
-    caminho.parent.mkdir(parents=True, exist_ok=True)
-    fd, nome = tempfile.mkstemp(
-        prefix=f".{caminho.name}.", suffix=".tmp", dir=str(caminho.parent))
-    temp = Path(nome)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as arq:
-            json.dump(conteudo, arq, ensure_ascii=False, indent=2)
-            arq.flush()
-            os.fsync(arq.fileno())
-        return temp
-    except Exception:
-        temp.unlink(missing_ok=True)
-        raise
+    """Reexport temporário durante a migração."""
+    return _persistencia.preparar_json(caminho, conteudo)
 
 
 def gravar_json(caminho, conteudo):
-    """Substitui um JSON atomicamente e remove temporários em qualquer falha."""
-    temp = _preparar_json(caminho, conteudo)
-    try:
-        os.replace(temp, caminho)
-    finally:
-        temp.unlink(missing_ok=True)
+    return _persistencia.gravar_json(caminho, conteudo)
 
 
 def gravar_snapshot(data, estado):
-    """Grava cache e dados como um snapshot com `data.json` por último.
-
-    Não existe transação multi-arquivo portátil. Preparar ambos antes e trocar
-    o cache primeiro faz `data.json` funcionar como marcador de commit: se a
-    execução cair no meio, o site continua no retrato anterior. Cache adiantado
-    é seguro porque ainda contém os posts necessários à próxima coleta.
-    """
-    temp_estado = _preparar_json(ESTADO_PATH, estado)
-    temp_data = _preparar_json(DATA_PATH, data)
-    try:
-        os.replace(temp_estado, ESTADO_PATH)
-        os.replace(temp_data, DATA_PATH)
-    finally:
-        temp_estado.unlink(missing_ok=True)
-        temp_data.unlink(missing_ok=True)
+    return _persistencia.gravar_snapshot(data, estado, DATA_PATH, ESTADO_PATH)
 
 
 def carregar(caminho, padrao, critico=False):
-    if caminho.exists():
-        try:
-            return json.loads(caminho.read_text(encoding="utf-8"))
-        except Exception as e:
-            mensagem = f"JSON corrompido em {caminho}: {type(e).__name__}"
-            if critico:
-                raise RuntimeError(mensagem) from e
-            print(f"::warning::{mensagem}; vou reconstruir esta fonte.")
-            return padrao
-    return padrao
+    return _persistencia.carregar(caminho, padrao, critico)
 
 
 def identidade_item(curso, secao, item):
