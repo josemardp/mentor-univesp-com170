@@ -125,6 +125,34 @@ Produto, decidido pelo Josemar: higiene do AVA saiu da fila principal (18
 itens) para bloco recolhido; e-mail ganhou topo decisório e manteve a lista
 completa embaixo; assunto diz a decisão, não a contagem.
 
+## Auditoria rodada 4 (25/07/2026)
+
+Relatório em `AUDITORIA-INDEPENDENTE-RODADA-4-2026-07-25.md`. Cinco achados
+verificados: quatro procedem e foram corrigidos, um (colisão de identidade por
+rótulo) não reproduzi como falha concreta mas a chave era frágil e foi trocada.
+
+- **A saúde não olhava nenhuma fonte de prazo.** Com avisos, calendário e
+  cronograma vazios ao mesmo tempo, a coleta terminava com zero prazo e
+  `status: ok`. A proteção da rodada 1 cobria a estrutura e deixava passar o
+  dado que dá sentido ao produto. Agora cada fonte é comparada com a leitura
+  anterior: fonte que tinha conteúdo ontem e voltou vazia hoje derruba a coleta.
+- **Frescor.** O site mandou refazer um quiz já concluído, porque o retrato era
+  das 8h e ele estudou depois. Não era erro de parser. O robô passou a reler às
+  8h, 11h, 14h, 17h e 20h, e a página avisa quando o retrato passa de 3 horas.
+  O e-mail continua sendo um por dia, o da manhã.
+- Falha de SMTP retornava 0 **e** o passo tinha `continue-on-error`: duas
+  camadas transformando "o e-mail parou de chegar" em verde.
+- O e-mail era enviado **antes** do push, então push quebrado deixava o aviso
+  apontando pra um site velho. Publicar vem primeiro.
+- O cronograma regular era aplicado como fallback até na COM170, que é
+  quinzenal, e a telemetria dizia "cronograma: 4" quando eram 3.
+- `data.json` e `estado.json` eram escritos direto; interrupção deixava arquivo
+  pela metade e o `carregar()` tratava corrompido como ausente. Agora é
+  temporário + substituição atômica.
+
+**O e-mail diário é o heartbeat.** Não há monitor externo: se o e-mail das 8h
+não chegar, o robô parou. Vale saber disso.
+
 ## Risco aceito (decisão do Josemar, 25/07/2026)
 
 O `docs/data.json` público contém nomes e trechos de posts de colegas (38
