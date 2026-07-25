@@ -64,6 +64,16 @@ def sem_acento(s):
     ).lower()
 
 
+def limpar_bloqueio(texto):
+    """Tira do aviso de bloqueio o texto de botao do Moodle ('Mostrar mais'),
+    que senao aparece no meio da frase no site."""
+    if not texto:
+        return None
+    limpo = re.sub(r"\b(Mostrar mais|Mostrar menos|Show more|Show less)\b", " ", texto)
+    limpo = re.sub(r"\s+", " ", limpo).strip(" .…")
+    return limpo or None
+
+
 # ---------------------------------------------------------------------------
 # API interna do Moodle (a mesma que a interface usa, via sessao ja logada)
 # ---------------------------------------------------------------------------
@@ -666,6 +676,8 @@ def coletar(estado):
 
             bruto = page.evaluate(JS_CURSO)
             secoes, links = bruto["secoes"], bruto.get("links") or {}
+            for s in secoes:
+                s["locked"] = limpar_bloqueio(s.get("locked"))
             modelo = "quinzenal" if any(
                 sem_acento(s["title"]).startswith("quinzena") for s in secoes) else "regular"
 
