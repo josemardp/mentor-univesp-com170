@@ -39,6 +39,7 @@ jobs:
       - name: Rodar testes
         run: |
           python testes/test_golden.py
+          python testes/test_foruns.py
           python testes/test_prazos.py
           python testes/test_login.py
           python testes/test_operacao.py

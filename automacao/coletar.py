@@ -1109,7 +1109,8 @@ def coletar(estado):
             print(f"  {len(foruns)} forum(ns) a varrer (orcamento {orcamento})")
             foruns_diag = {}
             avisos, orcamento = varrer_foruns(
-                page, foruns, estado, orcamento, hoje, foruns_diag)
+                page, foruns, estado, orcamento, hoje, foruns_diag,
+                curso_id=cur["id"])
             for chave in foruns_global:
                 foruns_global[chave] += int(foruns_diag.get(chave) or 0)
             novos = sum(1 for a in avisos if a.get("novo"))
@@ -1447,6 +1448,7 @@ from dominio import acoes as _acoes_mod  # noqa: E402
 from dominio import datas as _datas_mod  # noqa: E402
 from dominio import dependencias as _dependencias_mod  # noqa: E402
 from dominio import prazos as _prazos_mod  # noqa: E402
+from fontes import foruns as _foruns_mod  # noqa: E402
 
 achar_datas = _datas_mod.achar_datas
 sem_acento = _datas_mod.sem_acento
@@ -1471,6 +1473,11 @@ montar_acoes = _acoes_mod.montar_acoes
 predecessor_de = _dependencias_mod.predecessor_de
 secao_do_predecessor = _dependencias_mod.secao_do_predecessor
 propagar_urgencia = _dependencias_mod.propagar_urgencia
+JS_DISCUSSOES = _foruns_mod.JS_DISCUSSOES
+JS_POSTS = _foruns_mod.JS_POSTS
+post_interessa = _foruns_mod.post_interessa
+_preparar = _foruns_mod.preparar
+varrer_foruns = _foruns_mod.varrer_foruns
 
 
 def validar_cobertura(dados, anterior):
