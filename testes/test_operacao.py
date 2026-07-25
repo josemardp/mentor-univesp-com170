@@ -186,7 +186,7 @@ fontes_html = R.render_fontes_status({
         "foruns": {"status": "parcial", "last_live_at": agora},
     },
 })
-checa("fóruns: parcial" in fontes_html and "degraded" in fontes_html,
+checa("não consegui reler agora: fóruns" in fontes_html and "degraded" in fontes_html,
       "fonte parcial fica visível no site")
 
 recado_antigo = R.RECADO_PATH

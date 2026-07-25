@@ -6,12 +6,7 @@ from datetime import datetime, timezone
 
 import persistencia as _persistencia
 from configuracao import BR_TZ, DATA_PATH, ESTADO_PATH
-from dominio.acoes import (
-    identidade_item,
-    montar_acoes,
-    novidades,
-    urgencia_de,
-)
+from dominio.acoes import identidade_item, montar_acoes, novidades, urgencia_de
 from dominio.datas import achar_datas, sem_acento
 from dominio.prazos import casar_prazos, extrair_prazos
 from fontes.foruns import varrer_foruns
@@ -20,33 +15,26 @@ from persistencia import carregar, gravar_json, normalizar_estado
 from pipeline import executar_coleta
 from saude import resumo_fontes, validar_cobertura
 
-
 def gravar_snapshot(data, estado):
-    """Wrapper preservado para testes que redirecionam os caminhos."""
     return _persistencia.gravar_snapshot(data, estado, DATA_PATH, ESTADO_PATH)
 
-
 def coletar(estado):
-    """Compatibilidade com o chamador antigo de um argumento."""
     anterior = carregar(DATA_PATH, None, critico=True)
     return executar_coleta(estado, anterior)
 
-
 def _saida_preservada(anterior, status, agora, problemas, dados=None):
     saida = dict(anterior or {"courses": []})
-    saida["status"] = status
+    saida.update({
+        "status": status, "attempted_at": agora, "publication_id": agora,
+        "problemas": problemas,
+    })
     saida["snapshot_at"] = saida.get("snapshot_at") or saida.get("checked_at")
-    saida["attempted_at"] = agora
-    saida["publication_id"] = agora
-    saida["problemas"] = problemas
     if dados:
         saida["fontes_tentativa"] = resumo_fontes(dados)
         saida["fontes_status_tentativa"] = dados.get("fontes_status") or {}
     return saida
 
-
 def _degradacao_publicavel(dados):
-    """Cache permite atualizar as outras fontes; fonte de prazo sem cache não."""
     if dados.get("_fonte_obrigatoria_falhou"):
         return False
     status = dados.get("fontes_status") or {}
@@ -56,7 +44,6 @@ def _degradacao_publicavel(dados):
                 return False
     return bool(dados.get("_fontes_degradadas"))
 
-
 def main():
     anterior = carregar(DATA_PATH, None, critico=True)
     estado = normalizar_estado(carregar(ESTADO_PATH, {}))
@@ -65,9 +52,7 @@ def main():
 
     if status == "session_expired":
         saida = _saida_preservada(
-            anterior,
-            "session_expired",
-            agora,
+            anterior, "session_expired", agora,
             ["não consegui autenticar no AVA nesta tentativa"],
         )
         gravar_json(DATA_PATH, saida)
@@ -91,20 +76,14 @@ def main():
     acoes, encerrados, higiene, confirmar = montar_acoes(dados, hoje)
     saida = {
         "status": "coleta_degradada" if degradada else "ok",
-        "checked_at": agora,
-        "snapshot_at": agora,
-        "attempted_at": agora,
-        "publication_id": agora,
-        "fontes": fontes,
+        "checked_at": agora, "snapshot_at": agora, "attempted_at": agora,
+        "publication_id": agora, "fontes": fontes,
         "problemas": problemas if degradada else [],
         "fontes_status": dados.get("fontes_status") or {},
-        "courses": dados["courses"],
-        "eventos": dados.get("eventos", []),
+        "courses": dados["courses"], "eventos": dados.get("eventos", []),
         "notificacoes": dados.get("notificacoes", []),
         "mensagens": dados.get("mensagens", []),
-        "acoes": acoes,
-        "encerrados": encerrados,
-        "higiene": higiene,
+        "acoes": acoes, "encerrados": encerrados, "higiene": higiene,
         "confirmar": confirmar,
         "novidades": novidades(anterior, dados),
     }
@@ -112,10 +91,8 @@ def main():
     print(
         f"{saida['status'].upper()}. {len(acoes)} ação(ões), "
         f"{len(higiene)} de higiene, {len(confirmar)} a confirmar, "
-        f"{len(encerrados)} encerrada(s). Fontes: {fontes}"
-    )
+        f"{len(encerrados)} encerrada(s). Fontes: {fontes}")
     return 2 if degradada else 0
-
 
 if __name__ == "__main__":
     sys.exit(main())

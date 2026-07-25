@@ -194,7 +194,7 @@ e-mail e saúde. O site público serviu o mesmo `publication_id` gerado pela
 coleta.
 
 O antigo `automacao/coletar.py`, com 1.741 linhas e quase todas as
-responsabilidades, virou um ponto de entrada compatível de 121 linhas. O mapa
+responsabilidades, virou um ponto de entrada compatível de 98 linhas. O mapa
 novo é:
 
 ```text

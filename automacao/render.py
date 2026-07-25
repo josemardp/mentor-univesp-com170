@@ -165,44 +165,68 @@ def render_fontes_status(data):
         "itens": "itens",
         "notificacoes": "notificações",
     }
-    partes, degradou = [], False
-    for chave in (
-        "disciplinas",
-        "calendario",
-        "cronograma",
-        "foruns",
-        "itens",
-        "notificacoes",
-    ):
+    # Esta linha existe pra responder "posso confiar no que estou lendo?".
+    # A primeira versão saía em idioma de programador ("foruns: live (60,
+    # truncado, último ao vivo 20:46)") e o dono do projeto, que não é dev,
+    # precisou perguntar o que significava. Agora: uma frase no caso normal,
+    # e nome aos bois quando alguma fonte falha.
+    ordem = ("disciplinas", "calendario", "cronograma", "foruns", "itens",
+             "notificacoes")
+    quantidades = {
+        "disciplinas": "{n} disciplinas",
+        "calendario": "{n} prazos no calendário",
+        "cronograma": "{n} cronogramas",
+        "foruns": "{n} avisos de fórum",
+        "itens": "{n} atividades conferidas",
+        "notificacoes": "{n} notificações",
+    }
+
+    horas, numeros, velhas, truncadas = set(), [], [], []
+    for chave in ordem:
         info = estados.get(chave) or {}
-        status = info.get("status")
-        if not status:
+        if not info.get("status"):
             continue
-        degradou = degradou or status in ("falhou", "degradado", "parcial")
         quando = ""
         if info.get("last_live_at"):
             try:
                 quando = datetime.fromisoformat(info["last_live_at"]).astimezone(
                     BR_TZ).strftime("%H:%M")
+                horas.add(quando)
             except Exception:
                 pass
-        sufixos = []
         if info.get("quantidade_atual") is not None:
-            sufixos.append(str(info["quantidade_atual"]))
-        if info.get("from_cache"):
-            sufixos.append("cache")
+            numeros.append(quantidades[chave].format(n=info["quantidade_atual"]))
+        if info.get("from_cache") or info.get("status") in ("falhou", "degradado",
+                                                            "parcial"):
+            velhas.append((nomes[chave], quando))
         if info.get("truncado"):
-            sufixos.append("truncado")
-        if quando:
-            sufixos.append(f"último ao vivo {quando}")
-        detalhe = f" ({', '.join(sufixos)})" if sufixos else ""
-        partes.append(
-            f"{nomes[chave]}: {status.replace('_', ' ')}{detalhe}"
-        )
-    if not partes:
+            truncadas.append(nomes[chave])
+
+    if not numeros and not velhas:
         return ""
-    classe = "sourcebar degraded" if degradou else "sourcebar"
-    return f'<div class="{classe}"><b>Fontes:</b> {esc(" · ".join(partes))}</div>'
+
+    detalhes = ""
+    if numeros:
+        extra = ""
+        if truncadas:
+            extra = (f' Nos {esc(" e ".join(truncadas))} havia mais posts do que '
+                     'eu guardo, então fiquei com os mais importantes.')
+        detalhes = (f'<details class="fontes-det"><summary>o que eu li</summary>'
+                    f'<p>{esc(", ".join(numeros))}.{extra}</p></details>')
+
+    if velhas:
+        quais = ", ".join(
+            f"{nome} (última leitura boa às {hora})" if hora else nome
+            for nome, hora in velhas)
+        return ('<div class="sourcebar degraded">'
+                f'<b>Atenção:</b> não consegui reler agora: {esc(quais)}. '
+                'Essa parte pode estar desatualizada; confira no AVA.'
+                f'{detalhes}</div>')
+
+    hora = f" às {sorted(horas)[-1]}" if horas else ""
+    return ('<div class="sourcebar">'
+            f'Li tudo direto do AVA agora{esc(hora)}, sem reaproveitar nada.'
+            f'{detalhes}</div>')
 
 
 # ---------------------------------------------------------------------------
