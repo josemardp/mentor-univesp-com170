@@ -185,6 +185,73 @@ foram reproduzidos e corrigidos:
   o Moodle não fornece ID;
 - `testes/test_operacao.py` congela os cenários acima e roda na Action.
 
+## Modularização e autoridade dos fóruns (25/07/2026)
+
+Implementação concluída e validada no AVA real pela Action
+[`30179941510`](https://github.com/esdraaline/mentor-univesp-com170/actions/runs/30179941510).
+Todos os passos ficaram verdes: testes, coleta, publicação confirmada no Pages,
+e-mail e saúde. O site público serviu o mesmo `publication_id` gerado pela
+coleta.
+
+O antigo `automacao/coletar.py`, com 1.741 linhas e quase todas as
+responsabilidades, virou um ponto de entrada compatível de 121 linhas. O mapa
+novo é:
+
+```text
+automacao/
+  configuracao.py       caminhos, URLs, limites e fuso
+  modelos.py            SourceResult e contratos JSON
+  persistencia.py       cache versionado e escrita atômica
+  saude.py              cobertura, idade e política de saúde
+  pipeline.py           orquestra e combina fontes independentes
+  dominio/
+    datas.py            datas e normalização textual
+    prazos.py           escopo, negação, confiança e casamento
+    acoes.py            fila, urgência, dedup, identidade e novidades
+    dependencias.py     cadeia real e prioridade herdada
+  fontes/
+    moodle.py           API, navegação e falhas operacionais tipadas
+    disciplinas.py      descoberta, cursos, seções e status de conclusão
+    calendario.py       API + DOM
+    cronograma.py       cronograma oficial
+    foruns.py           cache, autoridade, duas passagens e truncamento
+    itens.py            aberto, fechado ou indefinido
+    notificacoes.py     notificações e metadados de mensagens
+  coletar.py            entrada fina e compatibilidade
+```
+
+Cada fonte publica em `fontes_status`: estado, última leitura ao vivo, idade,
+quantidade, uso de cache, problemas e truncamento. Disciplina/estrutura é
+obrigatória e continua falhando fechado. Calendário, cronograma e fóruns usam o
+último resultado válido da própria fonte quando possível, sem impedir que as
+demais sejam atualizadas. Erro operacional conhecido degrada a fonte; erro de
+programação continua derrubando o job.
+
+Nos fóruns:
+
+- autores encontrados nos fóruns “Avisos” são acumulados por disciplina;
+- Avisos e fóruns do grupo gastam o orçamento antes dos demais;
+- desduplicação vem antes da ordenação e do corte;
+- ordem interna: autor institucional, post com prazo, demais posts;
+- post de colega com data continua coletado, mas sempre com confiança baixa;
+- site e e-mail diferenciam visualmente “aviso oficial” e “post de colega”;
+- telemetria registra quantos posts institucionais foram vistos e guardados.
+
+Na primeira execução real, foram lidos 60 avisos: 20 institucionais e 40 de
+colegas. O registro institucional encontrou autores nos quatro cursos
+(`18870`: 1, `18880`: 3, `18893`: 1, `18922`: 3). As seis fontes terminaram
+`live`; o truncamento de fóruns ficou explicitamente visível.
+
+Testes novos:
+
+- `testes/test_golden.py` e fixture sanitizada congelam ações, prazos, fontes e
+  estados anteriores à migração;
+- `testes/test_isolamento_fontes.py` prova falha isolada, preservação da
+  descoberta obrigatória, propagação de erro inesperado e telemetria completa;
+- `testes/test_foruns.py` cobre autoridade, duas passagens, corte após dedup,
+  persistência entre leituras, baixa confiança de colega e apresentação nos
+  dois canais.
+
 ## Risco aceito (decisão do Josemar, 25/07/2026)
 
 O `docs/data.json` público contém nomes e trechos de posts de colegas (38
