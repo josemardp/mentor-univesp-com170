@@ -398,7 +398,7 @@ def ler_calendario_api(page):
     dados = api(page, "core_calendar_get_action_events_by_timesort", {
         "timesortfrom": agora - 86400 * 60,
         "timesortto": agora + 86400 * 240,
-        "limitnum": 200,
+        "limitnum": 50,   # o Moodle recusa acima de 50
     })
     eventos = []
     for e in (dados or {}).get("events", []) or []:
