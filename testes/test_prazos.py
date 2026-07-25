@@ -333,6 +333,62 @@ checa(not ac6 and len(hig6) == 1,
       "item sem prazo e sem nota vai pra higiene, não pra fila principal")
 
 # ---------------------------------------------------------------------------
+print("\n== Achados da auditoria rodada 4 ==")
+
+# a saúde precisa olhar as FONTES DE PRAZO, não só o Moodle ter aberto
+def curso_sem_prazo():
+    return {"id": 1, "code": "COM170", "modelo": "quinzenal", "avisos": [],
+            "cronograma": None,
+            "sections": [{"title": "Módulo 1", "fase": "regular", "locked": None,
+                          "items": [{"label": "M2 - Material-base", "type": "page",
+                                     "status": "Pendente", "conta_nota": True,
+                                     "aberto": True, "url": "#", "prazo": None}]}]}
+
+
+ontem = {"courses": [{"id": 1, "code": "COM170"}],
+         "fontes": {"avisos": 12, "eventos_calendario": 3, "cronograma": 3,
+                    "itens_com_prazo": 15}}
+ok, probs = C.validar_cobertura(
+    {"courses": [curso_sem_prazo()], "eventos": [], "notificacoes": []}, ontem)
+checa(not ok, "perder TODAS as fontes de prazo não passa mais como saudável")
+checa(any("prazo" in p for p in probs), "e o motivo cita a perda dos prazos")
+
+vivo = curso_sem_prazo()
+vivo["avisos"] = [{"titulo": "x"}] * 12
+vivo["cronograma"] = {"semanas": []}
+vivo["sections"][0]["items"][0]["prazo"] = "2026-08-01T23:59:00-03:00"
+ok, _ = C.validar_cobertura(
+    {"courses": [vivo], "eventos": [1, 2, 3], "notificacoes": []}, ontem)
+checa(ok, "coleta com as fontes vivas continua passando")
+
+# telemetria não pode contar cronograma que a disciplina não tem
+f = C.resumo_fontes({"courses": [{"code": "A", "cronograma": {"semanas": []},
+                                  "sections": []},
+                                 {"code": "B", "cronograma": None, "sections": []}]})
+checa(f["cronograma"] == 1, "telemetria conta só a disciplina que tem cronograma")
+
+# identidade de novidade pelo cmid, não pelo rótulo
+ant4 = {"courses": [{"code": "X", "sections": [
+    {"items": [{"label": "S1 - Videoaulas", "cmid": "1", "status": "Pendente"},
+               {"label": "S1 - Videoaulas", "cmid": "2", "status": "Pendente"}]}]}]}
+ago4 = {"courses": [{"code": "X", "sections": [
+    {"items": [{"label": "S1 - Videoaulas", "cmid": "1", "status": "Concluído"},
+               {"label": "S1 - Videoaulas", "cmid": "2", "status": "Pendente"}]}]}]}
+nov4 = C.novidades(ant4, ago4)
+checa(len(nov4) == 1 and nov4[0]["kind"] == "concluido",
+      "dois itens de mesmo rótulo não mascaram a mudança um do outro")
+
+# escrita atômica não deixa arquivo pela metade
+import json as _json          # noqa: E402
+import tempfile               # noqa: E402
+with tempfile.TemporaryDirectory() as tmp:
+    alvo = Path(tmp) / "d.json"
+    C.gravar_json(alvo, {"a": 1})
+    checa(_json.loads(alvo.read_text(encoding="utf-8")) == {"a": 1},
+          "gravar_json escreve e substitui de uma vez")
+    checa(not list(Path(tmp).glob("*.tmp")), "não deixa arquivo temporário para trás")
+
+# ---------------------------------------------------------------------------
 print("\n== Urgência ==")
 
 for iso, esperado in [

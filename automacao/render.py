@@ -462,6 +462,28 @@ def linha_semana(data, hoje):
     return f"Hoje é {dia}, {hoje:%d/%m}"
 
 
+def frescor(data):
+    """Quão velho é este retrato, dito com franqueza.
+
+    O site é aberto na hora de estudar, não às 8h. Depois que ele avança no
+    AVA, a lista envelhece: já chegou a mandar refazer atividade concluída.
+    Como a página é estática, ela não tem como saber disso sozinha; o mínimo
+    é não usar o presente ("faça agora") sobre um retrato de horas atrás.
+    """
+    try:
+        lido = datetime.fromisoformat(data.get("checked_at", "")).astimezone(BR_TZ)
+    except Exception:
+        return "", ""
+    horas = (datetime.now(BR_TZ) - lido).total_seconds() / 3600
+    quando = lido.strftime("%d/%m às %H:%M")
+    if horas < 3:
+        return f"Li o AVA {quando}", ""
+    aviso = (f'<div class="alertbar">Este retrato é de <b>{esc(quando)}</b>, '
+             f'cerca de {int(horas)}h atrás. Se você estudou depois disso, '
+             'confira no AVA antes de confiar na lista.</div>')
+    return f"Li o AVA {quando}", aviso
+
+
 def render_html(data):
     checado = data.get("checked_at", "")
     try:
@@ -469,7 +491,8 @@ def render_html(data):
     except Exception:
         pass
 
-    banner = ""
+    _, banner_idade = frescor(data)
+    banner = banner_idade
     if data.get("status") == "session_expired":
         banner = ('<div class="alertbar"><b>Sessão do AVA expirou.</b> Este retrato é o '
                   'último válido. Dê 2 cliques em <code>automacao/renovar_sessao.bat</code> '
@@ -607,7 +630,7 @@ TEMPLATE = """<!doctype html>
   <div class="eyebrow">Univesp · BIA · Turma 001</div>
   <h1>Guia diário do AVA</h1>
   <p class="semana-line">{{SEMANA}}</p>
-  <p class="sub">Atualizado todo dia às 8h · última leitura do AVA: {{CHECKED_AT}} (Brasília)</p>
+  <p class="sub">Releio o AVA várias vezes ao dia · última leitura: {{CHECKED_AT}} (Brasília)</p>
   {{BANNER}}
   {{RECADO}}
   {{AGORA}}

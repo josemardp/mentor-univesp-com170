@@ -233,8 +233,11 @@ def main():
             s.send_message(msg)
         print(f"E-mail enviado para {para}.")
     except Exception as e:
-        print(f"Falhei ao enviar o e-mail: {e}")
-        return 0  # nao derruba a Action: o site ja foi publicado
+        # Antes devolvia 0 aqui "pra nao derrubar a Action". O efeito era pior:
+        # o e-mail parava de chegar e nada avisava. Agora o passo fica vermelho.
+        # O site nao se perde por isso, porque a publicacao acontece antes.
+        print(f"::error::Nao consegui enviar o e-mail: {e}")
+        return 1
     return 0
 
 

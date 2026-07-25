@@ -1024,11 +1024,18 @@ def coletar(estado):
             modelo = "quinzenal" if any(
                 sem_acento(s["title"]).startswith("quinzena") for s in secoes) else "regular"
 
-            # cronograma: o link vem do proprio curso, com fallback
-            url_crono = links.get("cronograma") or CRONOGRAMA_PADRAO
-            if url_crono not in cronogramas:
-                cronogramas[url_crono] = ler_cronograma(page, url_crono)
-            cronograma = cronogramas[url_crono]
+            # Cronograma: o link vem do próprio curso. O fallback só vale pra
+            # disciplina de modelo semanal; o COM170 é quinzenal e estava
+            # recebendo o cronograma regular por padrão, o que fazia a
+            # telemetria dizer "cronograma: 4" quando eram 3 de verdade.
+            url_crono = links.get("cronograma")
+            if not url_crono and modelo == "regular":
+                url_crono = CRONOGRAMA_PADRAO
+            cronograma = None
+            if url_crono:
+                if url_crono not in cronogramas:
+                    cronogramas[url_crono] = ler_cronograma(page, url_crono)
+                cronograma = cronogramas[url_crono]
 
             # prazo real por cmid
             prazo_por_cmid = {}
@@ -1419,6 +1426,19 @@ def validar_cobertura(dados, anterior):
     if sem_item:
         problemas.append("disciplina sem nenhuma atividade: " + ", ".join(sem_item))
 
+    # Ler o Moodle não basta: os prazos moram em avisos, calendário e
+    # cronograma, e todas as três podiam falhar juntas com a saúde verde. O
+    # robô ficava sem nenhum prazo e dizia que estava tudo certo, que é a
+    # omissão silenciosa que ele existe pra evitar.
+    agora_f = resumo_fontes(dados)
+    antes_f = (anterior or {}).get("fontes") or {}
+    for chave, nome in (("itens_com_prazo", "nenhum item ficou com prazo"),
+                        ("avisos", "não li nenhum aviso de fórum"),
+                        ("eventos_calendario", "o calendário voltou vazio"),
+                        ("cronograma", "não li o cronograma de nenhuma disciplina")):
+        if antes_f.get(chave, 0) > 0 and agora_f.get(chave, 0) == 0:
+            problemas.append(f"{nome} (ontem eram {antes_f[chave]})")
+
     return (not problemas), problemas
 
 
@@ -1434,7 +1454,22 @@ def resumo_fontes(dados):
         "eventos_calendario": len(dados.get("eventos") or []),
         "notificacoes": len(dados.get("notificacoes") or []),
         "cronograma": sum(1 for c in cursos if c.get("cronograma")),
+        # O sinal mais direto de "as fontes de prazo funcionaram".
+        "itens_com_prazo": sum(1 for c in cursos for s in c.get("sections") or []
+                               for it in s.get("items") or [] if it.get("prazo")),
     }
+
+
+def gravar_json(caminho, conteudo):
+    """Grava num temporário e só então substitui.
+
+    write_text direto deixa o arquivo pela metade se a execução for
+    interrompida, e o carregar() seguinte trata arquivo corrompido igual a
+    arquivo ausente: perde o retrato anterior sem dizer nada.
+    """
+    temp = caminho.with_suffix(caminho.suffix + ".tmp")
+    temp.write_text(json.dumps(conteudo, ensure_ascii=False, indent=2), encoding="utf-8")
+    temp.replace(caminho)
 
 
 def carregar(caminho, padrao):
@@ -1452,11 +1487,14 @@ def novidades(anterior, dados):
     for c in (anterior or {}).get("courses", []):
         for s in c.get("sections", []):
             for it in s.get("items", []):
-                antes[(c.get("code"), it.get("label"))] = it.get("status")
+                # Chave pelo cmid do Moodle: dois itens podem ter o mesmo
+                # rótulo em seções diferentes ("S1 - Videoaulas" em cada
+                # semana), e aí um mascarava a mudança do outro.
+                antes[(c.get("code"), it.get("cmid") or it.get("label"))] = it.get("status")
     for c in dados["courses"]:
         for s in c["sections"]:
             for it in s["items"]:
-                k = (c["code"], it.get("label"))
+                k = (c["code"], it.get("cmid") or it.get("label"))
                 if k not in antes and it.get("status") is not None:
                     mudou.append({"curso": c["code"], "label": it["label"], "kind": "novo"})
                 elif antes.get(k) != it.get("status") and it.get("status") == "Concluído":
@@ -1478,7 +1516,7 @@ def main():
         saida = anterior or {"courses": []}
         saida["status"] = "session_expired"
         saida["checked_at"] = agora
-        DATA_PATH.write_text(json.dumps(saida, ensure_ascii=False, indent=2), encoding="utf-8")
+        gravar_json(DATA_PATH, saida)
         print("SESSAO EXPIRADA - mantive o ultimo retrato e avisei no site.")
         return 0
 
@@ -1494,7 +1532,7 @@ def main():
         saida["checked_at"] = agora
         saida["problemas"] = problemas
         saida["fontes"] = fontes
-        DATA_PATH.write_text(json.dumps(saida, ensure_ascii=False, indent=2), encoding="utf-8")
+        gravar_json(DATA_PATH, saida)
         print("COLETA INCOMPLETA, mantive o ultimo retrato valido:")
         for p in problemas:
             print(f"  - {p}")
@@ -1511,8 +1549,8 @@ def main():
         "higiene": higiene, "confirmar": confirmar,
         "novidades": novidades(anterior, dados),
     }
-    DATA_PATH.write_text(json.dumps(saida, ensure_ascii=False, indent=2), encoding="utf-8")
-    ESTADO_PATH.write_text(json.dumps(estado, ensure_ascii=False, indent=2), encoding="utf-8")
+    gravar_json(DATA_PATH, saida)
+    gravar_json(ESTADO_PATH, estado)
     print(f"OK. {len(acoes)} acao(oes), {len(higiene)} de higiene, "
           f"{len(confirmar)} a confirmar, {len(encerrados)} encerrada(s). Fontes: {fontes}")
     return 0

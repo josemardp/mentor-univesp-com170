@@ -2,7 +2,11 @@ name: Guia diário Univesp
 
 on:
   schedule:
-    - cron: "0 11 * * *"  # 08:00 horário de Brasília (UTC-3, sem horário de verão)
+    # Antes rodava só às 8h. O site é aberto na hora de estudar, e depois que
+    # o Josemar avançava no AVA o retrato ficava velho o dia inteiro: chegou a
+    # mandar refazer atividade que ele já tinha concluído. Agora relê ao longo
+    # do dia. Horários em UTC; Brasília é UTC-3 e não tem horário de verão.
+    - cron: "0 11,14,17,20,23 * * *"  # 8h, 11h, 14h, 17h e 20h de Brasília
   workflow_dispatch: {}
 
 permissions:
@@ -59,26 +63,38 @@ jobs:
         if: always()
         run: rm -f automacao/storage_state.json
 
-      - name: Enviar resumo por e-mail
-        continue-on-error: true
-        env:
-          SMTP_HOST: ${{ secrets.SMTP_HOST }}
-          SMTP_PORT: ${{ secrets.SMTP_PORT }}
-          SMTP_USER: ${{ secrets.SMTP_USER }}
-          SMTP_PASS: ${{ secrets.SMTP_PASS }}
-          EMAIL_PARA: ${{ secrets.EMAIL_PARA }}
-        run: python automacao/enviar_email.py
-
+      # Publicar ANTES de avisar. Na ordem antiga o e-mail saía primeiro, e se
+      # o push falhasse depois, o e-mail apontava para um site velho.
       - name: Publicar mudanças
         run: |
           git config user.name "guia-univesp-bot"
           git config user.email "actions@users.noreply.github.com"
           git add docs/
           if git diff --cached --quiet; then
-            echo "Sem mudanças hoje."
+            echo "Sem mudanças nesta leitura."
           else
-            git commit -m "Atualização diária do guia ($(date -u +%Y-%m-%d))"
+            git commit -m "Atualização do guia ($(date -u +'%Y-%m-%d %H:%M') UTC)"
             git push
+          fi
+
+      # Sem continue-on-error: e-mail que para de chegar tem que ficar visível.
+      # O site já foi publicado no passo acima, então falhar aqui não o perde.
+      # O site relê várias vezes ao dia, mas o e-mail continua sendo um por
+      # dia: cinco e-mails viram ruído e param de ser lidos.
+      - name: Enviar resumo por e-mail
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          EMAIL_PARA: ${{ secrets.EMAIL_PARA }}
+          EVENTO: ${{ github.event_name }}
+        run: |
+          HORA=$(date -u +%H)
+          if [ "$HORA" = "11" ] || [ "$EVENTO" = "workflow_dispatch" ]; then
+            python automacao/enviar_email.py
+          else
+            echo "Leitura de $HORA UTC: só atualizo o site, o e-mail é o da manhã."
           fi
 
       # Falha visível: se a leitura não foi confiável, a Action fica vermelha.
