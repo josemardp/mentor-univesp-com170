@@ -354,17 +354,19 @@ def ler_calendario(page):
         "timesortto": agora + 86400 * 240,
         "limitnum": 200,
     }
+    # Numa sessao recem-criada por login automatico esta chamada volta vazia se
+    # for feita do painel. Abrir o calendario antes resolve, aparentemente
+    # porque e ai que o Moodle prepara o servico pra sessao.
+    try:
+        page.goto(f"{AVA}/calendar/view.php?view=upcoming",
+                  wait_until="domcontentloaded", timeout=45000)
+        page.wait_for_timeout(1800)
+    except Exception:
+        pass
     dados = api(page, "core_calendar_get_action_events_by_timesort", pedido)
-    # Logo depois de um login novo a sessao as vezes ainda nao responde a esta
-    # chamada e volta vazia. Uma segunda tentativa, com a pagina do painel
-    # recarregada, resolve sem precisar de nada mais elaborado.
     if not (dados or {}).get("events"):
-        try:
-            page.goto(f"{AVA}/my/", wait_until="domcontentloaded", timeout=45000)
-            page.wait_for_timeout(2000)
-            dados = api(page, "core_calendar_get_action_events_by_timesort", pedido)
-        except Exception:
-            pass
+        page.wait_for_timeout(1500)
+        dados = api(page, "core_calendar_get_action_events_by_timesort", pedido)
     eventos = []
     for e in (dados or {}).get("events", []) or []:
         curso = e.get("course") or {}
