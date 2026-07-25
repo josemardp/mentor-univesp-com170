@@ -233,8 +233,9 @@ def render_aviso(curso, a):
             f'<a href="{esc(l)}" target="_blank" rel="noopener">gravação / sala</a>'
             for l in quentes[:2]) + "</div>")
 
+    selo = '<span class="status pend">novo</span>' if a.get("novo") else ""
     return (f'<li class="aviso">'
-            f'<div class="acao-chips"><span class="status brick">{esc(curso)}</span>'
+            f'<div class="acao-chips"><span class="status brick">{esc(curso)}</span>{selo}'
             f'<span class="muted">{esc(a.get("forum") or "")} · {esc(quando)}</span></div>'
             f'<div class="acao-txt">{titulo}</div>'
             f'<p class="aviso-txt">{esc((a.get("texto") or "")[:300])}…</p>'
@@ -242,12 +243,15 @@ def render_aviso(curso, a):
 
 
 def render_novidades(data):
+    # novos primeiro, depois os recentes que ainda valem (prazo ainda de pé)
     linhas = []
     for c in data.get("courses", []):
         for a in (c.get("avisos") or [])[:4]:
-            linhas.append((a.get("data") or "", render_aviso(c["code"], a)))
-    linhas.sort(reverse=True)
-    avisos_html = "".join(h for _, h in linhas[:8])
+            linhas.append((0 if a.get("novo") else 1, a.get("data") or "",
+                           render_aviso(c["code"], a)))
+    linhas.sort(key=lambda x: x[1], reverse=True)   # mais recente primeiro
+    linhas.sort(key=lambda x: x[0])                 # e os novos no topo (ordenacao estavel)
+    avisos_html = "".join(h for _, _, h in linhas[:8])
 
     extras = []
     nao_lidas = [n for n in data.get("notificacoes", []) if not n.get("lida")]

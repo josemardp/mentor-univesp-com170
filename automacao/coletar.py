@@ -411,76 +411,106 @@ def post_interessa(post):
     return any(c in titulo or c in alvo for c in CHAVES_AVISO)
 
 
-def varrer_foruns(page, foruns, estado, ano, orcamento):
-    """foruns: [{'label','url'}]. estado: dict persistido entre execucoes.
-    Devolve (avisos_novos, orcamento_restante)."""
-    achados = []
+JANELA_AVISOS_DIAS = 45
+NOVO_ATE_DIAS = 3
+MAX_POSTS_POR_DISCUSSAO = 10
+
+
+def _preparar(post, rotulo_forum, url, titulo_alt, ano):
+    post["forum"] = rotulo_forum
+    post["url"] = url
+    post["titulo"] = post.get("titulo") or titulo_alt
+    post["prazos"] = extrair_prazos(post.get("texto", ""), ano)
+    post["texto"] = (post.get("texto") or "")[:TRECHO_AVISO]
+    post["links"] = [l for l in (post.get("links") or []) if l][:6]
+    post.pop("url_forum", None)
+    return post
+
+
+def varrer_foruns(page, foruns, estado, ano, orcamento, hoje):
+    """Varre todos os foruns do curso e devolve os avisos da janela recente.
+
+    O estado guarda, por discussao, a data do ultimo post E os avisos ja
+    processados. Isso serve a dois propositos: nao reabrir discussao que nao
+    mexeu, e continuar entregando o aviso mesmo quando ele deixa de ser
+    novidade. Sem o cache, um prazo achado ontem sumia hoje, que foi como o
+    alerta do Modulo 4 se perdeu na segunda execucao.
+    """
+    coletados = []
+
+    def guardar(chave, ultimo, posts):
+        estado[chave] = {"ultimo": ultimo or "", "posts": posts[:MAX_POSTS_POR_DISCUSSAO]}
+        return estado[chave]["posts"]
+
     for f in foruns:
+        cache_forum = estado.get(f["url"], {})
         if orcamento <= 0:
-            break
+            coletados.extend(cache_forum.get("posts", []))
+            continue
         try:
             page.goto(f["url"], wait_until="domcontentloaded", timeout=45000)
             page.wait_for_timeout(700)
             orcamento -= 1
         except Exception:
+            coletados.extend(cache_forum.get("posts", []))
             continue
 
-        # forum de discussao unica: os posts estao na propria pagina
         try:
             aqui = page.evaluate(JS_POSTS)
         except Exception:
             aqui = []
-        discussoes = []
         try:
             discussoes = page.evaluate(JS_DISCUSSOES)
         except Exception:
-            pass
+            discussoes = []
 
+        # forum de discussao unica: os posts estao na propria pagina
         if aqui and not discussoes:
-            marca = estado.get(f["url"], {}).get("ultimo") or ""
-            novos = [p for p in aqui if (p.get("data") or "") > marca]
-            mais_novo = max((p.get("data") or "") for p in aqui) if aqui else ""
-            estado[f["url"]] = {"ultimo": mais_novo or marca}
-            for p in novos:
-                p["forum"] = f["label"]
-                p["url_forum"] = f["url"]
-                achados.append(p)
+            mais_novo = max((p.get("data") or "") for p in aqui)
+            if mais_novo > (cache_forum.get("ultimo") or "") or "posts" not in cache_forum:
+                bons = [_preparar(p, f["label"], f["url"], f["label"], ano)
+                        for p in aqui if post_interessa(p)]
+                bons.sort(key=lambda p: p.get("data") or "", reverse=True)
+                coletados.extend(guardar(f["url"], mais_novo, bons))
+            else:
+                coletados.extend(cache_forum.get("posts", []))
             continue
 
         for d in discussoes:
-            if orcamento <= 0:
-                break
-            visto = estado.get(d["url"], {}).get("ultimo")
-            if visto and d.get("ultimo") and d["ultimo"] <= visto:
-                continue  # nada mudou desde a ultima leitura
+            cache = estado.get(d["url"], {})
+            parada = (cache.get("ultimo") and d.get("ultimo")
+                      and d["ultimo"] <= cache["ultimo"] and "posts" in cache)
+            if parada or orcamento <= 0:
+                coletados.extend(cache.get("posts", []))
+                continue
             try:
                 page.goto(d["url"], wait_until="domcontentloaded", timeout=45000)
                 page.wait_for_timeout(600)
                 orcamento -= 1
                 posts = page.evaluate(JS_POSTS)
             except Exception:
+                coletados.extend(cache.get("posts", []))
                 continue
-            marca = visto or ""
-            for p in posts:
-                if (p.get("data") or "") <= marca:
-                    continue
-                p["forum"] = f["label"]
-                p["url_forum"] = d["url"]
-                p["titulo"] = p.get("titulo") or d.get("titulo")
-                achados.append(p)
-            estado[d["url"]] = {"ultimo": d.get("ultimo") or marca}
+            bons = [_preparar(p, f["label"], d["url"], d.get("titulo"), ano)
+                    for p in posts if post_interessa(p)]
+            bons.sort(key=lambda p: p.get("data") or "", reverse=True)
+            coletados.extend(guardar(d["url"], d.get("ultimo"), bons))
 
-    avisos = []
-    for p in achados:
-        if not post_interessa(p):
+    corte = (hoje - timedelta(days=JANELA_AVISOS_DIAS)).isoformat()
+    recente = (hoje - timedelta(days=NOVO_ATE_DIAS)).isoformat()
+    saida, vistos = [], set()
+    for p in coletados:
+        data = (p.get("data") or "")[:10]
+        if data < corte:
             continue
-        p["prazos"] = extrair_prazos(p.get("texto", ""), ano)
-        p["texto"] = (p.get("texto") or "")[:TRECHO_AVISO]
-        p["links"] = [l for l in (p.get("links") or []) if l][:6]
-        p["url"] = p.pop("url_forum", None)
-        avisos.append(p)
-    avisos.sort(key=lambda a: a.get("data") or "", reverse=True)
-    return avisos, orcamento
+        chave = (p.get("url"), p.get("data"), (p.get("titulo") or "")[:40])
+        if chave in vistos:
+            continue
+        vistos.add(chave)
+        p["novo"] = data >= recente
+        saida.append(p)
+    saida.sort(key=lambda a: a.get("data") or "", reverse=True)
+    return saida, orcamento
 
 
 # ---------------------------------------------------------------------------
@@ -688,8 +718,10 @@ def coletar(estado):
                       for s in secoes for it in s["items"]
                       if it["type"] == "forum" and it.get("url")]
             print(f"  {len(foruns)} forum(ns) a varrer (orcamento {orcamento})")
-            avisos, orcamento = varrer_foruns(page, foruns, estado, hoje.year, orcamento)
-            print(f"  {len(avisos)} post(s) novo(s) que interessam")
+            avisos, orcamento = varrer_foruns(page, foruns, estado, hoje.year,
+                                              orcamento, hoje)
+            novos = sum(1 for a in avisos if a.get("novo"))
+            print(f"  {len(avisos)} aviso(s) na janela, {novos} novo(s)")
 
             # confere se pendente ainda esta aberto
             pendentes = [(s, it) for s in secoes if not s.get("locked")
@@ -876,8 +908,9 @@ def novidades(anterior, dados):
                 elif antes.get(k) != it.get("status") and it.get("status") == "Concluído":
                     mudou.append({"curso": c["code"], "label": it["label"], "kind": "concluido"})
         for a in c.get("avisos", []):
-            mudou.append({"curso": c["code"], "label": a.get("titulo") or "novo post",
-                          "kind": "aviso"})
+            if a.get("novo"):   # os antigos ficam no site, mas nao contam como mudanca
+                mudou.append({"curso": c["code"], "label": a.get("titulo") or "novo post",
+                              "kind": "aviso"})
     return mudou
 
 
