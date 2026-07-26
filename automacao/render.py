@@ -176,12 +176,11 @@ def render_fontes_status(data):
         "disciplinas": "{n} disciplinas",
         "calendario": "{n} prazos no calendário",
         "cronograma": "{n} cronogramas",
-        "foruns": "{n} avisos de fórum",
         "itens": "{n} atividades conferidas",
         "notificacoes": "{n} notificações",
     }
 
-    horas, numeros, velhas, truncadas = set(), [], [], []
+    horas, numeros, falhas, parciais, truncadas = set(), [], [], [], []
     for chave in ordem:
         info = estados.get(chave) or {}
         if not info.get("status"):
@@ -195,14 +194,27 @@ def render_fontes_status(data):
             except Exception:
                 pass
         if info.get("quantidade_atual") is not None:
-            numeros.append(quantidades[chave].format(n=info["quantidade_atual"]))
-        if info.get("from_cache") or info.get("status") in ("falhou", "degradado",
-                                                            "parcial"):
-            velhas.append((nomes[chave], quando))
+            quantidade = info["quantidade_atual"]
+            if chave == "foruns":
+                total_foruns = info.get("foruns")
+                complemento = ""
+                if total_foruns is not None:
+                    rotulo = "fórum" if total_foruns == 1 else "fóruns"
+                    complemento = f" em {total_foruns} {rotulo}"
+                numeros.append(
+                    f"{quantidade} publicações selecionadas{complemento}"
+                )
+            else:
+                numeros.append(quantidades[chave].format(n=quantidade))
+        status = info.get("status")
+        if info.get("from_cache") or status in ("falhou", "degradado"):
+            falhas.append((nomes[chave], quando, bool(info.get("from_cache"))))
+        elif status == "parcial":
+            parciais.append(nomes[chave])
         if info.get("truncado"):
             truncadas.append(nomes[chave])
 
-    if not numeros and not velhas:
+    if not numeros and not falhas and not parciais:
         return ""
 
     detalhes = ""
@@ -214,18 +226,34 @@ def render_fontes_status(data):
         detalhes = (f'<details class="fontes-det"><summary>o que eu li</summary>'
                     f'<p>{esc(", ".join(numeros))}.{extra}</p></details>')
 
-    if velhas:
-        quais = ", ".join(
+    if falhas:
+        quais = ", ".join(nome for nome, _, _ in falhas)
+        caches = [
             f"{nome} (última leitura boa às {hora})" if hora else nome
-            for nome, hora in velhas)
+            for nome, hora, usou_cache in falhas if usou_cache
+        ]
+        cache_txt = (
+            f' Mantive o dado anterior de {esc(", ".join(caches))}.'
+            if caches else ""
+        )
+        parcial_txt = (
+            f' A leitura de {esc(", ".join(parciais))} também ficou incompleta.'
+            if parciais else ""
+        )
         return ('<div class="sourcebar degraded">'
-                f'<b>Atenção:</b> não consegui reler agora: {esc(quais)}. '
-                'Essa parte pode estar desatualizada; confira no AVA.'
+                f'<b>Atenção:</b> houve falha ao atualizar: {esc(quais)}.'
+                f'{cache_txt}{parcial_txt} Confira essa parte no AVA.'
                 f'{detalhes}</div>')
+
+    if parciais:
+        return ('<div class="sourcebar degraded">'
+                f'<b>Leitura parcial:</b> li agora, mas não consegui cobrir '
+                f'completamente: {esc(", ".join(parciais))}. Confira essa parte '
+                f'no AVA.{detalhes}</div>')
 
     hora = f" às {sorted(horas)[-1]}" if horas else ""
     return ('<div class="sourcebar">'
-            f'Li tudo direto do AVA agora{esc(hora)}, sem reaproveitar nada.'
+            f'Li as fontes do AVA agora{esc(hora)}, sem reaproveitar dados antigos.'
             f'{detalhes}</div>')
 
 

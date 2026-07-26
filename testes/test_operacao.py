@@ -183,11 +183,43 @@ checa("Date.now()" in R.TEMPLATE and "setInterval" in R.TEMPLATE,
       "idade é recalculada enquanto a página está aberta")
 fontes_html = R.render_fontes_status({
     "status": "ok", "fontes_status": {
-        "foruns": {"status": "parcial", "last_live_at": agora},
+        "disciplinas": {
+            "status": "live", "last_live_at": agora, "quantidade_atual": 4,
+        },
+        "foruns": {
+            "status": "live", "last_live_at": agora, "quantidade_atual": 60,
+            "foruns": 14, "truncado": True,
+        },
     },
 })
-checa("não consegui reler agora: fóruns" in fontes_html and "degraded" in fontes_html,
-      "fonte parcial fica visível no site")
+checa("Li as fontes do AVA agora" in fontes_html and "Li tudo" not in fontes_html,
+      "mensagem saudável não promete ter guardado tudo")
+checa("60 publicações selecionadas em 14 fóruns" in fontes_html,
+      "quantidade dos fóruns explica o que foi contado")
+
+parcial_html = R.render_fontes_status({
+    "status": "ok", "fontes_status": {
+        "itens": {
+            "status": "parcial", "last_live_at": agora,
+            "quantidade_atual": 16,
+        },
+    },
+})
+checa("Leitura parcial" in parcial_html and "li agora" in parcial_html
+      and "houve falha" not in parcial_html,
+      "leitura parcial não é apresentada como falha ou cache")
+
+falha_html = R.render_fontes_status({
+    "status": "coleta_degradada", "fontes_status": {
+        "foruns": {
+            "status": "falhou", "last_live_at": agora,
+            "quantidade_atual": 60, "foruns": 14, "from_cache": True,
+        },
+    },
+})
+checa("houve falha ao atualizar: fóruns" in falha_html
+      and "Mantive o dado anterior" in falha_html,
+      "falha com cache informa que preservou a última leitura boa")
 
 recado_antigo = R.RECADO_PATH
 with tempfile.TemporaryDirectory() as tmp:
