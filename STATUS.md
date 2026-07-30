@@ -21,9 +21,7 @@ o código com ele:
 Corrigido:
 
 - `fontes/itens.py`: nova função `envio_workshop()`, que abre a página real
-  do Laboratório e lê a seção "Meu envio" (o mesmo texto que Josemar leu com
-  os próprios olhos — "Você não enviou seu trabalho ainda" vs "Editar
-  envio"/"Excluir envio").
+  do Laboratório e lê a seção "Meu envio".
 - `pipeline.py`: chama essa função pra todo item tipo `workshop` e grava o
   resultado em `item["enviado"]`.
 - `dominio/acoes.py`: as duas trilhas de ação agora respeitam esse campo. A
@@ -31,13 +29,24 @@ Corrigido:
   pares** (é uma obrigação separada, só some quando o próprio processo de
   avaliação também estiver feito). A do item some assim que `enviado is
   True`.
-- `testes/test_workshop_enviado.py`: 11 casos novos cobrindo a leitura da
-  página e as duas trilhas. Suíte inteira (`test_prazos`, `test_golden`,
-  `test_operacao`, `test_isolamento_fontes`, `test_foruns`) rodada de novo,
-  sem regressão — inclusive o teste dourado.
+- `testes/test_workshop_enviado.py`: casos novos cobrindo a leitura da
+  página e as duas trilhas. Suíte inteira rodada de novo, sem regressão —
+  inclusive o teste dourado.
 
-Ainda não validado contra o AVA real (`python automacao/gerar_guia.py`) nem
-publicado — só testes offline por enquanto.
+**Validado direto na Action (`workflow_dispatch`), duas rodadas:**
+
+1ª rodada publicou e o Módulo 6 continuou na fila. Causa: os sinais de
+"enviado" (`editar envio`/`excluir envio`) são da tela de edição
+(`submission.php`), mas o link do curso aponta pra `view.php`, que mostra
+outro resumo — não tem esses botões. Texto real de `view.php` depois do
+envio: a linha do tempo troca "Tarefas a fazer" por **"Tarefa realizada"** e
+aparece o carimbo **"enviado em \<data\>"** junto do título do envio. Sinais
+corrigidos para essas duas frases (mantendo as antigas como reforço).
+
+2ª rodada (`publication_id 2026-07-30T14:13:52`): `item["enviado"]` leu
+`True`, a obrigação de entrega sumiu da fila e a de avaliação por pares
+(04/08) continuou — exatamente o esperado. Site em produção reflete a
+correção.
 
 ## Sessão 25/07/2026
 
