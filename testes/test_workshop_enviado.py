@@ -65,14 +65,48 @@ checa(
     "'Você não enviou seu trabalho ainda' é enviado=False",
 )
 
-ja_enviado = (
+ja_enviado_tela_edicao = (
     "Meu envio\nPortfólio - Josemar de Paula - Quinzena 1\n"
     "por JOSEMAR DE PAULA\nenviado em quarta-feira, 29 jul. 2026, 23:30\n"
     "portfolio_individual_josemar.pdf\nEditar envio\nExcluir envio"
 )
 checa(
-    itens.envio_workshop(PaginaFalsa(ja_enviado), "https://ava/workshop") is True,
-    "presença de 'Editar envio'/'Excluir envio' é enviado=True",
+    itens.envio_workshop(PaginaFalsa(ja_enviado_tela_edicao), "https://ava/workshop")
+    is True,
+    "presença de 'Editar envio'/'Excluir envio' (tela submission.php) é enviado=True",
+)
+
+# `view.php` é a página que o robô de fato visita (o link do curso aponta pra
+# ela, não pra submission.php) e ela NÃO mostra "Editar envio"/"Excluir
+# envio" - só a linha do tempo com "Tarefa realizada" e o carimbo "enviado
+# em". Texto real lido do AVA em 30/07/2026, depois do envio de Josemar.
+ja_enviado_view_php = (
+    "Fase de envio\nLinha do tempo do laboratório de avaliação com 5 fases\n"
+    "Fase de configuração\nFase de envio\nFase atual\nTarefa realizada\n"
+    "Envie seu trabalho\nPrazo limite dos envios: sábado, 01 ago. 2026, 23:59\n"
+    "Instruções para envio\n...\n"
+    "Seu envio\nPortfólio - Josemar de Paula - Quinzena 1\nJD\n"
+    "por JOSEMAR DE PAULA\nenviado em quarta-feira, 29 jul. 2026, 23:30"
+)
+checa(
+    itens.envio_workshop(PaginaFalsa(ja_enviado_view_php), "https://ava/workshop")
+    is True,
+    "em view.php (sem os botões de editar/excluir), 'Tarefa realizada' + "
+    "'enviado em' também é enviado=True",
+)
+
+nao_enviado_view_php = (
+    "Fase de envio\nLinha do tempo do laboratório de avaliação com 5 fases\n"
+    "Fase de configuração\nFase de envio\nFase atual\nTarefas a fazer\n"
+    "Envie seu trabalho\nPrazo limite dos envios: sábado, 01 ago. 2026, 23:59\n"
+    "Instruções para envio\n...\n"
+    "Seu envio\nVocê não enviou seu trabalho ainda"
+)
+checa(
+    itens.envio_workshop(PaginaFalsa(nao_enviado_view_php), "https://ava/workshop")
+    is False,
+    "em view.php antes do envio, 'Tarefas a fazer' (plural) não é confundido "
+    "com 'Tarefa realizada'",
 )
 
 login = "Você precisa fazer login para continuar."

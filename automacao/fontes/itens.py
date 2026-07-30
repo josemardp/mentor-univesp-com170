@@ -36,6 +36,13 @@ SINAIS_NAO_ENVIADO = [
     "nenhum envio",
 ]
 SINAIS_ENVIADO = [
+    # A página `view.php` (a que o robô visita) não mostra os botões "Editar
+    # envio"/"Excluir envio" - esses só existem na tela de edição
+    # (`submission.php`). Em `view.php`, depois de enviar, a linha do tempo
+    # troca "Tarefas a fazer" por "Tarefa realizada" e aparece o carimbo
+    # "enviado em <data>" junto do título do envio.
+    "tarefa realizada",
+    "enviado em",
     "editar envio",
     "excluir envio",
 ]
