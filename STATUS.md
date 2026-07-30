@@ -48,6 +48,23 @@ corrigidos para essas duas frases (mantendo as antigas como reforço).
 (04/08) continuou — exatamente o esperado. Site em produção reflete a
 correção.
 
+**Layout em abas.** Josemar pediu pra separar a página, que era uma coluna
+vertical só, em abas: Recado · O que fazer agora · Confirme se é prazo ·
+Chegou novo · Mapa das disciplinas · Higiene do AVA · Já encerrou. Cada aba
+só existe se tiver conteúdo (Recado/Confirme/Higiene/Encerrados somem
+vazias, como já sumiam antes). Aba padrão ao abrir: "O que fazer agora".
+
+- `render.py`: nova `render_tabs()` monta a barra de abas + painéis; os
+  `<h2>` redundantes dentro de cada bloco saíram (o rótulo da aba já diz o
+  nome); `render_higiene`/`render_encerrados`/o aviso de recado arquivado
+  perderam o `<details>` próprio (a aba já é o mecanismo de esconder).
+  CSS e JS (troca de aba + hash da URL) adicionados ao `TEMPLATE`.
+- Testado com o `data.json` real do dia: badge da aba Higiene bateu com o
+  "7 itens" que o Josemar via na coluna antiga. Testado em mobile (375px) e
+  tema escuro via browser antes de subir.
+- `testes/test_operacao.py`: seção nova cobrindo `render_tabs` (abas
+  condicionais, contagem do badge, painéis nascem `hidden`).
+
 ## Sessão 25/07/2026
 
 Reestruturação completa da automação. O guia antigo cobrava tarefa que já tinha

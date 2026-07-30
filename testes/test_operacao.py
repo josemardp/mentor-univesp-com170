@@ -241,6 +241,26 @@ with tempfile.TemporaryDirectory() as tmp:
         R.RECADO_PATH = recado_antigo
 
 
+print("\n== Abas (render_tabs) ==")
+dados_min = {"acoes": [], "courses": [], "eventos": [], "notificacoes": [], "mensagens": []}
+tabs_html = R.render_tabs(dados_min)
+checa('data-tab="agora"' in tabs_html, "aba 'O que fazer agora' sempre existe")
+checa('data-tab="novidades"' in tabs_html, "aba 'Chegou novo' sempre existe")
+checa('data-tab="mapa"' in tabs_html, "aba 'Mapa das disciplinas' sempre existe")
+checa('data-tab="confirmar"' not in tabs_html, "aba 'Confirme' some quando não há nada a confirmar")
+checa('data-tab="higiene"' not in tabs_html, "aba 'Higiene' some quando vazia")
+checa('data-tab="encerrados"' not in tabs_html, "aba 'Já encerrou' some quando vazia")
+checa('id="panel-agora"' in tabs_html and "hidden" in tabs_html,
+      "painéis nascem escondidos; o JS decide qual mostrar")
+
+dados_cheio = dict(dados_min)
+dados_cheio["higiene"] = [{"o_que": "X", "curso": "COM170"}] * 3
+tabs_cheio = R.render_tabs(dados_cheio)
+checa('data-tab="higiene"' in tabs_cheio, "aba 'Higiene' aparece quando há itens")
+checa('<span class="tab-badge">3</span>' in tabs_cheio,
+      "contagem na aba bate com o número de itens")
+
+
 print("\n== Escrita e identidade ==")
 with tempfile.TemporaryDirectory() as tmp:
     alvo = Path(tmp) / "data.json"

@@ -133,10 +133,10 @@ def render_recado(data):
             motivos.append("a validade do recado não pôde ser verificada")
     if motivos:
         return (
-            '<details class="bloco recado-antigo"><summary class="enc-sum">'
-            'Recado anterior arquivado automaticamente</summary>'
-            f'<p class="sub">{esc("; ".join(motivos).capitalize())}. '
-            'A fila abaixo já usa a leitura mais recente do AVA.</p></details>'
+            '<div class="bloco recado-antigo">'
+            '<p class="recado-antigo-tag">Recado anterior arquivado automaticamente</p>'
+            f'<p class="sub" style="margin:0;">{esc("; ".join(motivos).capitalize())}. '
+            'A aba "O que fazer agora" já usa a leitura mais recente do AVA.</p></div>'
         )
     quando = ""
     try:
@@ -341,22 +341,22 @@ def render_agora(data):
         # Nunca dizer "tudo em dia" quando a leitura falhou: o silêncio aqui
         # é justamente o que faria ele perder prazo achando que estava livre.
         motivos = "".join(f"<li>{esc(p)}</li>" for p in (data.get("problemas") or []))
-        return ('<div class="bloco destaque"><h2>Não consegui ler o AVA agora</h2>'
-                '<p class="sub" style="margin:0 0 8px;">A lista abaixo é do último '
-                'retrato que deu certo, então <b>pode estar desatualizada</b>. '
-                'Confira direto no AVA antes de confiar nela.</p>'
+        return ('<div class="bloco destaque">'
+                '<p class="sub" style="margin:0 0 8px;"><b>Não consegui ler o AVA agora.</b> '
+                'A lista abaixo é do último retrato que deu certo, então '
+                '<b>pode estar desatualizada</b>. Confira direto no AVA antes de confiar nela.</p>'
                 f'<ul class="tasklist">{motivos}</ul></div>'
                 + (render_lista_acoes(acoes) if acoes else ""))
     if acoes is None:
         # data.json ainda no formato antigo: o robo nao rodou com o motor novo.
         # Melhor dizer isso do que fingir que esta tudo em dia.
-        return ('<div class="bloco destaque"><h2>O que fazer agora</h2>'
+        return ('<div class="bloco destaque">'
                 '<p class="sub" style="margin:0;">Ainda não tenho a lista de tarefas desta '
                 'versão. Ela aparece na primeira vez que o robô entrar no AVA com a sessão '
-                'renovada. Enquanto isso, vale o recado acima e o mapa das disciplinas '
-                'abaixo.</p></div>')
+                'renovada. Enquanto isso, vale abrir as abas "Recado" e "Mapa das '
+                'disciplinas".</p></div>')
     if not acoes:
-        return ('<div class="bloco destaque"><h2>O que fazer agora</h2>'
+        return ('<div class="bloco destaque">'
                 '<p class="sub" style="margin:0;">Nada pendente. Tudo em dia. 🎉</p></div>')
 
     partes = [render_lista_acoes(acoes)]
@@ -365,7 +365,6 @@ def render_agora(data):
     if urgentes:
         resumo += ", " + plural(urgentes, "apertada", "apertadas")
     return ('<div class="bloco destaque">'
-            f'<h2>O que fazer agora</h2>'
             f'<p class="sub" style="margin:0 0 10px;">{esc(resumo)}. '
             'Em ordem de urgência, com o prazo real lido do AVA.</p>'
             + "".join(partes) + "</div>")
@@ -445,12 +444,12 @@ def render_novidades(data):
             f'</span></li>')
 
     if not avisos_html and not extras:
-        return ('<div class="bloco"><h2>Chegou novo</h2>'
+        return ('<div class="bloco">'
                 '<p class="sub" style="margin:0;">Nenhum post, notificação ou mensagem nova '
                 'desde a última checagem.</p></div>')
 
     extras_html = f'<ul class="tasklist">{"".join(extras)}</ul>' if extras else ""
-    return ('<div class="bloco"><h2>Chegou novo</h2>'
+    return ('<div class="bloco">'
             '<p class="sub" style="margin:0 0 10px;">Fóruns, notificações e mensagens que '
             'apareceram desde a última leitura.</p>'
             f'<ul class="acoes">{avisos_html}</ul>{extras_html}</div>')
@@ -548,7 +547,7 @@ def render_confirmar(data):
             f'<span class="status pend">{rotulo} {esc(fmt_dmhm(c["quando"]))}?</span>'
             f'</div><p class="aviso-txt">“{esc((c.get("frase") or "")[:200])}”</p>'
             f'<div class="acao-pe">{origem}</div></li>')
-    return ('<div class="bloco"><h2>Confirme se isto é prazo mesmo</h2>'
+    return ('<div class="bloco">'
             '<p class="sub" style="margin:0 0 10px;">Li estas datas em avisos, mas '
             'não tenho certeza a que atividade pertencem, ou se são de abertura ou '
             'de entrega. Preferi te mostrar a colocar na lista como se fosse '
@@ -569,11 +568,9 @@ def render_higiene(data):
             nome = f'<a href="{esc(a["url"])}" target="_blank" rel="noopener">{nome}</a>'
         li.append(f'<li><span class="status neutral">{esc(a["curso"])}</span>'
                   f'<span class="tlabel">{nome}</span></li>')
-    return ('<details class="bloco"><summary class="enc-sum">'
-            f'Higiene do AVA · {plural(len(itens), "item para marcar", "itens para marcar")}'
-            '</summary><p class="sub">Não valem nota e não têm prazo. Servem só pra '
-            'fechar a barra de progresso do Moodle.</p>'
-            f'<ul class="tasklist">{"".join(li)}</ul></details>')
+    return ('<p class="sub" style="margin:0 0 10px;">Não valem nota e não têm prazo. '
+            'Servem só pra fechar a barra de progresso do Moodle.</p>'
+            f'<ul class="tasklist">{"".join(li)}</ul>')
 
 
 def render_encerrados(data):
@@ -584,12 +581,86 @@ def render_encerrados(data):
         f'<li><span class="status lock">{esc(e.get("motivo") or "encerrado")}</span>'
         f'<span class="tlabel"><b>{esc(e["curso"])}</b> · {esc(e["o_que"])}</span></li>'
         for e in itens[:25])
-    return ('<details class="bloco"><summary class="enc-sum">'
-            f'Já encerrou · {plural(len(itens), "item que não dá", "itens que não dão")} '
-            'mais pra enviar</summary>'
-            f'<ul class="tasklist">{li}</ul>'
+    return (f'<ul class="tasklist">{li}</ul>'
             '<p class="sub">Ficam aqui só pra registro. Se algum for importante, '
-            'fale com o facilitador pelo fórum de dúvidas.</p></details>')
+            'fale com o facilitador pelo fórum de dúvidas.</p>')
+
+
+# ---------------------------------------------------------------------------
+# Abas
+# ---------------------------------------------------------------------------
+def render_tabs(data):
+    """Cada bloco que antes era mais uma seção pra rolar vira uma aba.
+
+    A página inteira era uma coluna só; pra ver "Higiene" o Josemar tinha que
+    passar por tudo antes. Aqui cada seção só existe como aba se tiver algo
+    pra mostrar (Recado, Confirme, Higiene e Já encerrou somem sozinhas
+    quando vazias, exatamente como sumiam da coluna antes).
+    """
+    abas = []
+
+    recado_html = render_recado(data)
+    if recado_html:
+        rotulo = (
+            "Recado anterior" if "recado-antigo" in recado_html
+            else "Recado da mentora"
+        )
+        abas.append(("recado", rotulo, None, recado_html))
+
+    acoes = data.get("acoes")
+    badge_agora = len(acoes) if isinstance(acoes, list) else None
+    abas.append(("agora", "O que fazer agora", badge_agora, render_agora(data)))
+
+    confirmar_itens = data.get("confirmar") or []
+    confirmar_html = render_confirmar(data)
+    if confirmar_html:
+        abas.append(
+            ("confirmar", "Confirme se é prazo", len(confirmar_itens), confirmar_html)
+        )
+
+    novos = sum(
+        1 for c in data.get("courses", [])
+        for a in (c.get("avisos") or [])
+        if a.get("novo")
+    )
+    nao_lidas = len([n for n in data.get("notificacoes", []) if not n.get("lida")])
+    mensagens = sum(m.get("nao_lidas", 0) for m in data.get("mensagens", []))
+    badge_novidades = (novos + nao_lidas + mensagens) or None
+    abas.append(("novidades", "Chegou novo", badge_novidades, render_novidades(data)))
+
+    abas.append(("mapa", "Mapa das disciplinas", None, render_cards(data)))
+
+    higiene_itens = data.get("higiene") or []
+    higiene_html = render_higiene(data)
+    if higiene_html:
+        abas.append(("higiene", "Higiene do AVA", len(higiene_itens), higiene_html))
+
+    encerrados_itens = data.get("encerrados") or []
+    encerrados_html = render_encerrados(data)
+    if encerrados_html:
+        abas.append(
+            ("encerrados", "Já encerrou", len(encerrados_itens), encerrados_html)
+        )
+
+    botoes, paineis = [], []
+    for chave, rotulo, contagem, conteudo in abas:
+        selo = (
+            f'<span class="tab-badge">{contagem}</span>'
+            if contagem is not None else ""
+        )
+        botoes.append(
+            f'<button type="button" class="tab-btn" data-tab="{chave}" '
+            f'role="tab" aria-selected="false" id="tabbtn-{chave}">'
+            f'{esc(rotulo)}{selo}</button>'
+        )
+        paineis.append(
+            f'<section class="tab-panel" id="panel-{chave}" role="tabpanel" '
+            f'aria-labelledby="tabbtn-{chave}" hidden>{conteudo}</section>'
+        )
+    return (
+        f'<div class="tabbar" role="tablist">{"".join(botoes)}</div>'
+        f'<div class="tab-panels">{"".join(paineis)}</div>'
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -702,13 +773,7 @@ def render_html(data):
             .replace("{{SNAPSHOT_AT}}", esc(snapshot_at))
             .replace("{{BANNER}}", banner)
             .replace("{{FONTES_STATUS}}", render_fontes_status(data))
-            .replace("{{RECADO}}", render_recado(data))
-            .replace("{{AGORA}}", render_agora(data))
-            .replace("{{CONFIRMAR}}", render_confirmar(data))
-            .replace("{{NOVIDADES}}", render_novidades(data))
-            .replace("{{CARDS}}", render_cards(data))
-            .replace("{{HIGIENE}}", render_higiene(data))
-            .replace("{{ENCERRADOS}}", render_encerrados(data)))
+            .replace("{{TABS}}", render_tabs(data)))
     gravar_texto_atomico(DOCS / "index.html", html)
 
 
@@ -821,8 +886,22 @@ TEMPLATE = """<!doctype html>
   .status.lock{background:var(--locked-bg);color:var(--locked);}
   .status.brick{background:var(--brick-soft);color:var(--brick);}
   .status.neutral{background:var(--locked-bg);color:var(--ink-soft);}
-  .enc-sum{cursor:pointer;font-weight:700;font-size:14px;
-           font-family:Georgia,ui-serif,serif;}
+  .recado-antigo-tag{font-size:12px;letter-spacing:.06em;text-transform:uppercase;
+                     color:var(--ink-soft);font-weight:700;margin:0 0 6px;}
+  .tabbar{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+          margin:18px 0 2px;padding-bottom:4px;}
+  .tabbar::-webkit-scrollbar{height:4px;}
+  .tab-btn{flex:0 0 auto;display:flex;align-items:center;gap:6px;
+           font-family:ui-sans-serif,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+           font-size:13px;font-weight:600;color:var(--ink-soft);
+           background:var(--paper);border:1px solid var(--line);border-radius:99px;
+           padding:8px 14px;cursor:pointer;white-space:nowrap;transition:.15s ease;}
+  .tab-btn:hover{color:var(--ink);}
+  .tab-btn.active{background:var(--brick-soft);border-color:var(--brick);color:var(--brick);}
+  .tab-badge{font-size:11px;font-weight:700;background:rgba(128,128,128,.22);
+             color:inherit;border-radius:99px;padding:1px 7px;}
+  .tab-panels{margin-top:10px;}
+  .tab-panel[hidden]{display:none;}
   @media (prefers-reduced-motion: reduce){.chev{transition:none;}}
   footer{margin-top:30px;padding-top:16px;border-top:1px solid var(--line);
          font-size:12px;color:var(--ink-soft);text-align:center;}
@@ -836,14 +915,7 @@ TEMPLATE = """<!doctype html>
   <p class="sub">Releio o AVA várias vezes ao dia · última leitura: {{CHECKED_AT}} (Brasília)</p>
   {{BANNER}}
   {{FONTES_STATUS}}
-  {{RECADO}}
-  {{AGORA}}
-  {{CONFIRMAR}}
-  {{NOVIDADES}}
-  <h2 class="grupo" style="margin-top:26px;">Mapa das disciplinas</h2>
-  {{CARDS}}
-  {{HIGIENE}}
-  {{ENCERRADOS}}
+  {{TABS}}
   <footer>Um robô lê o AVA todo dia: páginas das disciplinas, calendário, todos os fóruns,
   notificações e mensagens. Prazo só aparece aqui com a origem à mostra.<br>
   Nenhuma data é chutada: se não achei prazo oficial, digo que não tem.</footer>
@@ -876,6 +948,27 @@ TEMPLATE = """<!doctype html>
   atualizar();
   setInterval(atualizar, 60000);
   document.addEventListener('visibilitychange', atualizar);
+})();
+</script>
+<script>
+(() => {
+  const botoes = [...document.querySelectorAll('.tab-btn')];
+  const paineis = [...document.querySelectorAll('.tab-panel')];
+  if (!botoes.length) return;
+  const ativar = (chave, focar) => {
+    botoes.forEach(b => {
+      const on = b.dataset.tab === chave;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    paineis.forEach(p => { p.hidden = p.id !== `panel-${chave}`; });
+    if (focar) history.replaceState(null, '', `#${chave}`);
+  };
+  botoes.forEach(b => b.addEventListener('click', () => ativar(b.dataset.tab, true)));
+  const doHash = (location.hash || '').slice(1);
+  const existe = botoes.some(b => b.dataset.tab === doHash);
+  const padrao = botoes.some(b => b.dataset.tab === 'agora') ? 'agora' : botoes[0].dataset.tab;
+  ativar(existe ? doHash : padrao, false);
 })();
 </script>
 </body>
