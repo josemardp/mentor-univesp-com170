@@ -5,6 +5,26 @@
 
 ## Última sessão: 30/07/2026
 
+Layout do site virou abas (`render.py`). Antes era tudo empilhado numa
+coluna só (Recado, O que fazer agora, Confirme se é prazo, Chegou novo,
+Mapa das disciplinas, Higiene, Já encerrou); agora cada bloco é uma aba, e
+só existe aba pras seções que têm algo pra mostrar. Aba padrão ao abrir é
+"O que fazer agora"; a URL guarda a aba escolhida no hash (`#higiene` etc).
+`render_higiene`/`render_encerrados`/o aviso de recado arquivado perderam o
+`<details>` porque a aba já faz esse papel de "recolhido por padrão".
+
+Primeira versão usava `overflow-x:auto` (rolagem horizontal) na barra de
+abas. Josemar reportou com print que em tela larga a última aba ficava
+cortada, sem indicação de que dava pra rolar. Trocado para
+`flex-wrap:wrap`: as abas quebram em linhas em vez de exigir rolagem.
+Testado em 1600px, 900px e mobile (375px), claro e escuro.
+
+Teste novo em `testes/test_operacao.py` (seção "Abas") cobre: abas fixas
+sempre presentes, abas condicionais somem quando vazias, contagem do selo
+bate com o número de itens.
+
+## Sessão anterior — 30/07/2026 (Módulo 6)
+
 Josemar reportou, com print do próprio guia, que o Módulo 6 aparecia como
 pendente ("Entregue o trabalho: Módulo 6 · Fechamento das submissões") mesmo
 ele já tendo enviado o colega no AVA. Causa raiz, achada lendo

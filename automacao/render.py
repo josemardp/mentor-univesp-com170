@@ -888,9 +888,7 @@ TEMPLATE = """<!doctype html>
   .status.neutral{background:var(--locked-bg);color:var(--ink-soft);}
   .recado-antigo-tag{font-size:12px;letter-spacing:.06em;text-transform:uppercase;
                      color:var(--ink-soft);font-weight:700;margin:0 0 6px;}
-  .tabbar{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;
-          margin:18px 0 2px;padding-bottom:4px;}
-  .tabbar::-webkit-scrollbar{height:4px;}
+  .tabbar{display:flex;flex-wrap:wrap;gap:6px;margin:18px 0 4px;}
   .tab-btn{flex:0 0 auto;display:flex;align-items:center;gap:6px;
            font-family:ui-sans-serif,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
            font-size:13px;font-weight:600;color:var(--ink-soft);
