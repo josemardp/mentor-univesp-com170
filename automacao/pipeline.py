@@ -393,6 +393,10 @@ def executar_coleta(estado, anterior=None):
                     item["motivo_fechado"] = (
                         "o AVA diz que não está aberta"
                     )
+                if item.get("type") == "workshop":
+                    item["enviado"] = itens.envio_workshop(
+                        page, item.get("url")
+                    )
 
             cursos.append(
                 {

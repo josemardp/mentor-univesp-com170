@@ -42,6 +42,7 @@ jobs:
           python testes/test_foruns.py
           python testes/test_isolamento_fontes.py
           python testes/test_prazos.py
+          python testes/test_workshop_enviado.py
           python testes/test_login.py
           python testes/test_operacao.py
 

@@ -100,6 +100,20 @@ def urgencia_de(prazo_iso, hoje, hora_certa=True):
     return "depois", f"vence {prazo:%d/%m}"
 
 
+def _workshop_ja_enviado(secao):
+    """Existe um Laboratório de Avaliação nesta seção que o aluno já enviou.
+
+    Selo "Concluído" do Moodle só fecha quando as 5 fases terminam pra ele,
+    inclusive avaliar o trabalho de outro grupo — não serve pra saber se a
+    entrega em si já foi feita. A fonte da verdade é ``item["enviado"]``,
+    lido direto da página "Meu envio" (ver ``fontes/itens.envio_workshop``).
+    """
+    return any(
+        item.get("type") == "workshop" and item.get("enviado") is True
+        for item in secao.get("items", [])
+    )
+
+
 def montar_acoes(dados, hoje):
     acoes, encerrados, confirmar, higiene = [], [], [], []
     for curso in dados["courses"]:
@@ -148,6 +162,8 @@ def montar_acoes(dados, hoje):
                 if urgencia == "vencido":
                     continue
                 verbo, coisa = fase_de(prazo)
+                if verbo == "Entregue" and _workshop_ja_enviado(secao):
+                    continue
                 chave_fase = (
                     prazo["quando"],
                     sem_acento(prazo.get("rotulo") or ""),
@@ -184,6 +200,8 @@ def montar_acoes(dados, hoje):
                 continue
             for item in secao["items"]:
                 if item.get("status") == "Concluído":
+                    continue
+                if item.get("type") == "workshop" and item.get("enviado") is True:
                     continue
                 if item.get("status") is None and not item.get("conta_nota"):
                     continue

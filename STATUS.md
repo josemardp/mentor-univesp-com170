@@ -3,7 +3,43 @@
 > Doc de handoff. Qualquer máquina ou agente retoma a partir daqui.
 > Site: https://esdraaline.github.io/mentor-univesp-com170/ (conta GitHub `esdraaline`)
 
-## Última sessão: 25/07/2026
+## Última sessão: 30/07/2026
+
+Josemar reportou, com print do próprio guia, que o Módulo 6 aparecia como
+pendente ("Entregue o trabalho: Módulo 6 · Fechamento das submissões") mesmo
+ele já tendo enviado o colega no AVA. Causa raiz, achada lendo
+o código com ele:
+
+- A ação nascida do **aviso do facilitador** (`dominio/acoes.py`, casamento
+  por `casar_prazos`) nunca abre a atividade — só compara a data do aviso com
+  hoje. Não tinha como saber que ele já enviou.
+- A ação nascida do **item do curso** confiava no selo "Concluído" do Moodle,
+  que num Laboratório de Avaliação (workshop) só fecha quando as 5 fases
+  terminam pro aluno — inclusive avaliar o trabalho de outro grupo, que só
+  abre dias depois. Enviar a parte individual não muda esse selo.
+
+Corrigido:
+
+- `fontes/itens.py`: nova função `envio_workshop()`, que abre a página real
+  do Laboratório e lê a seção "Meu envio" (o mesmo texto que Josemar leu com
+  os próprios olhos — "Você não enviou seu trabalho ainda" vs "Editar
+  envio"/"Excluir envio").
+- `pipeline.py`: chama essa função pra todo item tipo `workshop` e grava o
+  resultado em `item["enviado"]`.
+- `dominio/acoes.py`: as duas trilhas de ação agora respeitam esse campo. A
+  do aviso suprime só a fase de **entrega**, mantendo a de **avaliação por
+  pares** (é uma obrigação separada, só some quando o próprio processo de
+  avaliação também estiver feito). A do item some assim que `enviado is
+  True`.
+- `testes/test_workshop_enviado.py`: 11 casos novos cobrindo a leitura da
+  página e as duas trilhas. Suíte inteira (`test_prazos`, `test_golden`,
+  `test_operacao`, `test_isolamento_fontes`, `test_foruns`) rodada de novo,
+  sem regressão — inclusive o teste dourado.
+
+Ainda não validado contra o AVA real (`python automacao/gerar_guia.py`) nem
+publicado — só testes offline por enquanto.
+
+## Sessão 25/07/2026
 
 Reestruturação completa da automação. O guia antigo cobrava tarefa que já tinha
 fechado, não avisou da live de 23/07 e inventava prazo ("semana = 7 dias" fixo
