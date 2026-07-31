@@ -1,4 +1,5 @@
 storage_state.json
+.playwright-mcp/
 *.env
 segredos/
 __pycache__/
