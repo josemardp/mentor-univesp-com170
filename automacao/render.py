@@ -416,17 +416,87 @@ def render_aviso(curso, a):
             f'{prazos}{links}</li>')
 
 
+def _dias_para_evento(aviso):
+    """Extrai a data mais proxima mencionada no texto do aviso.
+    Retorna o numero de dias ate o evento (0 = hoje, 1 = amanha, etc).
+    Retorna 999 se nao houver data explicita no texto.
+    """
+    texto = aviso.get("texto") or ""
+    titulo = aviso.get("titulo") or ""
+    combinado = f"{titulo} {texto}"
+    hoje = date.today()
+    dias = 999
+    # Padrao DD/MM
+    for m in re.finditer(r"(\d{1,2})/(\d{1,2})(?:/\d{4})?", combinado):
+        try:
+            d, mes = int(m.group(1)), int(m.group(2))
+            candidato = date(hoje.year, mes, d)
+            if candidato < hoje:
+                candidato = date(hoje.year + 1, mes, d)
+            delta = (candidato - hoje).days
+            if 0 <= delta < dias:
+                dias = delta
+        except ValueError:
+            continue
+    # Padrao DD de Mes
+    meses_br = {
+        "janeiro": 1, "fevereiro": 2, "marco": 3, "abril": 4, "maio": 5,
+        "junho": 6, "julho": 7, "agosto": 8, "setembro": 9, "outubro": 10,
+        "novembro": 11, "dezembro": 12, "jan": 1, "fev": 2, "mar": 3,
+        "abr": 4, "mai": 5, "jun": 6, "jul": 7, "ago": 8, "set": 9,
+        "out": 10, "nov": 11, "dez": 12,
+    }
+    for m in re.finditer(r"(\d{1,2})(?:\u00ba|\u00aa)?\s+(?:de\s+)?(\w+)", combinado, re.IGNORECASE):
+        try:
+            d, mes_nome = int(m.group(1)), m.group(2).lower().strip(".")
+            mes_num = meses_br.get(mes_nome)
+            if mes_num is None:
+                continue
+            candidato = date(hoje.year, mes_num, d)
+            if candidato < hoje:
+                candidato = date(hoje.year + 1, mes_num, d)
+            delta = (candidato - hoje).days
+            if 0 <= delta < dias:
+                dias = delta
+        except (ValueError, KeyError):
+            continue
+    return dias
+
+
+_MAX_DIAS_URGENTE = 4  # hoje + 3 dias para frente
+
+
 def render_novidades(data):
-    # novos primeiro, depois os recentes que ainda valem (prazo ainda de pé)
+    hoje = date.today()
+    # --- Fase 1: coletar candidatos (sem corte por disciplina para urgentes) ---
     linhas = []
     for c in data.get("courses", []):
-        for a in (c.get("avisos") or [])[:4]:
+        for a in (c.get("avisos") or [])[:12]:  # aumentado de 4 para 12 para capturar mais
+            dias_evento = _dias_para_evento(a)
+            urgente = dias_evento <= _MAX_DIAS_URGENTE
             autoridade = 0 if a.get("autoridade") == "institucional" else 1
-            linhas.append((autoridade, 0 if a.get("novo") else 1, a.get("data") or "",
+            # Prioridade: urgente=0, depois autoridade, depois novo, depois data
+            prioridade = (
+                0 if urgente else 1,
+                autoridade,
+                0 if a.get("novo") else 1,
+            )
+            linhas.append((prioridade, urgente, dias_evento,
+                           a.get("data") or "",
                            render_aviso(c["code"], a)))
-    linhas.sort(key=lambda x: x[2], reverse=True)
-    linhas.sort(key=lambda x: (x[0], x[1]))
-    avisos_html = "".join(h for _, _, _, h in linhas[:8])
+    # --- Fase 2: separar urgentes dos nao-urgentes ---
+    urgentes = [linha for linha in linhas if linha[1]]     # linha[1] = urgente bool
+    nao_urgentes = [linha for linha in linhas if not linha[1]]
+    # --- Fase 3: ordenar dentro de cada grupo ---
+    nao_urgentes.sort(key=lambda x: x[3], reverse=True)       # data desc
+    nao_urgentes.sort(key=lambda x: (x[0][2], x[0][1], x[0][0]))  # prioridade
+    urgentes.sort(key=lambda x: x[2])                         # dias ate evento (asc)
+    urgentes.sort(key=lambda x: x[3], reverse=True)           # data desc (tie)
+    # --- Fase 4: urgentes SEMPRE aparecem (sem limite). Nao-urgentes limitados a 12 ---
+    total = [h for _, _, _, _, h in urgentes] + [
+        h for _, _, _, _, h in nao_urgentes[:12]
+    ]
+    avisos_html = "".join(total)
 
     extras = []
     nao_lidas = [n for n in data.get("notificacoes", []) if not n.get("lida")]
