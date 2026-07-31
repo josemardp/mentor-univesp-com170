@@ -23,4 +23,7 @@ JANELA_AVISOS_DIAS = 45
 NOVO_ATE_DIAS = 3
 
 # Incrementar quando o formato persistido de fórum mudar.
-VERSAO_CACHE = 2
+# 3: prazos passaram a distinguir compromisso (live) de entrega. O cache
+# guarda o texto já cortado em 400, então sem reler do AVA a agenda das
+# lives ficava fora do alcance do parser novo.
+VERSAO_CACHE = 3
