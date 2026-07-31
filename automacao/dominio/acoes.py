@@ -79,7 +79,7 @@ def verbo_de(item):
     return "Abra e conclua", "página"
 
 
-def urgencia_de(prazo_iso, hoje, hora_certa=True):
+def urgencia_de(prazo_iso, hoje, hora_certa=True, evento=False):
     if not prazo_iso:
         return "sem_prazo", ""
     prazo = datetime.fromisoformat(prazo_iso)
@@ -89,6 +89,18 @@ def urgencia_de(prazo_iso, hoje, hora_certa=True):
         if hora_certa
         else " (horário não informado)"
     )
+    if evento:
+        # Live não vence, acontece. Dizer "vence hoje às 14h" para um
+        # encontro que começa às 14h faz ele achar que tem o dia todo.
+        if dias < 0:
+            return "vencido", f"aconteceu em {prazo:%d/%m}"
+        if dias == 0:
+            return "hoje", f"acontece hoje{hora}"
+        if dias == 1:
+            return "amanha", f"acontece amanhã, {prazo:%d/%m}{hora}"
+        if dias <= 7:
+            return "semana", f"acontece {prazo:%d/%m}{hora}"
+        return "depois", f"acontece {prazo:%d/%m}"
     if dias < 0:
         return "vencido", f"venceu em {prazo:%d/%m}"
     if dias == 0:
@@ -151,6 +163,49 @@ def montar_acoes(dados, hoje):
                         "autoridade", "colega"
                     ),
                     "url": (prazo.get("aviso") or {}).get("url"),
+                }
+            )
+        # Compromisso vive no nível do curso, não dentro de um módulo: a
+        # live é anunciada em aviso e não tem item próprio com data no AVA.
+        vistos_compromisso = set()
+        for prazo in prazos_aviso:
+            if prazo.get("tipo") != "compromisso":
+                continue
+            urgencia, texto = urgencia_de(
+                prazo["quando"],
+                hoje,
+                prazo.get("hora_certa", True),
+                evento=True,
+            )
+            if urgencia == "vencido":
+                continue
+            chave = (prazo["quando"], sem_acento(prazo.get("rotulo") or ""))
+            if chave in vistos_compromisso:
+                continue
+            vistos_compromisso.add(chave)
+            aviso = prazo["aviso"]
+            nome = prazo.get("titulo_evento") or aviso.get("titulo")
+            acoes.append(
+                {
+                    "curso": curso["code"],
+                    "secao": aviso.get("titulo") or "",
+                    "fase": "regular",
+                    "verbo": "Assista",
+                    "coisa": "ao vivo",
+                    "o_que": nome or "live da disciplina",
+                    "tipo": "compromisso",
+                    "url": aviso.get("url"),
+                    "conta_nota": True,
+                    "prazo": prazo["quando"],
+                    "prazo_txt": texto,
+                    "prazo_fonte": (
+                        f"aviso de {aviso.get('autor') or 'facilitador'}"
+                    ),
+                    "fonte_url": aviso.get("url"),
+                    "autoridade": aviso.get("autoridade", "colega"),
+                    "carencia": None,
+                    "hora_certa": prazo.get("hora_certa", True),
+                    "urgencia": urgencia,
                 }
             )
         for secao in curso["sections"]:
@@ -254,6 +309,22 @@ def montar_acoes(dados, hoje):
                 acoes.append(registro)
 
     propagar_urgencia(acoes, dados, hoje)
+
+    # O link fixo "Live com facilitador" não tem data e ficava eternamente em
+    # "sem prazo". Quando já existem lives com hora marcada, ele só repete.
+    cursos_com_live = {
+        acao["curso"] for acao in acoes if acao["tipo"] == "compromisso"
+    }
+    acoes = [
+        acao
+        for acao in acoes
+        if not (
+            acao["tipo"] == "lti"
+            and acao["urgencia"] == "sem_prazo"
+            and "live" in sem_acento(acao.get("o_que") or "")
+            and acao["curso"] in cursos_com_live
+        )
+    ]
 
     def ordenar(lista):
         return sorted(

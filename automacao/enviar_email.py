@@ -32,8 +32,8 @@ SITE = "https://esdraaline.github.io/mentor-univesp-com170/"
 BR_TZ = timezone(timedelta(hours=-3))
 
 TITULOS = {
-    "hoje": "Vence hoje",
-    "amanha": "Vence amanhã",
+    "hoje": "Para hoje",
+    "amanha": "Para amanhã",
     "semana": "Nos próximos dias",
     "depois": "Mais pra frente",
     "sem_prazo": "Sem prazo definido",
@@ -81,7 +81,24 @@ def topo_decisorio(data, acoes):
             linhas.append(f"  {primeira['prazo_txt']}.")
         linhas.append("")
 
-    duros = [a for a in acoes if a.get("prazo")][:6]
+    # Live tem hora e não tem carência: se listar junto de entrega, some no
+    # meio e vira exatamente o que já aconteceu, ele perder por não ver.
+    lives = [a for a in acoes if a.get("tipo") == "compromisso"][:6]
+    if lives:
+        linhas.append("COM HORA MARCADA")
+        for a in lives:
+            quando = datetime.fromisoformat(a["prazo"])
+            linhas.append(
+                f"- {quando:%d/%m} às {quando:%H:%M}: {a['curso']} "
+                f"live ({curto(a['o_que'], 40)})"
+            )
+        linhas.append("")
+
+    duros = [
+        a
+        for a in acoes
+        if a.get("prazo") and a.get("tipo") != "compromisso"
+    ][:6]
     if duros:
         linhas.append("PRAZOS FIRMES")
         por_data = {}
@@ -222,6 +239,9 @@ def assunto(data):
     primeira = next((a for a in acoes if a["urgencia"] in ("hoje", "amanha")), None)
     if primeira:
         alvo = curto(primeira["o_que"], 34)
+        if primeira.get("tipo") == "compromisso":
+            quando_live = datetime.fromisoformat(primeira["prazo"])
+            alvo = f"live {quando_live:%H:%M} ({alvo})"
         duro = next((a for a in acoes if a.get("prazo")
                      and a["urgencia"] in ("hoje", "amanha")), None)
         if duro is not None and duro is not primeira:

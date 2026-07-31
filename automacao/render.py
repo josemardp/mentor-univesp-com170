@@ -28,8 +28,10 @@ BR_TZ = timezone(timedelta(hours=-3))
 DIAS = ["segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo"]
 
 GRUPOS = [
-    ("hoje", "Vence hoje", "pend"),
-    ("amanha", "Vence amanhã", "pend"),
+    # Neutro de propósito: o grupo mistura entrega que vence com live que
+    # acontece. Cada linha já diz o seu ("vence hoje" / "acontece hoje às 14h").
+    ("hoje", "Para hoje", "pend"),
+    ("amanha", "Para amanhã", "pend"),
     ("semana", "Nos próximos dias", "brick"),
     ("depois", "Mais pra frente", "lock"),
     ("sem_prazo", "Sem prazo definido", "neutral"),

@@ -49,7 +49,14 @@ def mes(nome):
 def achar_datas(texto, referencia):
     """Extrai datas e preserva se a hora veio explicitamente da fonte."""
     achados = []
-    hora = r"(?:[,\s]*(?:às\s*)?(\d{1,2})[:h](\d{2}))?"
+    # "19h" (sem minutos) é como se escreve hora em aviso de fórum, e era
+    # justamente o formato que o robô não lia: caía no padrão sem hora e
+    # virava 23:59, dez horas depois da live. O separador aceita travessão
+    # porque a agenda de lives vem como "04/08/2026 – 14h".
+    hora = (
+        r"(?:[,\s)\]–—-]*(?:[àa]s\s*)?"
+        r"(\d{1,2})(?:[:h](\d{2})|h)\b)?"
+    )
     padroes = [
         (r"(\d{1,2})/(\d{1,2})(?:/(\d{4}))?", True),
         (
@@ -75,13 +82,28 @@ def achar_datas(texto, referencia):
                     continue
                 hora_certa = encontrado.group(4) is not None
                 hh = int(encontrado.group(4)) if hora_certa else 23
-                mm = int(encontrado.group(5)) if hora_certa else 59
+                if not hora_certa:
+                    mm = 59
+                elif encontrado.group(5) is not None:
+                    mm = int(encontrado.group(5))
+                else:
+                    mm = 0  # "19h" é 19:00, não 19:59.
                 if hh > 23 or mm > 59:
                     continue
                 anos = (
                     [int(encontrado.group(3))]
                     if encontrado.group(3)
                     else [referencia.year, referencia.year + 1, referencia.year - 1]
+                )
+                # Comparar só o dia. Subtrair datetime de date, ou datetime
+                # com fuso de outro sem fuso, levanta TypeError, e o except
+                # lá embaixo engolia o achado inteiro: toda data escrita sem
+                # o ano ("dia 30/07") sumia calada, porque só aí entram três
+                # candidatos e a comparação acontece.
+                dia_referencia = (
+                    referencia.date()
+                    if isinstance(referencia, datetime)
+                    else referencia
                 )
                 melhor = None
                 for ano in anos:
@@ -92,8 +114,8 @@ def achar_datas(texto, referencia):
                     except ValueError:
                         continue
                     if melhor is None or abs(
-                        (candidato - referencia).days
-                    ) < abs((melhor - referencia).days):
+                        (candidato.date() - dia_referencia).days
+                    ) < abs((melhor.date() - dia_referencia).days):
                         melhor = candidato
                 if melhor:
                     achados.append(

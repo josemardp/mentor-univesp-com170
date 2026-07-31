@@ -271,8 +271,10 @@ pz_live = C.extrair_prazos(
 m4 = C.casar_prazos("Módulo 4", pz_live)
 checa([p["quando"][:10] for p in m4] == ["2026-07-26"],
       "título em caixa alta encerra o escopo mesmo sem dois pontos")
-checa(any(p["confianca"] == "baixa" and p["quando"][:10] == "2026-07-30"
-          for p in pz_live), "a data da live fica marcada como duvidosa")
+checa(any(p["tipo"] == "compromisso" and p["quando"][:10] == "2026-07-30"
+          for p in pz_live), "a data da live vira compromisso, não prazo")
+checa(all(p["tipo"] != "compromisso" for p in m4),
+      "compromisso não entra na fila de entrega do módulo")
 
 # fechamento depois da data: não pode virar abertura silenciosa
 pz_par = C.extrair_prazos(
@@ -433,6 +435,48 @@ checa(normalizar_status("Pendente\n Você deve\n Feito:") == "Pendente",
 checa(normalizar_status("Marcar como feito") == "Marcar como feito",
       "'Marcar como feito' não é alterado")
 checa(normalizar_status(None) is None, "sem bloco de conclusão continua None")
+
+# ---------------------------------------------------------------------------
+# Live perdida em 30/07/2026: o aviso dizia "está marcada para (30/07), às 19h"
+# e o robô extraiu zero prazos. Três defeitos somados, um teste para cada.
+# ---------------------------------------------------------------------------
+AVISO_LIVE = (
+    "Prezados,\n\nEstá marcada para a quinta-feira (30/07), às 19h, a "
+    "primeira live da turma com os facilitadores.\n\nSegue link de acesso: "
+    "https://lti.elos.vc/rooms/abc\n\nConto com a presença de todos!"
+)
+pz_perdida = C.extrair_prazos(
+    AVISO_LIVE, datetime(2026, 7, 28, 10, 0, tzinfo=BR)
+)
+checa(len(pz_perdida) == 1 and pz_perdida[0]["tipo"] == "compromisso",
+      "'está marcada para' é anúncio de live, não frase sem prazo")
+checa(pz_perdida and pz_perdida[0]["quando"][11:16] == "19:00",
+      "hora escrita como '19h' vale 19:00, não 23:59")
+
+AGENDA = (
+    "Envio o cronograma de lives da Quinzena 2, que inicia na próxima "
+    "semana (3/8).\n\nAgenda das Lives\n\nGabrieli e Uebert\n"
+    "04/08/2026 - 14h\nhttps://lti.elos.vc/rooms/aaa\n\nCauê e participante\n"
+    "05/08/2026 - 11h\nhttps://lti.elos.vc/rooms/bbb\n\nLyon\n"
+    "05/08/2026 - 18h\nhttps://lti.elos.vc/rooms/ccc"
+)
+pz_agenda = C.extrair_prazos(
+    AGENDA, datetime(2026, 7, 31, 9, 47, tzinfo=BR)
+)
+lives = [p for p in pz_agenda if p["tipo"] == "compromisso"]
+checa(len(lives) == 3,
+      "o link entre as datas não pode cortar a agenda na primeira live")
+checa([p["quando"][11:16] for p in lives] == ["14:00", "11:00", "18:00"],
+      "cada live guarda a sua própria hora")
+checa(any(p.get("titulo_evento") == "Cauê e participante" for p in lives),
+      "quem apresenta vem da linha antes da data")
+checa(all(p["tipo"] != "compromisso" for p in pz_agenda
+          if p["quando"][:10] == "2026-08-03"),
+      "início de quinzena sem hora não é live")
+
+# Bug latente: data sem ano sumia calada quando a referência era um date.
+checa(C.achar_datas("dia 30/07", date(2026, 7, 28)),
+      "data sem ano sobrevive mesmo com referência sem hora")
 
 print("\n" + "=" * 62)
 if falhas:
