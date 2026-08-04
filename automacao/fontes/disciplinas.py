@@ -29,7 +29,17 @@ JS_MEUS_CURSOS = """
 
 JS_CURSO = """
 () => {
-  const limpa = (t) => (t || '').replace(/^(Contrair|Expandir)\\s*/, '').split('\\n')[0].trim();
+  // O nome da sub-seção mora num <a> em linha própria, então o innerText
+  // começa com "\\n" e o antigo split('\\n')[0] devolvia string vazia. Como
+  // seção sem título era descartada, os Módulos 1 a 7 da quinzena colapsada
+  // sumiam inteiros do guia — com eles, o Laboratório de Avaliação pendente.
+  const limpa = (t) => ((t || '')
+    .split('\\n')
+    .map(x => x.trim())
+    .filter(Boolean)
+    .filter(x => !/^(Contrair|Expandir)$/i.test(x))[0] || '')
+    .replace(/^(Contrair|Expandir)\\s*/, '')
+    .trim();
   const secoes = [...document.querySelectorAll('li.section, li.course-section')].map(s => {
     const own = [...s.querySelectorAll('li.activity')]
       .filter(a => a.closest('li.section, li.course-section') === s);
@@ -38,7 +48,9 @@ JS_CURSO = """
     const resumo = s.querySelector('.section_summary, .summarytext, .course-description-item');
     return {
       id: s.id,
-      title: limpa(nameEl ? nameEl.innerText : ''),
+      secao_id: s.getAttribute('data-id') || null,
+      title: (s.getAttribute('data-sectionname') || '').trim()
+             || limpa(nameEl ? nameEl.innerText : ''),
       parent: (s.parentElement.closest('li.section, li.course-section') || {}).id || null,
       locked: avail ? avail.innerText.trim() : null,
       theme: resumo ? resumo.innerText.replace(/^Tema:\\s*/, '').trim().slice(0, 200) : null,

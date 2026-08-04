@@ -171,28 +171,73 @@ def curso_com_workshop(enviado, com_item_prazo=True):
 
 print("\n== Aviso do facilitador (Módulo 6 · Fechamento das submissões) ==")
 
+
+def cobra(acoes, verbo, dia):
+    """Linhas que cobram este verbo neste dia, venham de aviso ou de item."""
+    return [
+        a
+        for a in acoes
+        if (a.get("verbo") or "").startswith(verbo)
+        and (a.get("prazo") or "").startswith(dia)
+    ]
+
+
 dados_pendente = {"courses": [curso_com_workshop(enviado=None)]}
 acoes, *_ = C.montar_acoes(dados_pendente, HOJE)
-rotulos = {a["o_que"] for a in acoes if a["tipo"] == "obrigacao"}
+entregas = cobra(acoes, "Entregue", "2026-08-01")
 checa(
-    "Módulo 6 · Fechamento das submissões" in rotulos,
-    "antes do envio, a obrigação de entrega aparece normalmente",
+    len(entregas) == 1,
+    "antes do envio, a obrigação de entrega aparece — uma vez só",
 )
 checa(
-    "Módulo 6 · Fechamento das avaliações por pares" in rotulos,
+    bool(entregas and entregas[0].get("url")),
+    "e a linha que sobra é a que leva direto à atividade no AVA",
+)
+checa(
+    len(cobra(acoes, "Avalie", "2026-08-04")) == 1,
     "antes do envio, a obrigação de avaliação por pares também aparece",
 )
 
 dados_enviado = {"courses": [curso_com_workshop(enviado=True)]}
 acoes_env, *_ = C.montar_acoes(dados_enviado, HOJE)
-rotulos_env = {a["o_que"] for a in acoes_env if a["tipo"] == "obrigacao"}
 checa(
-    "Módulo 6 · Fechamento das submissões" not in rotulos_env,
+    not cobra(acoes_env, "Entregue", "2026-08-01"),
     "depois do envio, a obrigação de ENTREGA some da fila",
 )
 checa(
-    "Módulo 6 · Fechamento das avaliações por pares" in rotulos_env,
+    len(cobra(acoes_env, "Avalie", "2026-08-04")) == 1,
     "depois do envio, a obrigação de AVALIAR outro grupo continua (é outra fase)",
+)
+
+print("\n== Fase de avaliação por pares (o que quebrou em 04/08/2026) ==")
+
+curso_avaliando = curso_com_workshop(enviado=True)
+item_lab = curso_avaliando["sections"][0]["items"][0]
+item_lab["avaliacao_pendente"] = True
+item_lab["avaliacoes_pendentes"] = 1
+item_lab["prazo"] = "2026-08-04T23:59:00-03:00"
+acoes_av, *_ = C.montar_acoes({"courses": [curso_avaliando]}, HOJE)
+linhas_lab = [a for a in acoes_av if a["tipo"] == "workshop"]
+checa(
+    len(linhas_lab) == 1 and linhas_lab[0]["verbo"] == "Avalie",
+    "entregou mas ainda falta avaliar: o Laboratório continua na fila, "
+    "agora pedindo a avaliação",
+)
+checa(
+    bool(linhas_lab and linhas_lab[0].get("url")),
+    "e com o link do Laboratório, que é onde fica o botão Avaliar",
+)
+
+curso_fechado = curso_com_workshop(enviado=True)
+curso_fechado["sections"][0]["items"][0]["avaliacao_pendente"] = False
+acoes_fim, *_ = C.montar_acoes({"courses": [curso_fechado]}, HOJE)
+checa(
+    not [a for a in acoes_fim if a["tipo"] == "workshop"],
+    "entregou e já avaliou: o Laboratório sai da fila inteiro",
+)
+checa(
+    not cobra(acoes_fim, "Avalie", "2026-08-04"),
+    "e o aviso do facilitador também para de cobrar a avaliação já feita",
 )
 
 print("\n== Ação por item (Entregue e avalie: M6 - ...) ==")

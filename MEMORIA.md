@@ -4,8 +4,9 @@ Este arquivo serve como a **memória de longo prazo** do projeto. Sempre que uma
 
 ## 1. Informações Pessoais e Acesso
 - **Aluno:** Josemar de Paula
-- **E-mail AVA:** `conta-academica@exemplo.edu.br`
-- **Senha AVA:** `Bravaa123#`
+- **Credenciais do AVA:** NÃO ficam aqui. Este repositório é **público**. Usuário
+  e senha vivem só nos Secrets do GitHub (`AVA_USUARIO`, `AVA_SENHA`), usados
+  pela Action. Nunca escreva senha em arquivo versionado.
 - **Curso:** Bacharelado em Inteligência Artificial (BIA)
 - **Turma:** 001
 - **Semestre:** 2026/2
@@ -38,8 +39,10 @@ Atualmente, o aluno está cursando as seguintes disciplinas (baseado no `docs/da
 - O usuário valoriza o aprendizado constante: a cada novo aprendizado, o sistema deve incorporar as informações, fazer commit e push na main.
 
 ## 5. Próximos Passos Imediatos
-- [ ] Aguardar novas instruções do Josemar.
-- [ ] Monitorar o AVA para novas liberações de módulos ou prazos de atividades (como a atividade avaliativa da Semana 2 do COM100).
+- [ ] **Trocar a senha do AVA.** Ela ficou em texto puro neste arquivo, num
+      repositório público, entre 30/07 e 04/08/2026. Foi removida do arquivo em
+      04/08, mas continua no histórico do Git: só a troca resolve.
+- [ ] Monitorar o AVA para novas liberações de módulos ou prazos de atividades.
 
 ---
-*Última atualização: 30/07/2026 às 22:55*
+*Última atualização: 04/08/2026*

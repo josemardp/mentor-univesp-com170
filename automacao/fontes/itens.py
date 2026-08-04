@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """Estado aberto, fechado ou indefinido de uma atividade."""
+import re
+
 from playwright.sync_api import Error as PlaywrightError
 
 from dominio.datas import sem_acento
@@ -64,23 +66,27 @@ def item_aberto(page, url):
     return True
 
 
-def envio_workshop(page, url):
-    """Estado do envio do aluno num Laboratório de Avaliação (workshop).
+# "Avaliar colegas — total: 1 pendente: 1" é o contador que o Moodle mostra na
+# fase de avaliação. É a única leitura confiável de "ainda falta avaliar
+# alguém": o selo de conclusão do curso não distingue as fases.
+CONTADOR_AVALIACAO_RE = re.compile(
+    r"avaliar colegas.{0,200}?total:\s*(\d+)\s*pendente:\s*(\d+)",
+    re.DOTALL,
+)
 
-    Aberto/fechado (``item_aberto``) só enxerga a janela de datas. Um
-    workshop com prazo em aberto continua "pendente" pra ele mesmo depois
-    do aluno enviar, porque o selo de conclusão do Moodle só fecha quando
-    as 5 fases terminam (inclusive a avaliação por pares de terceiros).
-    Aqui a fonte da verdade é a própria página "Meu envio".
-    """
+
+def _texto_do_workshop(page, url):
     if not url:
         return None
     try:
         page.goto(url, wait_until="domcontentloaded", timeout=40000)
         page.wait_for_timeout(500)
-        corpo = sem_acento(page.locator("body").inner_text()[:4000])
+        return sem_acento(page.locator("body").inner_text()[:6000])
     except PlaywrightError:
         return None
+
+
+def _enviado_no_texto(corpo):
     if any(sinal in corpo for sinal in SINAIS_INDEFINIDO):
         return None
     if any(sinal in corpo for sinal in SINAIS_NAO_ENVIADO):
@@ -88,3 +94,42 @@ def envio_workshop(page, url):
     if any(sinal in corpo for sinal in SINAIS_ENVIADO):
         return True
     return None
+
+
+def estado_workshop(page, url):
+    """Envio e avaliação por pares de um Laboratório de Avaliação.
+
+    Aberto/fechado (``item_aberto``) só enxerga a janela de datas, e o selo
+    "Concluído" do Moodle só fecha quando as 5 fases terminam. São duas
+    obrigações distintas com prazos distintos: entregar o trabalho e avaliar
+    o de outra pessoa. Tratar as duas como uma só faz o guia sumir com a
+    avaliação assim que a entrega é feita — foi o que aconteceu com o M7 em
+    04/08/2026, cuja avaliação vencia naquele mesmo dia.
+    """
+    corpo = _texto_do_workshop(page, url)
+    if corpo is None:
+        return {
+            "enviado": None,
+            "avaliacoes_total": None,
+            "avaliacoes_pendentes": None,
+            "avaliacao_pendente": None,
+        }
+    enviado = _enviado_no_texto(corpo)
+    total = pendentes = None
+    encontrado = CONTADOR_AVALIACAO_RE.search(corpo)
+    if encontrado:
+        total = int(encontrado.group(1))
+        pendentes = int(encontrado.group(2))
+    elif "ja foi avaliada" in corpo and "avaliar" not in corpo:
+        total, pendentes = 1, 0
+    return {
+        "enviado": enviado,
+        "avaliacoes_total": total,
+        "avaliacoes_pendentes": pendentes,
+        "avaliacao_pendente": None if pendentes is None else pendentes > 0,
+    }
+
+
+def envio_workshop(page, url):
+    """Compatibilidade: só o "já enviei?" de ``estado_workshop``."""
+    return estado_workshop(page, url)["enviado"]

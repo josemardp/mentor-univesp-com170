@@ -16,7 +16,15 @@ from configuracao import (
 )
 from dominio.acoes import conta_nota
 from dominio.datas import sem_acento
-from fontes import calendario, cronograma, disciplinas, foruns, itens, notificacoes
+from fontes import (
+    calendario,
+    cronograma,
+    disciplinas,
+    foruns,
+    instrucoes,
+    itens,
+    notificacoes,
+)
 from fontes.moodle import FalhaFonte
 from fontes.moodle import user_id
 from modelos import SourceResult
@@ -94,6 +102,33 @@ def politica_publicacao(resultados, anterior, attempted_at):
         for nome, (_, resultado) in resultados.items()
     }
     return saida
+
+
+def _prazo_por_cmid(eventos, agora_iso):
+    """O próximo evento de cada atividade, não um qualquer.
+
+    Uma mesma atividade tem vários eventos no calendário (abertura de envio,
+    fechamento de envio, abertura da avaliação, fechamento da avaliação). O
+    dicionário por compreensão guardava o último da lista, então o prazo
+    mostrado dependia da ordem em que o Moodle devolveu — um M6 já entregue
+    podia exibir a data de abertura como se fosse o prazo.
+    """
+    agora = datetime.fromisoformat(agora_iso)
+    por_cmid = {}
+    for evento in eventos:
+        if not (evento.get("cmid") and evento.get("quando")):
+            continue
+        try:
+            quando = datetime.fromisoformat(evento["quando"])
+        except ValueError:
+            continue
+        por_cmid.setdefault(str(evento["cmid"]), []).append((quando, evento))
+    escolhidos = {}
+    for cmid, lista in por_cmid.items():
+        lista.sort(key=lambda par: par[0])
+        futuros = [evento for quando, evento in lista if quando >= agora]
+        escolhidos[cmid] = futuros[0] if futuros else lista[-1][1]
+    return escolhidos
 
 
 def _curso_anterior(anterior, curso_id, codigo):
@@ -296,13 +331,10 @@ def executar_coleta(estado, anterior=None):
                 )
             cronograma_curso = resultado_cronograma.dados
 
-            prazo_por_cmid = {
-                evento["cmid"]: evento
-                for evento in eventos_por_curso.get(
-                    str(descoberto["id"]), []
-                )
-                if evento.get("cmid")
-            }
+            prazo_por_cmid = _prazo_por_cmid(
+                eventos_por_curso.get(str(descoberto["id"]), []),
+                checked_at,
+            )
             for secao in secoes:
                 numero_semana = None
                 encontrada = re.match(r"Semana (\d+)$", secao["title"])
@@ -394,9 +426,20 @@ def executar_coleta(estado, anterior=None):
                         "o AVA diz que não está aberta"
                     )
                 if item.get("type") == "workshop":
-                    item["enviado"] = itens.envio_workshop(
-                        page, item.get("url")
-                    )
+                    estado_lab = itens.estado_workshop(page, item.get("url"))
+                    item["enviado"] = estado_lab["enviado"]
+                    item["avaliacao_pendente"] = estado_lab[
+                        "avaliacao_pendente"
+                    ]
+                    item["avaliacoes_pendentes"] = estado_lab[
+                        "avaliacoes_pendentes"
+                    ]
+
+            try:
+                paginas_instrucao = instrucoes.ler(page, secoes, hoje)
+            except FalhaFonte as erro:
+                paginas_instrucao = []
+                print(f"  aviso: instruções da quinzena não lidas ({erro})")
 
             cursos.append(
                 {
@@ -408,6 +451,7 @@ def executar_coleta(estado, anterior=None):
                     "links": links,
                     "cronograma": cronograma_curso,
                     "avisos": avisos,
+                    "paginas_instrucao": paginas_instrucao,
                     "sections": secoes,
                 }
             )

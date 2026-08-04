@@ -305,6 +305,27 @@ def render_acao(a):
         trava = (f'<div class="trava">🔒 Ainda não abriu: {esc(a["bloqueio"])}. '
                  'Corra os módulos anteriores pra destravar a tempo.</div>')
 
+    # Um mesmo encontro anunciado em vários horários: o aviso pede pra
+    # escolher um, então o cartão mostra as opções em vez de virar seis
+    # compromissos separados na fila.
+    opcoes = a.get("opcoes") or []
+    if len(opcoes) > 1:
+        linhas = "".join(
+            f'<li>{esc(o.get("prazo_txt") or "")}'
+            + (f' — {esc(o["o_que"])}' if o.get("o_que") else "")
+            + "</li>"
+            for o in opcoes
+        )
+        trava += ('<div class="trava">🗓️ Mesmo encontro, vários horários. '
+                  'Participe do que couber na sua agenda:'
+                  f'<ul class="tasklist">{linhas}</ul></div>')
+    if a.get("repete", 1) > 1:
+        restantes = a["repete"] - 1
+        trava += ('<div class="trava">🔁 Se repete: mais '
+                  + (f'{restantes} encontros iguais' if restantes > 1
+                     else 'um encontro igual')
+                  + ' adiante no calendário.</div>')
+
     rodape = [f'<b>{esc(a["curso"])}</b> · {esc(a["secao"])}']
     if a.get("prazo_fonte"):
         origem = f'prazo do {esc(a["prazo_fonte"])}'

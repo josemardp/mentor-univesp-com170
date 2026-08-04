@@ -3,7 +3,71 @@
 > Doc de handoff. Qualquer máquina ou agente retoma a partir daqui.
 > Site: https://esdraaline.github.io/mentor-univesp-com170/ (conta GitHub `esdraaline`)
 
-## Última sessão: 30/07/2026
+## Última sessão: 04/08/2026 — inspeção geral contra o AVA ao vivo
+
+Josemar pediu conferência do site contra o AVA de verdade. Sete defeitos
+encontrados abrindo o AVA no navegador e comparando item por item com o
+`data.json` do dia. Todos corrigidos.
+
+**1. Seção sem título era descartada — e sumiam os Módulos 1 a 7.**
+O nome de uma sub-seção colapsada mora num `<a>` em linha própria, então o
+`innerText` começa com `\n` e o antigo `split('\n')[0]` devolvia string vazia.
+`JS_CURSO` filtrava `s.title` vazio, então a Quinzena 1 inteira (Módulos 1 a 7)
+saía do retrato. Consequência real: o Laboratório de Avaliação do Módulo 7,
+ainda pendente, não existia como item — a cobrança só sobrevivia pelo aviso do
+facilitador, sem link e sem hora. Agora o título vem de `data-sectionname`, com
+o texto visível como reserva.
+
+**2. Laboratório de Avaliação sumia inteiro depois da entrega.**
+São duas obrigações em sequência, com prazos diferentes: entregar e avaliar o
+trabalho de outra pessoa. O código pulava o item assim que `enviado` era `True`.
+Em 04/08 isso escondeu justamente a avaliação do M7, que vencia naquele dia.
+`fontes/itens.estado_workshop()` passa a ler também o contador "Avaliar colegas
+— total: N pendente: M"; o item só sai da fila quando as duas fases fecham, e
+troca o verbo para "Avalie" enquanto falta a segunda.
+
+**3. Encontro que já começou continuava na fila.**
+A live das 14h ainda aparecia como "acontece hoje às 14:00" às 17h30, porque a
+comparação era só de data. `urgencia_de` passa a receber `agora`.
+
+**4. Seis horários da mesma live viravam seis compromissos.**
+O aviso dizia o contrário do que o guia mostrava: "participem da live que
+melhor se adequar à sua disponibilidade". Compromissos do mesmo post viram um
+cartão só, com o próximo horário na frente e os demais listados dentro.
+
+**5. Calendário só era lido pela API — que esconde live.**
+`core_calendar_get_action_events_by_timesort` só devolve atividade com pendência
+do aluno. Evento de curso (a live de tira-dúvidas do facilitador, toda segunda
+às 20h) e atividade já concluída nunca voltavam por ali, e o DOM só era
+consultado quando a API vinha vazia. As duas leituras agora são somadas
+(`calendario.unir`), e evento de agenda sem atividade correspondente vira
+compromisso na fila.
+
+**6. Duas linhas idênticas para a mesma obrigação.**
+O facilitador postou o mesmo lembrete em dois fóruns no mesmo minuto. Agora
+uma obrigação, uma linha: quando o aviso e o item do AVA falam do mesmo dever no
+mesmo dia, fica o item (tem link, hora exata e nome real) herdando o link do
+aviso. Sem item coletado, o aviso continua sendo a rede de proteção.
+`rotulo_fase` passou a resumir rótulo longo preservando começo e fim, pra que
+obrigações de verdade distintas não colapsem (proteção da rodada 3).
+
+**7. Prazo da quinzena não era lido em lugar nenhum.**
+As datas da Quinzena 2 (Módulo 4 até 09/08, envios até 15/08, revisão entre
+pares até 18/08) só existem na página "Q2 - Instruções da Quinzena 2", que o
+robô não abria — e as atividades da quinzena apareciam como "sem prazo
+definido". `fontes/instrucoes.py` passa a ler essa página. Como texto corrido é
+onde este projeto mais errou, **nada dali entra na fila**: nasce com confiança
+baixa e cai em "Confirme se isto é prazo mesmo", com a frase e o link.
+
+Testes novos em `testes/test_operacao.py` (leitura do AVA, união do calendário,
+encontros) e `testes/test_workshop_enviado.py` (fase de avaliação por pares).
+Suíte inteira verde, inclusive o teste dourado.
+
+**Segurança:** `MEMORIA.md` estava versionado com a senha do AVA em texto puro
+num repositório público. Removida do arquivo, mas **continua no histórico**: a
+senha precisa ser trocada.
+
+## Sessão 30/07/2026
 
 Layout do site virou abas (`render.py`). Antes era tudo empilhado numa
 coluna só (Recado, O que fazer agora, Confirme se é prazo, Chegou novo,

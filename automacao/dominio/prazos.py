@@ -420,6 +420,13 @@ def fase_de(prazo):
 
 def rotulo_fase(prazo):
     rotulo = (prazo.get("rotulo") or "").strip()
+    # Rótulo longo mas inteiro vira um resumo que preserva o começo e o fim.
+    # "…do módulo individual" e "…do módulo em grupo" são obrigações
+    # diferentes, e cortar os dois no meio fazia as duas virarem a mesma
+    # linha "entrega" (rodada 3). Rótulo truncado na origem (termina em
+    # "...") não serve como nome e continua caindo no nome da fase.
+    if len(rotulo) > 55 and not rotulo.endswith("..."):
+        return rotulo[:32].rstrip() + "… " + rotulo[-20:].lstrip()
     if 3 < len(rotulo) <= 55 and not rotulo.endswith("..."):
         return rotulo
     verbo, _ = fase_de(prazo)

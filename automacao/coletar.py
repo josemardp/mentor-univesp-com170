@@ -72,8 +72,11 @@ def main():
             print(f"  - {problema}")
         return 2
 
-    hoje = datetime.now(BR_TZ).date()
-    acoes, encerrados, higiene, confirmar = montar_acoes(dados, hoje)
+    momento = datetime.now(BR_TZ)
+    hoje = momento.date()
+    acoes, encerrados, higiene, confirmar = montar_acoes(
+        dados, hoje, agora=momento
+    )
     saida = {
         "status": "coleta_degradada" if degradada else "ok",
         "checked_at": agora, "snapshot_at": agora, "attempted_at": agora,

@@ -345,6 +345,70 @@ checa(len(nov_tipo) == 1 and nov_tipo[0]["kind"] == "concluido",
       "cmid numérico e textual têm a mesma identidade")
 
 
+print("\n== Leitura do AVA: o que sumia do retrato (04/08/2026) ==")
+
+# 1) Sub-seção colapsada tem o nome só num <a> em linha própria: o innerText
+#    começa com "\n" e o título vinha vazio. Seção sem título era descartada,
+#    e com ela os Módulos 6 e 7 — inclusive o Laboratório ainda pendente.
+from fontes.disciplinas import JS_CURSO  # noqa: E402
+
+checa("data-sectionname" in JS_CURSO,
+      "título da seção vem do atributo do Moodle, não só do texto visível")
+checa("filter(Boolean)" in JS_CURSO,
+      "título com quebra de linha na frente não vira string vazia")
+
+# 2) A API do Moodle só devolve atividade com pendência. Live marcada pelo
+#    facilitador é evento de curso e nunca voltava por ali.
+from fontes.calendario import unir  # noqa: E402
+
+api = [{"nome": "Término de S3", "quando": "2026-08-16T23:59:00-03:00",
+        "cmid": "1", "curso": "COM100-T001"}]
+dom = [{"nome": "Término de S3", "quando": "2026-08-16T23:59:00-03:00",
+        "cmid": "1", "curso": None},
+       {"nome": "LIVE DE DÚVIDAS", "quando": "2026-08-10T20:00:00-03:00",
+        "cmid": "9", "tipo": "course"}]
+unidos = unir(api, dom)
+checa(len(unidos) == 2, "evento repetido nas duas leituras não vira dois")
+checa(any(e["nome"] == "LIVE DE DÚVIDAS" for e in unidos),
+      "evento que só o DOM enxerga entra no retrato")
+checa(next(e for e in unidos if e["cmid"] == "1")["curso"] == "COM100-T001",
+      "o campo que só a API traz é preservado na união")
+
+print("\n== Encontros: hora que passou, e um horário por encontro ==")
+
+AGORA = datetime(2026, 8, 4, 17, 30, tzinfo=timezone(timedelta(hours=-3)))
+HOJE_EV = AGORA.date()
+
+urg, txt = C.urgencia_de("2026-08-04T14:00:00-03:00", HOJE_EV, True,
+                         evento=True, agora=AGORA)
+checa(urg == "vencido", "live das 14h não é cobrada às 17h30 do mesmo dia")
+urg2, _ = C.urgencia_de("2026-08-04T20:00:00-03:00", HOJE_EV, True,
+                        evento=True, agora=AGORA)
+checa(urg2 == "hoje", "live das 20h continua na fila às 17h30")
+
+def _live(quando, nome):
+    return {"rotulo": nome, "quando": quando, "tipo": "compromisso",
+            "hora_certa": True, "confianca": "alta", "frase": nome,
+            "titulo_evento": nome, "escopo": None}
+
+curso_lives = {
+    "code": "COM170", "modelo": "quinzenal", "id": 18922,
+    "avisos": [{"autor": "formador", "url": "https://ava/d=1",
+                "autoridade": "institucional", "titulo": "Cronograma de Lives",
+                "prazos": [_live("2026-08-05T11:00:00-03:00", "Cauê e participante"),
+                           _live("2026-08-05T16:00:00-03:00", "Vittoria"),
+                           _live("2026-08-06T10:00:00-03:00", "Lívia")]}],
+    "sections": [],
+}
+acoes_lv, *_ = C.montar_acoes({"courses": [curso_lives]}, HOJE_EV, agora=AGORA)
+compromissos = [a for a in acoes_lv if a["tipo"] == "compromisso"]
+checa(len(compromissos) == 1,
+      "seis horários do mesmo aviso viram um compromisso, não seis")
+checa(len(compromissos[0].get("opcoes") or []) == 3,
+      "os horários alternativos continuam visíveis no mesmo cartão")
+checa(compromissos[0]["prazo"].startswith("2026-08-05T11:00"),
+      "o horário que abre o cartão é o próximo a acontecer")
+
 print("\n== Workflow de publicação ==")
 workflow = (ROOT / ".github" / "workflows" / "guia-diario.yml").read_text(encoding="utf-8")
 checa('- cron: "0 11 * * *"' in workflow, "agenda matinal tem gatilho próprio")

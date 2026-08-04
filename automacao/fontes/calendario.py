@@ -23,6 +23,10 @@ JS_EVENTOS_LISTA = """
   };
 })
 """
+# Eventos que o aluno já cumpriu (ou que não são atividade, como uma live de
+# tira-dúvidas marcada pelo facilitador) não voltam pela API de "ações
+# pendentes". Só aparecem no DOM. Por isso as duas fontes são somadas, e não
+# uma usada como reserva da outra.
 JS_EVENTOS_MES = """
 () => {
   const saida = [];
@@ -73,6 +77,8 @@ def ler_api(page):
                 "url": evento.get("url"),
                 "acao": (evento.get("action") or {}).get("name"),
                 "cmid": cmid_de(evento.get("url")),
+                "tipo": evento.get("eventtype"),
+                "via": "api",
             }
         )
     return eventos, True
@@ -148,23 +154,50 @@ def ler_dom(page, hoje):
                 "url": evento.get("url"),
                 "acao": None,
                 "cmid": cmid_de(evento.get("url")),
+                "tipo": evento.get("tipo"),
+                "via": "dom",
             }
         )
     return eventos, leituras_ok > 0
 
 
+def _chave(evento):
+    return (
+        str(evento.get("cmid") or "").strip()
+        or (evento.get("nome") or "").strip().lower(),
+        (evento.get("quando") or "")[:16],
+    )
+
+
+def unir(da_api, do_dom):
+    """Soma as duas leituras sem duplicar o mesmo evento.
+
+    A API vence em caso de empate porque traz o nome curto do curso; o DOM
+    entra com tudo que a API não devolve (evento de curso, atividade já
+    concluída).
+    """
+    unidos = {}
+    for evento in list(da_api) + list(do_dom):
+        chave = _chave(evento)
+        if chave in unidos:
+            for campo, valor in evento.items():
+                if valor and not unidos[chave].get(campo):
+                    unidos[chave][campo] = valor
+            continue
+        unidos[chave] = dict(evento)
+    return sorted(unidos.values(), key=lambda e: e.get("quando") or "")
+
+
 def ler(page, hoje, diagnostico=None):
-    eventos, api_ok = ler_api(page)
-    if eventos:
-        print(f"  calendario pela API: {len(eventos)} evento(s)")
-        if diagnostico is not None:
-            diagnostico.update(
-                {"status": "live", "via": "api", "eventos": len(eventos)}
-            )
-        return eventos
-    eventos, dom_ok = ler_dom(page, hoje)
-    print(f"  calendario pela pagina: {len(eventos)} evento(s)")
+    da_api, api_ok = ler_api(page)
+    do_dom, dom_ok = ler_dom(page, hoje)
+    eventos = unir(da_api, do_dom)
+    print(
+        f"  calendario: {len(da_api)} pela API + {len(do_dom)} pela pagina "
+        f"= {len(eventos)} evento(s)"
+    )
     if diagnostico is not None:
+        via = "api+dom" if (api_ok and dom_ok) else "api" if api_ok else "dom"
         diagnostico.update(
             {
                 "status": (
@@ -174,8 +207,10 @@ def ler(page, hoje, diagnostico=None):
                     if api_ok or dom_ok
                     else "falhou"
                 ),
-                "via": "dom" if dom_ok else "nenhuma",
+                "via": via if (api_ok or dom_ok) else "nenhuma",
                 "eventos": len(eventos),
+                "api": len(da_api),
+                "dom": len(do_dom),
             }
         )
     return eventos
