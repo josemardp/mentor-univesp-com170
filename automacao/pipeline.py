@@ -528,6 +528,13 @@ def executar_coleta(estado, anterior=None):
                     "cronograma": cronograma_curso,
                     "avisos": avisos,
                     "paginas_instrucao": paginas_instrucao,
+                    "boletim": {
+                        "status": resultado_boletim.status,
+                        "media": (resultado_boletim.detalhes or {}).get(
+                            "media"
+                        ),
+                        "itens": len(notas_por_cmid),
+                    },
                     "sections": secoes,
                 }
             )

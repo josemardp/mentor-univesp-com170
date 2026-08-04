@@ -636,7 +636,8 @@ import saude as SA  # noqa: E402
 
 base_ok = {
     "courses": [{"id": 1, "code": "COM100",
-                 "sections": [{"items": [{"cmid": "1", "label": "x",
+                 "name": "Disciplina", "sections": [
+        {"title": "Semana 1", "fase": "regular", "locked": None, "items": [{"cmid": "1", "label": "x",
                                           "prazo": "2026-08-09T23:59:00-03:00"}]}],
                  "avisos": [{"titulo": "a"}], "cronograma": {"semanas": []}}],
     "eventos": [{"nome": "e"}],
@@ -653,6 +654,55 @@ com_calendario_ruim = copy.deepcopy(base_ok)
 com_calendario_ruim["fontes_status"] = {"calendario": {"status": "degradado"}}
 ok_c, _ = SA.validar_cobertura(com_calendario_ruim, None)
 checa(not ok_c, "fonte de prazo degradada continua derrubando")
+
+print("\n== Aba 'Como estou' ==")
+
+dados_notas = {"courses": [
+    {"code": "COM100", "boletim": {"media": {"rotulo": "Média AVA", "nota": "0,80"}},
+     "name": "Disciplina", "sections": [
+        {"title": "Semana 1", "fase": "regular", "locked": None, "items": [
+        {"label": "S1 - Atividade Avaliativa", "type": "quiz", "conta_nota": True,
+         "nota_txt": "10,00", "tem_nota": True, "url": "#1"},
+        {"label": "S2 - Atividade Avaliativa", "type": "quiz", "conta_nota": True,
+         "nota_txt": "-", "tem_nota": False, "url": "#2"},
+     ]}]},
+    {"code": "COM170", "boletim": {"media": {"rotulo": "Média AVA", "nota": "Erro"}},
+     "name": "Disciplina", "sections": [
+        {"title": "Semana 1", "fase": "regular", "locked": None, "items": [
+        {"label": "S2 - Ferramenta para Envio", "type": "assign", "conta_nota": True,
+         "nota_txt": "", "tem_nota": False, "feedback": "Parabéns pela entrega!",
+         "url": "#3"},
+     ]}]},
+    {"code": "LET110", "name": "Leitura", "boletim": {}, "sections": [
+        {"title": "Semana 3", "fase": "regular", "locked": None, "items": [
+            {"label": "S3 - Início", "type": "page", "conta_nota": False},
+        ]}]},
+]}
+html_notas = R.render_notas(dados_notas)
+checa("10,00" in html_notas and "Média AVA" in html_notas,
+      "mostra a nota da atividade e a média da disciplina")
+checa("sem nota lançada" in html_notas,
+      "atividade que vale nota e está em branco fica explícita")
+html_sem_entrega = R.render_notas({"courses": [dict(
+    dados_notas["courses"][0],
+    sections=[{"title": "Semana 2", "fase": "regular", "locked": None, "items": [
+        {"label": "S2 - Atividade Avaliativa", "type": "quiz", "conta_nota": True,
+         "nota_txt": "-", "tem_nota": False, "entrega_confirmada": False,
+         "url": "#2"}]}])]})
+checa("não registrou nenhuma entrega" in html_sem_entrega,
+      "quando a conferência provou que não houve entrega, a aba diz isso")
+checa("Parabéns pela entrega!" in html_notas,
+      "devolutiva escrita do facilitador aparece")
+checa("não consegue calcular" in html_notas,
+      "média com 'Erro' é apresentada como problema do AVA, não como nota")
+checa("S3 - Início" not in html_notas,
+      "item sem nota e sem devolutiva não polui a aba")
+checa(R.render_notas({"courses": []}) == "",
+      "sem boletim nenhum, a aba não existe")
+checa('data-tab="notas"' in R.render_tabs(dados_notas),
+      "a aba entra na barra quando há o que mostrar")
+checa('data-tab="notas"' not in R.render_tabs({"courses": [], "acoes": []}),
+      "e não entra quando não há")
 
 print("\n== Vencimento não é carência ==")
 

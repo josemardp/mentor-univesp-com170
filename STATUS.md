@@ -570,14 +570,28 @@ Detalhes que custaram tempo e ficam registrados:
 *Aceite:* a S2 do COM100 aparece na fila com prazo 09/08 enquanto não for
 respondida, e sai no instante em que a nota entrar.
 
-### Etapa 2 — Nota e devolutiva à vista
+### Etapa 2 — Nota e devolutiva à vista · FEITA em 04/08/2026
 
-Aba "Como estou" no site: nota por atividade, média por disciplina e o feedback
-escrito do facilitador quando houver. É o que responde "estou bem?" sem abrir
-quatro boletins.
+Aba "Como estou" (`render_notas`): nota por atividade, média por disciplina e a
+devolutiva escrita do facilitador. A aba só existe quando há o que mostrar, e o
+selo conta quantas atividades já têm nota.
 
-*Aceite:* aparecem 10,00 e 7,50 do LET110, o "Erro" da média da COM170 sinalizado
-como problema do AVA e não do guia, e o elogio do formador na S2.
+Três estados diferentes, cada um com uma frase própria, porque significam
+coisas opostas:
+
+- **nota lançada**: mostra o valor;
+- **sem nota lançada até agora**: vale nota e ainda não foi corrigida ou
+  entregue, sem afirmar qual dos dois;
+- **o AVA não registrou nenhuma entrega sua**: só quando a conferência da
+  Etapa 1 provou a ausência. É a ponte entre as duas etapas.
+
+Média com "Erro" (COM170) aparece como falha de cálculo do AVA, não como nota
+zero e não como defeito do guia. Disciplina cujo boletim não lista atividade
+(SOC100) aparece dizendo exatamente isso.
+
+*Aceite:* a aba mostra 10,00 e 7,50 do LET110, a média 0,80 do COM100, o "Erro"
+da COM170 explicado, o elogio do facilitador na S2 - Ferramenta para Envio, e a
+S2 do COM100 marcada como sem entrega registrada.
 
 ### Etapa 3 — Participação da COM170
 
@@ -620,12 +634,13 @@ item que depende de decidir onde guardar mais uma credencial.
 
 ## Pendências do Josemar
 
-- **Responder a S2 - Atividade Avaliativa do COM100** até 09/08. Não foi feita.
-- **Trocar a senha do AVA** e atualizar o Secret `AVA_SENHA`. A senha esteve em
-  texto puro no `MEMORIA.md` num repositório público entre 30/07 e 04/08 e
-  continua no histórico do Git.
-- Decidir se o histórico do Git será reescrito para apagar a senha.
+- **Responder a S2 - Atividade Avaliativa do COM100.** Vence 05/08 pelo
+  cronograma, com carência até 09/08. Não tinha nenhuma tentativa em 04/08.
 - Apagar o Secret `AVA_STORAGE_STATE`, obsoleto desde 25/07.
+
+Sobre a senha exposta no histórico do repositório (seção de segurança acima):
+**Josemar decidiu não tratar** (04/08/2026). Fica só como registro, não é
+pendência, e não deve voltar como cobrança em sessão futura.
 - Revisão semanal da mentora continua manual: escrever `docs/revisao.json` e
   rodar `python automacao/gerar_guia.py --render-only`.
 

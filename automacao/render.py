@@ -680,6 +680,73 @@ def render_higiene(data):
             f'<ul class="tasklist">{"".join(li)}</ul>')
 
 
+def render_notas(data):
+    """Aba "Como estou": nota por atividade e devolutiva do facilitador.
+
+    Antes disso, saber a nota exigia abrir quatro boletins no AVA, e o guia
+    não tinha como avisar que uma atividade marcada como concluída estava sem
+    nota nenhuma. É a mesma leitura que sustenta a prova de entrega.
+    """
+    blocos = []
+    for c in data.get("courses", []):
+        boletim = c.get("boletim") or {}
+        avaliadas = [
+            (secao, item)
+            for secao in c.get("sections") or []
+            for item in secao.get("items") or []
+            if item.get("nota_txt") or item.get("feedback")
+        ]
+        if not avaliadas and not boletim.get("media"):
+            continue
+        linhas = []
+        for _, item in avaliadas:
+            nota = item.get("nota_txt") or "-"
+            classe = "ok" if item.get("tem_nota") else "pend"
+            nome = esc(item.get("label") or "")
+            if item.get("url"):
+                nome = (f'<a href="{esc(item["url"])}" target="_blank" '
+                        f'rel="noopener">{nome}</a>')
+            devolutiva = ""
+            if item.get("feedback"):
+                devolutiva = ('<div class="trava">💬 '
+                              f'{esc(item["feedback"][:600])}</div>')
+            faltou = ""
+            if item.get("entrega_confirmada") is False:
+                faltou = ('<div class="acao-pe">o AVA não registrou nenhuma '
+                          'entrega sua nesta atividade</div>')
+            elif not item.get("tem_nota") and item.get("conta_nota"):
+                faltou = ('<div class="acao-pe">sem nota lançada até agora'
+                          '</div>')
+            linhas.append(
+                f'<li class="acao"><div class="acao-chips">'
+                f'<span class="status {classe}">{esc(nota)}</span></div>'
+                f'<div class="acao-txt">{nome}</div>{devolutiva}{faltou}</li>'
+            )
+        media = boletim.get("media") or {}
+        cabecalho = f'<b>{esc(c.get("code") or "")}</b>'
+        if media.get("nota"):
+            valor = media["nota"]
+            # "Erro" é o próprio AVA falhando no cálculo, não o guia.
+            if _sem_acento(str(valor)).startswith("erro"):
+                cabecalho += (' · <span class="status lock">o AVA não '
+                              'consegue calcular esta média</span>')
+            else:
+                cabecalho += (f' · {esc(media.get("rotulo") or "média")}: '
+                              f'<span class="status ok">{esc(valor)}</span>')
+        if not linhas:
+            linhas.append('<li class="acao"><div class="acao-txt">'
+                          'Esta disciplina não mostra nenhuma atividade no '
+                          'boletim.</div></li>')
+        blocos.append(f'<h3 class="grupo">{cabecalho}</h3>'
+                      f'<ul class="acoes">{"".join(linhas)}</ul>')
+    if not blocos:
+        return ""
+    return ('<p class="sub" style="margin:0 0 10px;">Lido do boletim de cada '
+            'disciplina. Nota em branco numa atividade que vale nota quer '
+            'dizer que o AVA ainda não registrou entrega ou correção.</p>'
+            + "".join(blocos))
+
+
 def render_encerrados(data):
     itens = data.get("encerrados") or []
     if not itens:
@@ -734,6 +801,17 @@ def render_tabs(data):
     mensagens = sum(m.get("nao_lidas", 0) for m in data.get("mensagens", []))
     badge_novidades = (novos + nao_lidas + mensagens) or None
     abas.append(("novidades", "Chegou novo", badge_novidades, render_novidades(data)))
+
+    notas_html = render_notas(data)
+    if notas_html:
+        com_nota = sum(
+            1
+            for c in data.get("courses", [])
+            for secao in c.get("sections") or []
+            for item in secao.get("items") or []
+            if item.get("tem_nota")
+        )
+        abas.append(("notas", "Como estou", com_nota or None, notas_html))
 
     abas.append(("mapa", "Mapa das disciplinas", None, render_cards(data)))
 
