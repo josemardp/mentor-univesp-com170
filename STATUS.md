@@ -455,58 +455,160 @@ como está.** Fica registrado para não ser "descoberto" de novo como bug: é
 escolha consciente, não descuido. Se mudar de ideia, o ponto de corte é
 `_preparar()` em `automacao/coletar.py` e `render_aviso()` em `render.py`.
 
-## Próximo passo
+## Auditoria completa e mapa do AVA (04/08/2026, à noite)
 
-- **Trocar a senha do AVA** (ver seção de segurança acima) e atualizar o Secret
-  `AVA_SENHA`. Enquanto não trocar, a senha vale no histórico público do repo.
-- Decidir se o histórico do Git será reescrito para apagar a senha. Não foi
-  feito porque reescreve commits e precisa da decisão do Josemar.
+Varredura do código inteiro, módulo por módulo, e do AVA logado, disciplina por
+disciplina, incluindo boletim, questionários, plano de ensino, cronograma
+oficial e a ferramenta de participação. O que segue substitui as listas soltas
+de pendência das auditorias anteriores.
 
-## Dívida conhecida (não urgente)
+### O achado que muda a prioridade de tudo
 
-- `calendario.ler_dom` cria um registro para todo `data-event-id` visto na
-  grade do mês, inclusive os que a lista "próximos eventos" não descreve: no
-  retrato de 04/08 eram 42 eventos, dos quais só 12 têm nome. Os sem nome não
-  viram ação nem prazo (nome vazio e sem `cmid`), mas engordam o JSON público e
-  a contagem `eventos_calendario`. Limpar exige cuidado: a saúde derruba a
-  coleta quando uma fonte cai para menos da metade da leitura anterior, então
-  filtrar de uma vez faria a rodada seguinte falhar fechado sem motivo real.
-- Conferir se a execução automática das 8h roda limpa. Todas as execuções de
-  25/07 foram disparadas à mão (`workflow_dispatch`); o caminho do agendador
-  ainda não foi exercitado com o código novo.
+**COM100, S2 - Atividade Avaliativa: selo "Concluído" no AVA, zero tentativas,
+nota em branco, prazo em 09/08.** A conclusão daquele item é por visualização.
+O guia confia no selo (`status == "Concluído"` sai da fila) e nunca cobrou.
 
-## Pendências
+É a mesma classe do bug do Laboratório de Avaliação, agora sobre uma nota:
+**o selo de conclusão do Moodle não prova entrega.** A prova está em dois
+lugares que o robô não lê: a página do questionário ("Suas tentativas") e o
+boletim.
 
-- **Josemar (estudo):** quiz "Identifique o paradigma" do Módulo 1 do COM170.
-  É ele que destrava o Módulo 4, que vence 26/07 às 23:59.
-- **Josemar (limpeza):** o Secret `AVA_STORAGE_STATE` ficou obsoleto (era o
-  cookie de sessão do sistema antigo). Pode apagar sem risco.
+Boletim na data da auditoria: COM100 S1 10,00 · S2 em branco · Média AVA 0,80.
+LET110 S1 10,00 · S2 7,50 · Média 1,70. SOC100 com as duas feitas mas boletim
+sem linhas (relatório do usuário vem vazio nessa disciplina). COM170 com
+"Erro" na Média AVA e os cinco quizzes SCORM da Quinzena 1 marcados 0,00.
+
+### Fontes do AVA que existem e o robô ignora
+
+| Fonte | O que entrega | Onde |
+|---|---|---|
+| **Boletim** | nota por item, feedback escrito do facilitador, prova de que foi entregue | `/grade/report/user/index.php?id=<curso>` |
+| **Tentativas do questionário** | "Suas tentativas" / "Situação: Finalizada" | página do próprio quiz |
+| **Progresso de Participação** | placar oficial da COM170: 5 critérios por quinzena, perfil temporal, resultado por quinzena | `ativa.univesp.br/lti/progress` (LTI `cmid 220710`) |
+| **cronograma.ics** | as mesmas datas do cronograma, em formato de calendário | `assets.univesp.br/cronograma/2026/` |
+| **Prova presencial** | 60% da nota | `acesso.univesp.br`, autenticação própria |
+
+Regra de participação da COM170, lida na ferramenta: cinco critérios de mesmo
+peso por quinzena (conclusão dos Módulos 1, 2, 3 e 4 e "qualidade da
+participação"), e a qualidade considera **a distribuição das interações ao
+longo da quinzena**. Fazer tudo no último dia pontua menos. Situação na data:
+Q1 com todos os critérios atendidos, Q2 "ainda não iniciada".
+
+### Defeitos encontrados na auditoria de código
+
+Por gravidade, com o arquivo onde cada um mora.
+
+1. **Selo de conclusão aceito como prova de entrega** (`dominio/acoes.py`).
+   Vale para quiz, scorm, assign e workshop. É o defeito acima.
+2. **Boletim não é lido.** Sem ele não há como saber nota, feedback, nem
+   confirmar entrega quando o selo mente.
+3. **Participação da COM170 não é lida.** O sistema que decide a nota de
+   participação está fora do retrato.
+4. **Seção bloqueada não gera item** (`dominio/acoes.py`), então a cadeia de
+   `dependencias.py` não tem alvo com prazo para propagar. É por isso que os
+   dois SCORM da Q2 Módulo 1 aparecem "sem prazo" mesmo sendo eles que
+   destravam o Módulo 4, que vence 09/08.
+5. **Autor institucional só entra, nunca sai** (`fontes/foruns.py`). Um colega
+   que poste uma vez num fórum "Avisos" vira fonte oficial permanente, e as
+   datas dele passam a valer como confiança alta.
+6. **Cronograma lido por posição** (`fontes/cronograma.py`): `datas[0]` início,
+   `[1]` vencimento, `[2]` carência. `achar_datas` devolve em duas passadas
+   (numérica antes da textual), então uma linha que misture "20/07" e "29 de
+   julho" embaralha. Existe `.ics` publicado, que resolve por construção.
+7. **`CRONOGRAMA_PADRAO` fixo no 3º bimestre de 2026** (`configuracao.py`).
+   Na virada do bimestre o fallback passa a aplicar datas velhas em silêncio.
+8. **`normalizar_estado` não invalida cache por versão** (`persistencia.py`):
+   só preenche o campo. Quem invalida de verdade é o `schema_version` por
+   discussão, em `foruns.py`. O mecanismo global é decorativo.
+9. **Eventos sem nome no JSON público** (`fontes/calendario.py`): 42 eventos,
+   12 com nome. Os outros 30 vêm da grade do mês sem descrição. Não viram ação,
+   mas engordam o artefato e a contagem de saúde. Filtrar de uma vez derruba a
+   coleta seguinte (a saúde reprova queda para menos da metade), então precisa
+   ser feito junto com uma mudança no que a saúde conta.
+10. **E-mail dispara em todo `workflow_dispatch`** (`guia-diario.yml`). Três
+    rodadas manuais de verificação num dia viram três e-mails.
+11. **Notificação não vira nada.** Existe feedback devolvido pelo facilitador
+    na S2 da COM170 que nunca chegou ao guia.
+12. **Artefato grande commitado cinco vezes por dia**: `data.json` 245 KB e
+    `estado.json` 298 KB; `.git` em 6,9 MB com 160 commits. Ainda confortável,
+    mas cresce sozinho.
+
+## Plano de melhorias, em ordem
+
+Cada etapa é fechada em si e tem como saber se deu certo.
+
+### Etapa 1 — Provar entrega, não acreditar no selo
+
+Fonte nova `fontes/boletim.py` lendo o relatório do usuário de cada disciplina
+(uma página por curso, cinco linhas de leitura). Cada item passa a carregar
+`nota`, `feedback` e `tem_nota`.
+
+Regra nova: para `quiz`, `scorm`, `assign` e `workshop`, "Concluído" só tira da
+fila quando houver prova de entrega (nota lançada, tentativa finalizada ou
+envio confirmado). Sem prova, o item continua na fila com o aviso "o AVA marca
+como concluído, mas não achei sua entrega".
+
+*Aceite:* a S2 do COM100 aparece na fila com prazo 09/08 enquanto não for
+respondida, e some no instante em que a nota entrar.
+
+### Etapa 2 — Nota e devolutiva à vista
+
+Aba "Como estou" no site: nota por atividade, média por disciplina e o feedback
+escrito do facilitador quando houver. É o que responde "estou bem?" sem abrir
+quatro boletins.
+
+*Aceite:* aparecem 10,00 e 7,50 do LET110, o "Erro" da média da COM170 sinalizado
+como problema do AVA e não do guia, e o elogio do formador na S2.
+
+### Etapa 3 — Participação da COM170
+
+Ler `ativa.univesp.br/lti/progress` (a sessão do AVA já autentica) e publicar os
+cinco critérios da quinzena corrente, o que falta e o perfil temporal.
+
+*Aceite:* o guia mostra "Q2: módulos 1 a 4, faltam 3" e avisa quando a quinzena
+passa da metade com participação concentrada num dia só.
+
+### Etapa 4 — Prazo herdado por quem destrava
+
+Seção bloqueada passa a gerar item com `bloqueio`, para que a cadeia de
+dependência tenha alvo. Os SCORM que destravam o Módulo 4 herdam prioridade
+(nunca prazo, a regra antiga continua valendo).
+
+*Aceite:* "Q2 M1 - tokenizador" sai de "sem prazo" e ganha "faça antes de 09/08,
+é ele que destrava o Módulo 4".
+
+### Etapa 5 — Endurecer as fontes frágeis
+
+Cronograma pelo `.ics` com a tabela como reserva; `CRONOGRAMA_PADRAO` derivado
+da data corrente; autor institucional com validade e reconfirmação; limpeza dos
+eventos sem nome junto com a mudança do contador de saúde.
+
+*Aceite:* suíte verde, e uma rodada real sem queda de contagem.
+
+### Etapa 6 — Prova presencial
+
+Vale 60% da nota e está fora do retrato. Precisa de coletor próprio para
+`acesso.univesp.br`, com credencial separada. Fica por último por ser o único
+item que depende de decidir onde guardar mais uma credencial.
+
+### Manutenção que não é código
+
+- **Conferência quinzenal contra o AVA.** Os nove defeitos de 04/08 só
+  apareceram porque alguém comparou o site com o AVA na mão. A virada de
+  quinzena (16/08) é o momento de maior risco.
+- **Rodar a Action às 8h sem intervenção** e confirmar que o e-mail chega. O
+  e-mail é o único batimento cardíaco do sistema.
+
+## Pendências do Josemar
+
+- **Responder a S2 - Atividade Avaliativa do COM100** até 09/08. Não foi feita.
+- **Trocar a senha do AVA** e atualizar o Secret `AVA_SENHA`. A senha esteve em
+  texto puro no `MEMORIA.md` num repositório público entre 30/07 e 04/08 e
+  continua no histórico do Git.
+- Decidir se o histórico do Git será reescrito para apagar a senha.
+- Apagar o Secret `AVA_STORAGE_STATE`, obsoleto desde 25/07.
 - Revisão semanal da mentora continua manual: escrever `docs/revisao.json` e
   rodar `python automacao/gerar_guia.py --render-only`.
-- 19 itens caem em "sem prazo definido". Ainda não é ruído, mas se crescer vale
-  agrupar por disciplina ou recolher.
-- As sub-seções do AIA no COM170 não são lidas (ficam atrás de uma página
-  separada). Sem impacto: o AIA encerrou em 20/07.
-
-Das auditorias, ainda não feito (ordem sugerida):
-
-- **Prova presencial não é rastreada**, e vale 60% da nota. A rodada 2 apurou:
-  o calendário público ainda não lista as 4 disciplinas atuais, e a fonte que
-  prevalece é o Sistema de Prova (`acesso.univesp.br`), que pede autenticação
-  própria, separada do AVA. Precisa de coletor à parte.
-- **O filtro de fórum é permissivo demais.** Com o truncamento agora visível,
-  dá pra medir: um fórum acusou 250 posts "relevantes" e outro 353, quando os
-  avisos oficiais são poucos. Falta priorizar autor institucional em vez de
-  palavra-chave genérica.
-- Calendário: sem paginação (teto de 50) e o DOM só entra se a API vier vazia,
-  em vez de somar as duas fontes.
-- `item_aberto()` abre a página do quiz, que mostra "Aberto", "Fecha",
-  tentativas e estado de envio, e só procura frase de encerramento.
-- Sem retry/backoff e sem alerta externo se o cron não rodar.
-- Notificação de feedback devolvido não vira ação; boletim não é lido (a
-  COM170 segue com "Erro no cálculo do item de nota Média AVA").
-- Cache sem versão de esquema: post guardado por um extrator antigo continua
-  com o formato velho até a discussão receber post novo.
 
 ## Decisões que valem lembrar
 
