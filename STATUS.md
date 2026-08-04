@@ -86,6 +86,31 @@ hoje (avaliação do M7, com link), a live de amanhã com os horários
 alternativos dentro do cartão, a live de tira-dúvidas de 10/08 e os prazos da
 Quinzena 2 no bloco de conferência.
 
+### Rede de segurança do calendário (a correção que vale mais que as nove)
+
+Os nove defeitos acima têm a mesma forma: uma atividade com data marcada no
+AVA não chegou à fila. Mudou a seção, mudou a fase do laboratório, mudou o
+jeito de anunciar — e a leitura da disciplina falhou de um jeito novo. Corrigir
+cada caminho não impede o próximo caminho novo de falhar.
+
+Por isso o calendário deixou de ser enfeite do item e virou fonte por conta
+própria (`tarefas_do_calendario`): **prazo futuro no calendário que não virou
+tarefa, vira tarefa**, com link e verbo, marcada com o selo "achei no
+calendário". Vale mesmo que a seção não tenha sido lida, mesmo que o item tenha
+sido classificado como encerrado.
+
+O que ela **não** ressuscita: atividade com selo "Concluído", laboratório
+entregue e avaliado, e sobra de quinzena encerrada — as três razões pelas quais
+um item sai da fila *por estar pronto*. Item que saiu por leitura duvidosa ("o
+AVA diz que não está aberta") fica fora dessa lista de propósito: era
+exatamente o caso do M7.
+
+Isso troca o modo de falhar. Antes, leitura nova quebrada = prazo invisível.
+Agora, leitura nova quebrada = tarefa duplicada ou com nome feio, nunca
+ausente. Continua valendo só para o que o calendário do AVA conhece — prazo que
+só existe em aviso de fórum ou em página de instruções segue dependendo da
+leitura de texto, e é por isso que esses vão para "confirme se é prazo".
+
 **Segurança:** `MEMORIA.md` estava versionado com a senha do AVA em texto puro
 num repositório público. Removida do arquivo, mas **continua no histórico**: a
 senha precisa ser trocada.

@@ -156,6 +156,20 @@ def _verbo_workshop(item):
 
 QUINZENA_RE = re.compile(r"^quinzena\s+(\d+)$")
 
+# Coisa que se entrega ou se responde. Nunca é "sobra": a revisão entre pares
+# da Quinzena 2 vai até 18/08, dois dias depois da Quinzena 3 abrir, e some
+# do guia justamente na hora de fazer se a virada de quinzena a apagar.
+TIPOS_DE_ENTREGA = ("workshop", "assign", "quiz", "scorm", "feedback")
+
+
+def _sobra_de_quinzena(item):
+    """Só página e fórum que o Moodle nem marca como pendente."""
+    if item.get("type") in TIPOS_DE_ENTREGA:
+        return False
+    if item.get("status") == "Pendente":
+        return False
+    return item.get("avaliacao_pendente") is not True
+
 
 def quinzenas_encerradas(curso):
     """Seções da quinzena que já passou, com o rótulo dela.
@@ -351,9 +365,113 @@ def compromissos_do_calendario(dados, hoje, agora, ja_na_fila):
     return novos
 
 
+TIPOS_DE_FIM = (
+    "close",
+    "closeassessment",
+    "due",
+    "gradingdue",
+    "submissionclose",
+    "expectcompletionon",
+)
+NOMES_DE_FIM = (
+    "termino",
+    "prazo limite",
+    "encerra",
+    "encerramento",
+    "vencimento",
+    "fechamento",
+)
+
+
+def _eh_fim_de_prazo(evento):
+    if evento.get("tipo") in TIPOS_DE_FIM:
+        return True
+    nome = sem_acento(evento.get("nome") or "")
+    return bool(nome) and any(palavra in nome for palavra in NOMES_DE_FIM)
+
+
+def _verbo_do_evento(nome):
+    alvo = sem_acento(nome or "")
+    if "avaliacao" in alvo or "avaliar" in alvo or "revisao" in alvo:
+        return "Avalie", "o trabalho do colega"
+    if "envio" in alvo or "entrega" in alvo or "submissao" in alvo:
+        return "Entregue", "o trabalho"
+    return "Conclua", ""
+
+
+def tarefas_do_calendario(dados, hoje, ja_na_fila):
+    """Rede de segurança: prazo do calendário que não virou tarefa vira tarefa.
+
+    Todo erro grave desta sessão teve a mesma forma — uma atividade com data
+    marcada no AVA não chegou à fila, seja porque a seção foi descartada, seja
+    porque o item foi lido como encerrado. O calendário sabia do prazo o tempo
+    todo. Aqui ele deixa de ser só um enfeite do item e passa a ser fonte por
+    conta própria: se o prazo existe, não está vencido e a atividade não está
+    concluída, ele aparece — mesmo que o resto da leitura tenha falhado.
+    """
+    por_curso = {
+        str(curso.get("id") or ""): curso.get("code")
+        for curso in dados.get("courses", [])
+    }
+    status_por_cmid = {
+        str(item.get("cmid")): item.get("status")
+        for curso in dados.get("courses", [])
+        for secao in curso.get("sections") or []
+        for item in secao.get("items") or []
+        if item.get("cmid")
+    }
+    novos, vistos = [], set()
+    for evento in dados.get("eventos") or []:
+        cmid = str(evento.get("cmid") or "")
+        if not cmid or cmid in ja_na_fila or cmid in vistos:
+            continue
+        if not _eh_fim_de_prazo(evento) or _eh_encontro(evento):
+            continue
+        if status_por_cmid.get(cmid) == "Concluído":
+            continue
+        urgencia, texto = urgencia_de(evento.get("quando"), hoje)
+        if urgencia in ("vencido", "sem_prazo"):
+            continue
+        vistos.add(cmid)
+        verbo, coisa = _verbo_do_evento(evento.get("nome"))
+        novos.append(
+            {
+                "curso": por_curso.get(str(evento.get("curso_id") or ""))
+                or evento.get("curso")
+                or "",
+                "secao": "Calendário do AVA",
+                "fase": "regular",
+                "verbo": verbo,
+                "coisa": coisa,
+                "o_que": evento.get("atividade")
+                or evento.get("nome")
+                or "atividade com prazo",
+                "tipo": "calendario",
+                "url": evento.get("url"),
+                "conta_nota": True,
+                "prazo": evento.get("quando"),
+                "prazo_txt": texto,
+                "prazo_fonte": "calendário do AVA",
+                "fonte_url": None,
+                "autoridade": "institucional",
+                "carencia": None,
+                "hora_certa": True,
+                "urgencia": urgencia,
+                "resgatado": True,
+            }
+        )
+    return novos
+
+
 def montar_acoes(dados, hoje, agora=None):
     """``agora`` só é exigido para tirar da fila encontro que já começou."""
     acoes, encerrados, confirmar, higiene = [], [], [], []
+    # Atividades que saíram da fila por já estarem feitas. A rede de segurança
+    # do calendário não pode ressuscitá-las — senão o M6, entregue e avaliado,
+    # volta pelo evento "prazo limite para avaliação". Item que saiu por
+    # leitura duvidosa (o AVA "disse" que fechou) fica de fora desta lista de
+    # propósito: é justamente esse caso que a rede precisa pegar.
+    resolvidos = set()
     for curso in dados["courses"]:
         quinzenas_antigas = quinzenas_encerradas(curso)
         prazos_aviso = [
@@ -504,7 +622,11 @@ def montar_acoes(dados, hoje, agora=None):
             if secao.get("locked"):
                 continue
             for item in secao["items"]:
+                cmid_item = (
+                    str(item["cmid"]) if item.get("cmid") else None
+                )
                 if item.get("status") == "Concluído":
+                    resolvidos.add(cmid_item)
                     continue
                 # Laboratório de Avaliação são duas obrigações em sequência:
                 # entregar e avaliar o trabalho de outra pessoa. Só sai da
@@ -514,6 +636,7 @@ def montar_acoes(dados, hoje, agora=None):
                     and item.get("enviado") is True
                     and item.get("avaliacao_pendente") is not True
                 ):
+                    resolvidos.add(cmid_item)
                     continue
                 if item.get("status") is None and not item.get("conta_nota"):
                     continue
@@ -541,7 +664,12 @@ def montar_acoes(dados, hoje, agora=None):
                     continue
                 prazo = item.get("prazo")
                 fonte = item.get("prazo_fonte")
-                if not prazo and secao.get("id") in quinzenas_antigas:
+                if (
+                    not prazo
+                    and secao.get("id") in quinzenas_antigas
+                    and _sobra_de_quinzena(item)
+                ):
+                    resolvidos.add(cmid_item)
                     encerrados.append(
                         {
                             **base,
@@ -582,12 +710,25 @@ def montar_acoes(dados, hoje, agora=None):
     # com data marcada que veio do calendário.
     ja_na_fila = {
         cmid
-        for acao in acoes
+        for lista in (acoes, higiene)
+        for acao in lista
         for cmid in [_cmid_da_url(acao.get("url"))]
         if cmid
     }
     acoes.extend(
         compromissos_do_calendario(dados, hoje, agora, ja_na_fila)
+    )
+    # Depois dos compromissos: o que já entrou como live não volta como prazo.
+    ja_na_fila |= {
+        cmid
+        for acao in acoes
+        for cmid in [_cmid_da_url(acao.get("url"))]
+        if cmid
+    }
+    acoes.extend(
+        tarefas_do_calendario(
+            dados, hoje, ja_na_fila | {c for c in resolvidos if c}
+        )
     )
     acoes = _agrupar_compromissos(acoes)
     acoes = _suprimir_avisos_redundantes(acoes)

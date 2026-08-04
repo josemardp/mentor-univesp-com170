@@ -447,6 +447,92 @@ checa("M7 - Revisão entre pares" in na_fila,
 checa("Q2 M1 - Atividade" in na_fila,
       "a quinzena atual não é afetada")
 
+print("\n== Rede de segurança: prazo do calendário sempre vira tarefa ==")
+
+# Reproduz a falha de 04/08/2026 na forma mais crua: a seção inteira sumiu da
+# leitura (título vazio, seção descartada), então a atividade com prazo pra
+# hoje não existe em courses[]. O calendário sabia. Tem que aparecer assim
+# mesmo — é o que separa "o robô errou" de "o Josemar perdeu o prazo".
+sem_secao_alguma = {
+    "courses": [{"code": "COM170", "modelo": "quinzenal", "id": 18922,
+                 "avisos": [], "sections": []}],
+    "eventos": [{
+        "nome": "M7 - Revisão entre pares (Portfólio em grupo) - prazo limite "
+                "para avaliação",
+        "atividade": "M7 - Revisão entre pares (Portfólio em grupo)",
+        "quando": "2026-08-04T23:59:00-03:00", "curso_id": "18922",
+        "cmid": "173857", "tipo": "closeassessment",
+        "url": "https://ava.univesp.br/mod/workshop/view.php?id=173857",
+    }],
+}
+ac_r, *_ = C.montar_acoes(sem_secao_alguma, HOJE_EV, agora=AGORA)
+resgatadas = [a for a in ac_r if a.get("resgatado")]
+checa(len(resgatadas) == 1 and resgatadas[0]["urgencia"] == "hoje",
+      "atividade que sumiu do retrato volta pelo prazo do calendário")
+checa(resgatadas and resgatadas[0]["verbo"] == "Avalie"
+      and resgatadas[0]["url"].endswith("173857"),
+      "e volta com o verbo certo e o link da atividade")
+
+# Não pode virar eco: se o item foi lido normalmente, uma linha só.
+com_item = json.loads(json.dumps(sem_secao_alguma))
+com_item["courses"][0]["sections"] = [{
+    "id": "s7", "title": "Módulo 7", "parent": None, "fase": "regular",
+    "locked": None, "items": [{
+        "cmid": "173857", "label": "M7 - Revisão entre pares (Portfólio em grupo)",
+        "type": "workshop", "status": "Pendente", "conta_nota": True,
+        "aberto": True, "enviado": True, "avaliacao_pendente": True,
+        "url": "https://ava.univesp.br/mod/workshop/view.php?id=173857",
+        "prazo": "2026-08-04T23:59:00-03:00",
+        "prazo_fonte": "calendário do AVA"}],
+}]
+ac_i, *_ = C.montar_acoes(com_item, HOJE_EV, agora=AGORA)
+checa(len([a for a in ac_i if "173857" in (a.get("url") or "")]) == 1,
+      "com o item lido normalmente, continua sendo uma linha só")
+
+# Atividade concluída não é ressuscitada pelo evento de encerramento.
+feito = json.loads(json.dumps(sem_secao_alguma))
+feito["courses"][0]["sections"] = [{
+    "id": "s7", "title": "Módulo 7", "parent": None, "fase": "regular",
+    "locked": None, "items": [{
+        "cmid": "173857", "label": "M7", "type": "workshop",
+        "status": "Concluído", "conta_nota": True, "url": "#", "prazo": None}],
+}]
+ac_f, *_ = C.montar_acoes(feito, HOJE_EV, agora=AGORA)
+checa(not [a for a in ac_f if a.get("resgatado")],
+      "o que já está concluído não volta pela rede de segurança")
+
+# O M6 real: entregue e avaliado, sem selo "Concluído" do Moodle (o selo só
+# fecha nas 5 fases). Sai da fila pelo estado do laboratório — e o evento
+# "prazo limite para avaliação" não pode trazê-lo de volta.
+lab_pronto = json.loads(json.dumps(sem_secao_alguma))
+lab_pronto["eventos"][0]["cmid"] = "173854"
+lab_pronto["courses"][0]["sections"] = [{
+    "id": "s6", "title": "Módulo 6", "parent": None, "fase": "regular",
+    "locked": None, "items": [{
+        "cmid": "173854", "label": "M6", "type": "workshop",
+        "status": "Pendente", "conta_nota": True, "aberto": True,
+        "enviado": True, "avaliacao_pendente": False, "url": "#",
+        "prazo": None}],
+}]
+ac_p, *_ = C.montar_acoes(lab_pronto, HOJE_EV, agora=AGORA)
+checa(not [a for a in ac_p if a.get("resgatado")],
+      "laboratório entregue e avaliado não é ressuscitado pelo calendário")
+
+# Já o item que saiu por leitura duvidosa ("o AVA diz que não está aberta")
+# precisa voltar: foi assim que o M7 sumiu no dia do prazo.
+lido_fechado = json.loads(json.dumps(sem_secao_alguma))
+lido_fechado["courses"][0]["sections"] = [{
+    "id": "s7", "title": "Módulo 7", "parent": None, "fase": "regular",
+    "locked": None, "items": [{
+        "cmid": "173857", "label": "M7", "type": "workshop",
+        "status": "Pendente", "conta_nota": True, "aberto": False,
+        "motivo_fechado": "o AVA diz que não está aberta", "url": "#",
+        "prazo": None}],
+}]
+ac_lf, *_ = C.montar_acoes(lido_fechado, HOJE_EV, agora=AGORA)
+checa(len([a for a in ac_lf if a.get("resgatado")]) == 1,
+      "item lido como fechado volta quando o calendário mostra prazo aberto")
+
 print("\n== Workflow de publicação ==")
 workflow = (ROOT / ".github" / "workflows" / "guia-diario.yml").read_text(encoding="utf-8")
 checa('- cron: "0 11 * * *"' in workflow, "agenda matinal tem gatilho próprio")

@@ -293,6 +293,10 @@ def render_acao(a):
 
     if a.get("verificacao") == "indefinida":
         chips.append('<span class="status lock">não verifiquei</span>')
+    if a.get("resgatado"):
+        # Veio pela rede de segurança: o calendário tinha o prazo, a leitura da
+        # disciplina não trouxe a atividade. Melhor mostrar demais que de menos.
+        chips.append('<span class="status lock">achei no calendário</span>')
 
     trava = ""
     if a.get("destrava"):
