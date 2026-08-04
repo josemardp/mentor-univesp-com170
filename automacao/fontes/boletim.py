@@ -89,10 +89,19 @@ def ler(page, curso_id):
         wait_until="domcontentloaded",
         timeout=45000,
     )
+    # Duas esperas: a tabela em si e, dentro dela, a primeira linha de
+    # atividade. Disciplina sem nenhuma atividade lançada (SOC100) nunca
+    # satisfaz a segunda, e isso é um estado legítimo, não uma falha.
+    try:
+        page.wait_for_selector(
+            ".user-grade, .generaltable, .column-itemname", timeout=20000
+        )
+    except PlaywrightError:
+        pass
     try:
         page.wait_for_selector('tr a[href*="/mod/"]', timeout=10000)
     except PlaywrightError:
-        page.wait_for_timeout(500)
+        page.wait_for_timeout(1000)
     linhas = page.evaluate(JS_BOLETIM)
     por_cmid, media, itens = {}, None, 0
     for linha in linhas:

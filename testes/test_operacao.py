@@ -629,6 +629,31 @@ concluido_sem_boletim = C.montar_acoes(
 checa(not concluido_sem_boletim,
       "boletim indisponível não vira acusação de entrega faltando")
 
+# O boletim não pode congelar o site. Em 04/08/2026 o relatório de uma
+# disciplina não renderizou e a rodada inteira virou "coleta_incompleta",
+# segurando um retrato bom por causa de uma fonte que só acrescenta prova.
+import saude as SA  # noqa: E402
+
+base_ok = {
+    "courses": [{"id": 1, "code": "COM100",
+                 "sections": [{"items": [{"cmid": "1", "label": "x",
+                                          "prazo": "2026-08-09T23:59:00-03:00"}]}],
+                 "avisos": [{"titulo": "a"}], "cronograma": {"semanas": []}}],
+    "eventos": [{"nome": "e"}],
+}
+com_boletim_ruim = copy.deepcopy(base_ok)
+com_boletim_ruim["fontes_status"] = {
+    "disciplinas": {"status": "live"},
+    "boletim": {"status": "degradado", "falhas": 1},
+}
+ok_b, probs_b = SA.validar_cobertura(com_boletim_ruim, None)
+checa(ok_b, "boletim degradado não derruba a coleta")
+
+com_calendario_ruim = copy.deepcopy(base_ok)
+com_calendario_ruim["fontes_status"] = {"calendario": {"status": "degradado"}}
+ok_c, _ = SA.validar_cobertura(com_calendario_ruim, None)
+checa(not ok_c, "fonte de prazo degradada continua derrubando")
+
 print("\n== Workflow de publicação ==")
 workflow = (ROOT / ".github" / "workflows" / "guia-diario.yml").read_text(encoding="utf-8")
 checa('- cron: "0 11 * * *"' in workflow, "agenda matinal tem gatilho próprio")

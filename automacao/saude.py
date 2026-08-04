@@ -29,6 +29,14 @@ def resumo_fontes(dados):
     }
 
 
+# Fonte que só acrescenta prova de entrega não pode congelar o site. Sem o
+# boletim o guia fica mais cauteloso (mantém a atividade na fila por falta de
+# prova), nunca menos — o oposto de uma fonte de prazo, cuja ausência esconde
+# obrigação. Em 04/08/2026 o boletim de uma disciplina não renderizou e a
+# rodada inteira virou "coleta_incompleta", segurando um retrato bom.
+FONTES_QUE_NAO_BLOQUEIAM = ("boletim",)
+
+
 def validar_cobertura(dados, anterior):
     problemas = []
     cursos = dados.get("courses") or []
@@ -99,6 +107,8 @@ def validar_cobertura(dados, anterior):
             )
 
     for fonte, info in (dados.get("fontes_status") or {}).items():
+        if fonte in FONTES_QUE_NAO_BLOQUEIAM:
+            continue
         status = (info or {}).get("status")
         if status in ("falhou", "degradado"):
             falhas = (info or {}).get("falhas")
