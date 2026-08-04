@@ -432,6 +432,20 @@ escolha consciente, não descuido. Se mudar de ideia, o ponto de corte é
 
 ## Próximo passo
 
+- **Trocar a senha do AVA** (ver seção de segurança acima) e atualizar o Secret
+  `AVA_SENHA`. Enquanto não trocar, a senha vale no histórico público do repo.
+- Decidir se o histórico do Git será reescrito para apagar a senha. Não foi
+  feito porque reescreve commits e precisa da decisão do Josemar.
+
+## Dívida conhecida (não urgente)
+
+- `calendario.ler_dom` cria um registro para todo `data-event-id` visto na
+  grade do mês, inclusive os que a lista "próximos eventos" não descreve: no
+  retrato de 04/08 eram 42 eventos, dos quais só 12 têm nome. Os sem nome não
+  viram ação nem prazo (nome vazio e sem `cmid`), mas engordam o JSON público e
+  a contagem `eventos_calendario`. Limpar exige cuidado: a saúde derruba a
+  coleta quando uma fonte cai para menos da metade da leitura anterior, então
+  filtrar de uma vez faria a rodada seguinte falhar fechado sem motivo real.
 - Conferir se a execução automática das 8h roda limpa. Todas as execuções de
   25/07 foram disparadas à mão (`workflow_dispatch`); o caminho do agendador
   ainda não foi exercitado com o código novo.
