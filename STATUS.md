@@ -537,19 +537,38 @@ Por gravidade, com o arquivo onde cada um mora.
 
 Cada etapa é fechada em si e tem como saber se deu certo.
 
-### Etapa 1 — Provar entrega, não acreditar no selo
+### Etapa 1 — Provar entrega, não acreditar no selo · FEITA em 04/08/2026
 
-Fonte nova `fontes/boletim.py` lendo o relatório do usuário de cada disciplina
-(uma página por curso, cinco linhas de leitura). Cada item passa a carregar
-`nota`, `feedback` e `tem_nota`.
+`fontes/boletim.py` lê o relatório do usuário de cada disciplina. Cada linha
+aponta para o `cmid` da atividade, então nota e devolutiva grudam no item certo
+sem casar por nome. O item passa a carregar `nota`, `nota_txt`, `tem_nota` e
+`feedback`.
 
-Regra nova: para `quiz`, `scorm`, `assign` e `workshop`, "Concluído" só tira da
-fila quando houver prova de entrega (nota lançada, tentativa finalizada ou
-envio confirmado). Sem prova, o item continua na fila com o aviso "o AVA marca
-como concluído, mas não achei sua entrega".
+`itens.entrega_feita()` é a segunda prova, aberta só onde o selo é suspeito
+(vale nota, marcado "Concluído" e sem nota lançada): a página do questionário
+diz "Suas tentativas / Situação: Finalizada" depois de respondido, e só o botão
+"Tentativa do questionário" antes.
+
+`acoes.entrega_provada()` decide com três provas — nota lançada (inclusive
+0,00), devolutiva escrita, ou tentativa/envio confirmado. **"Concluído" só tira
+da fila quando não houver prova em contrário.** `None` (não sei) nunca vira
+acusação: só a conferência negativa mantém o item na fila, com o selo "sem
+entrega registrada" e a explicação de que a conclusão daquele item fecha por
+visualização.
+
+Detalhes que custaram tempo e ficam registrados:
+
+- a tabela de notas monta depois da página. Espera fixa fazia a leitura
+  oscilar entre "tem nota" e "não tem"; agora espera pela primeira linha com
+  link de atividade. Sem isso, a nota apareceria e sumiria entre rodadas;
+- boletim vazio existe de verdade (SOC100 não mostra nenhuma linha) e é
+  diferente de tabela que não renderizou. O primeiro é `vazio_confirmado`, o
+  segundo é falha e usa cache;
+- o boletim fica **fora** da lista que deixa a Action vermelha. Ele só
+  acrescenta prova de entrega: sem ele o guia fica mais cauteloso, nunca menos.
 
 *Aceite:* a S2 do COM100 aparece na fila com prazo 09/08 enquanto não for
-respondida, e some no instante em que a nota entrar.
+respondida, e sai no instante em que a nota entrar.
 
 ### Etapa 2 — Nota e devolutiva à vista
 

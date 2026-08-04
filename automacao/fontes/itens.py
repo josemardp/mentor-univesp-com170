@@ -75,15 +75,25 @@ CONTADOR_AVALIACAO_RE = re.compile(
 )
 
 
-def _texto_do_workshop(page, url):
+def _texto_da_atividade(page, url):
+    """Corpo da página em minúsculas, sem acento e com espaço normalizado.
+
+    O Moodle separa rótulo e valor com tabulação ("Situação\\tFinalizada"), e
+    sem normalizar isso as frases procuradas nunca casam.
+    """
     if not url:
         return None
     try:
         page.goto(url, wait_until="domcontentloaded", timeout=40000)
         page.wait_for_timeout(500)
-        return sem_acento(page.locator("body").inner_text()[:6000])
+        bruto = page.locator("body").inner_text()[:6000]
     except PlaywrightError:
         return None
+    return " ".join(sem_acento(bruto).split())
+
+
+# Nome antigo, mantido porque os testes de regressão do laboratório o usam.
+_texto_do_workshop = _texto_da_atividade
 
 
 def _enviado_no_texto(corpo):
@@ -106,7 +116,7 @@ def estado_workshop(page, url):
     avaliação assim que a entrega é feita — foi o que aconteceu com o M7 em
     04/08/2026, cuja avaliação vencia naquele mesmo dia.
     """
-    corpo = _texto_do_workshop(page, url)
+    corpo = _texto_da_atividade(page, url)
     if corpo is None:
         return {
             "enviado": None,
@@ -149,3 +159,49 @@ def estado_workshop(page, url):
 def envio_workshop(page, url):
     """Compatibilidade: só o "já enviei?" de ``estado_workshop``."""
     return estado_workshop(page, url)["enviado"]
+
+
+# A página do questionário diz, sem ambiguidade, se existe tentativa: depois de
+# responder aparece o bloco "Suas tentativas" com "Situação: Finalizada". Antes,
+# só o botão "Tentativa do questionário". É a prova direta que o selo de
+# conclusão do Moodle não dá — o selo pode fechar só por ter aberto a página.
+SINAIS_TENTOU = ("suas tentativas", "situacao finalizada", "resumo da tentativa")
+SINAIS_NAO_TENTOU = (
+    "tentativa do questionario",
+    "nenhuma tentativa",
+    "ainda nao fez nenhuma tentativa",
+)
+# Tarefa (assign): o quadro de status diz se houve envio.
+SINAIS_ENVIOU_TAREFA = ("enviado para avaliacao", "enviado(a) para avaliacao")
+SINAIS_NAO_ENVIOU_TAREFA = (
+    "nenhuma tentativa",
+    "nenhum envio",
+    "nao entregue",
+)
+
+
+def entrega_feita(page, url, tipo):
+    """``True``/``False``/``None`` para "esta atividade foi mesmo entregue?".
+
+    ``None`` é a resposta honesta quando a página não afirma nem nega. Nunca
+    devolver ``False`` por falta de sinal: acusar entrega faltando quando ela
+    existe é pior que ficar calado.
+    """
+    if tipo not in ("quiz", "assign"):
+        return None
+    corpo = _texto_da_atividade(page, url)
+    if corpo is None or any(
+        sinal in corpo for sinal in SINAIS_INDEFINIDO
+    ):
+        return None
+    if tipo == "quiz":
+        if any(sinal in corpo for sinal in SINAIS_TENTOU):
+            return True
+        if any(sinal in corpo for sinal in SINAIS_NAO_TENTOU):
+            return False
+        return None
+    if any(sinal in corpo for sinal in SINAIS_ENVIOU_TAREFA):
+        return True
+    if any(sinal in corpo for sinal in SINAIS_NAO_ENVIOU_TAREFA):
+        return False
+    return None

@@ -293,6 +293,8 @@ def render_acao(a):
 
     if a.get("verificacao") == "indefinida":
         chips.append('<span class="status lock">não verifiquei</span>')
+    if a.get("entrega_nao_confirmada"):
+        chips.append('<span class="status pend">sem entrega registrada</span>')
     if a.get("resgatado"):
         # Veio pela rede de segurança: o calendário tinha o prazo, a leitura da
         # disciplina não trouxe a atividade. Melhor mostrar demais que de menos.
@@ -308,6 +310,14 @@ def render_acao(a):
     if a.get("bloqueio"):
         trava = (f'<div class="trava">🔒 Ainda não abriu: {esc(a["bloqueio"])}. '
                  'Corra os módulos anteriores pra destravar a tempo.</div>')
+    if a.get("entrega_nao_confirmada"):
+        # O selo verde do AVA aqui é de "visualizou", não de "entregou". Se o
+        # guia repetisse o selo, você só descobriria pela nota que faltou.
+        trava += ('<div class="trava">⚠️ O AVA marca esta atividade como '
+                  '<b>concluída</b>, mas não encontrei nota lançada nem '
+                  'tentativa registrada. Nessas atividades a conclusão fecha '
+                  'só por abrir a página. Abra e confirme que você respondeu '
+                  'e enviou.</div>')
 
     # Um mesmo encontro anunciado em vários horários: o aviso pede pra
     # escolher um, então o cartão mostra as opções em vez de virar seis

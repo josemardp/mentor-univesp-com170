@@ -147,6 +147,30 @@ def _workshop_avaliacao_feita(secao):
     return all(item.get("avaliacao_pendente") is False for item in labs)
 
 
+TIPOS_QUE_VALEM_NOTA = ("quiz", "scorm", "assign", "workshop")
+
+
+def entrega_provada(item):
+    """A atividade foi mesmo entregue? ``True``/``False``/``None``.
+
+    O selo "Concluído" do Moodle não responde isso: em 04/08/2026 a S2 -
+    Atividade Avaliativa do COM100 estava concluída, sem nenhuma tentativa e
+    sem nota, com prazo em aberto — aquele item fecha só por ter sido aberto.
+    Prova é nota lançada (mesmo zero), envio confirmado ou tentativa
+    finalizada. ``None`` quer dizer "não sei", e não sei nunca vira acusação.
+    """
+    if item.get("tem_nota"):
+        return True
+    # Devolutiva escrita é prova tão boa quanto nota: alguém leu o trabalho.
+    # A S2 - Ferramenta para Envio da COM170 é assim, com elogio do
+    # facilitador e sem nota numérica.
+    if item.get("feedback"):
+        return True
+    if item.get("type") == "workshop":
+        return True if item.get("enviado") is True else None
+    return item.get("entrega_confirmada")
+
+
 def _verbo_workshop(item):
     """Entregou mas ainda falta avaliar: o pedido muda de fase."""
     if item.get("enviado") is True and item.get("avaliacao_pendente") is True:
@@ -625,7 +649,11 @@ def montar_acoes(dados, hoje, agora=None):
                 cmid_item = (
                     str(item["cmid"]) if item.get("cmid") else None
                 )
-                if item.get("status") == "Concluído":
+                sem_entrega = (
+                    item.get("type") in TIPOS_QUE_VALEM_NOTA
+                    and entrega_provada(item) is False
+                )
+                if item.get("status") == "Concluído" and not sem_entrega:
                     resolvidos.add(cmid_item)
                     continue
                 # Laboratório de Avaliação são duas obrigações em sequência:
@@ -652,6 +680,8 @@ def montar_acoes(dados, hoje, agora=None):
                     "url": item.get("url"),
                     "conta_nota": item.get("conta_nota", False),
                 }
+                if sem_entrega:
+                    base["entrega_nao_confirmada"] = True
                 if item.get("aberto") is False:
                     encerrados.append(
                         {

@@ -6,7 +6,13 @@ from datetime import datetime, timezone
 
 import persistencia as _persistencia
 from configuracao import BR_TZ, DATA_PATH, ESTADO_PATH
-from dominio.acoes import identidade_item, montar_acoes, novidades, urgencia_de
+from dominio.acoes import (
+    entrega_provada,
+    identidade_item,
+    montar_acoes,
+    novidades,
+    urgencia_de,
+)
 from dominio.datas import achar_datas, sem_acento
 from dominio.prazos import casar_prazos, extrair_prazos
 from fontes.foruns import varrer_foruns

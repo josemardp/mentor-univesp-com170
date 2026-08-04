@@ -533,6 +533,102 @@ ac_lf, *_ = C.montar_acoes(lido_fechado, HOJE_EV, agora=AGORA)
 checa(len([a for a in ac_lf if a.get("resgatado")]) == 1,
       "item lido como fechado volta quando o calendário mostra prazo aberto")
 
+print("\n== Selo 'Concluído' não é prova de entrega (COM100 S2, 04/08/2026) ==")
+
+from fontes import boletim as B  # noqa: E402
+from fontes import itens as I  # noqa: E402
+
+
+class PaginaComTexto:
+    def __init__(self, texto):
+        self._t = texto
+
+    def goto(self, *a, **k):
+        pass
+
+    def wait_for_timeout(self, *a, **k):
+        pass
+
+    def locator(self, _):
+        return self
+
+    def inner_text(self):
+        return self._t
+
+
+# A página do questionário é a prova direta. Texto real lido do AVA.
+sem_tentativa = ("S2 - Atividade Avaliativa\nTentativa do questionário\n"
+                 "Tentativas permitidas: 3\nMétodo de avaliação: Nota mais alta")
+com_tentativa = ("S1 - Atividade Avaliativa\nTentativas permitidas: 3\n"
+                 "Suas tentativas\nTentativa 1\nSituação\tFinalizada\n"
+                 "Iniciado\tterça-feira, 28 jul. 2026, 20:58\nVoltar ao curso")
+checa(I.entrega_feita(PaginaComTexto(sem_tentativa), "#", "quiz") is False,
+      "questionário sem 'Suas tentativas' é entrega não feita")
+checa(I.entrega_feita(PaginaComTexto(com_tentativa), "#", "quiz") is True,
+      "'Situação Finalizada' separada por tabulação é reconhecida como entrega")
+checa(I.entrega_feita(PaginaComTexto("Você precisa fazer login"), "#", "quiz")
+      is None,
+      "página de login não afirma nem nega a entrega")
+checa(I.entrega_feita(PaginaComTexto(com_tentativa), "#", "page") is None,
+      "tipo que não tem entrega não é interrogado")
+
+checa(C.entrega_provada({"type": "quiz", "tem_nota": True}) is True,
+      "nota lançada é prova de entrega")
+checa(C.entrega_provada({"type": "scorm", "tem_nota": True, "nota": 0.0})
+      is True,
+      "nota zero também é prova: houve entrega, o desempenho é outra conversa")
+checa(C.entrega_provada({"type": "quiz", "tem_nota": False}) is None,
+      "sem nota e sem conferência, a resposta é 'não sei'")
+checa(C.entrega_provada(
+        {"type": "assign", "tem_nota": False, "feedback": "Parabéns pela entrega!"})
+      is True,
+      "devolutiva escrita do facilitador também prova que houve entrega")
+checa(C.entrega_provada(
+        {"type": "quiz", "tem_nota": False, "entrega_confirmada": False})
+      is False,
+      "conferência negativa é a única coisa que afirma que não entregou")
+
+# Boletim: rótulo vem com o tipo na frente e a célula traz o menu "Ações".
+checa(B._limpar_nota("10,00 Ações") == "10,00", "menu da célula sai da nota")
+checa(B._numero("7,50") == 7.5 and B._numero("-") is None,
+      "vírgula decimal vira número e traço vira ausência de nota")
+checa(B._rotulo_limpo("QUESTIONÁRIO S2 - Atividade Avaliativa")
+      == "S2 - Atividade Avaliativa",
+      "tipo sai do rótulo do boletim")
+
+def curso_com_quiz(**item):
+    base = {"cmid": "160791", "label": "S2 - Atividade Avaliativa",
+            "type": "quiz", "status": "Concluído", "conta_nota": True,
+            "aberto": True, "url": "#s2",
+            "prazo": "2026-08-09T23:59:00-03:00",
+            "prazo_fonte": "calendário do AVA"}
+    base.update(item)
+    return {"courses": [{"code": "COM100", "modelo": "regular", "id": 18870,
+            "avisos": [], "sections": [{"id": "s2", "title": "Semana 2",
+            "fase": "regular", "locked": None, "items": [base]}]}],
+            "eventos": []}
+
+
+concluido_sem_entrega = C.montar_acoes(
+    curso_com_quiz(tem_nota=False, entrega_confirmada=False),
+    HOJE_EV, agora=AGORA)[0]
+checa(len(concluido_sem_entrega) == 1
+      and concluido_sem_entrega[0].get("entrega_nao_confirmada"),
+      "'Concluído' sem entrega registrada continua na fila, marcado")
+checa(concluido_sem_entrega and concluido_sem_entrega[0]["urgencia"] == "semana",
+      "e mantém o prazo real do calendário")
+
+concluido_com_nota = C.montar_acoes(
+    curso_com_quiz(tem_nota=True, nota=10.0), HOJE_EV, agora=AGORA)[0]
+checa(not concluido_com_nota, "com nota lançada, sai da fila como antes")
+
+# O caso do SOC100: boletim da disciplina veio sem nenhuma linha. Isso é
+# ausência de informação, não prova de que nada foi entregue.
+concluido_sem_boletim = C.montar_acoes(
+    curso_com_quiz(tem_nota=False), HOJE_EV, agora=AGORA)[0]
+checa(not concluido_sem_boletim,
+      "boletim indisponível não vira acusação de entrega faltando")
+
 print("\n== Workflow de publicação ==")
 workflow = (ROOT / ".github" / "workflows" / "guia-diario.yml").read_text(encoding="utf-8")
 checa('- cron: "0 11 * * *"' in workflow, "agenda matinal tem gatilho próprio")

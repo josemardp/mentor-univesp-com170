@@ -17,6 +17,10 @@ CRONOGRAMA_PADRAO = (
 # Limites para não estourar o tempo da GitHub Action.
 MAX_DISCUSSOES_POR_RUN = 60
 MAX_ITENS_CONFERIDOS = 45
+# Conferência de entrega abre uma página por atividade suspeita. Suspeita é
+# rara por definição (vale nota, marcada como concluída e sem nota lançada),
+# então um teto baixo por disciplina já cobre e não estoura o tempo da Action.
+MAX_ENTREGAS_CONFERIDAS = 12
 MAX_POSTS_POR_DISCUSSAO = 10
 TRECHO_AVISO = 400
 JANELA_AVISOS_DIAS = 45

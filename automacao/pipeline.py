@@ -12,11 +12,13 @@ from configuracao import (
     BR_TZ,
     CRONOGRAMA_PADRAO,
     MAX_DISCUSSOES_POR_RUN,
+    MAX_ENTREGAS_CONFERIDAS,
     MAX_ITENS_CONFERIDOS,
 )
 from dominio.acoes import conta_nota
 from dominio.datas import sem_acento
 from fontes import (
+    boletim,
     calendario,
     cronograma,
     disciplinas,
@@ -295,8 +297,9 @@ def executar_coleta(estado, anterior=None):
         cursos = []
         erros_estrutura = []
         resultados_cronograma = []
+        resultados_boletim = []
         diagnosticos_forum = []
-        indefinidos = verificados = 0
+        indefinidos = verificados = nao_entregues = 0
         orcamento = MAX_DISCUSSOES_POR_RUN
         cache_cronogramas = cache_fontes.setdefault("cronogramas", {})
 
@@ -335,6 +338,20 @@ def executar_coleta(estado, anterior=None):
                 eventos_por_curso.get(str(descoberto["id"]), []),
                 checked_at,
             )
+
+            cache_boletins = cache_fontes.setdefault("boletins", {})
+            resultado_boletim = boletim.resultado(
+                page,
+                descoberto["id"],
+                checked_at,
+                cache=cache_boletins.get(str(descoberto["id"])),
+            )
+            resultados_boletim.append(resultado_boletim)
+            if resultado_boletim.status == "live":
+                cache_boletins[str(descoberto["id"])] = (
+                    resultado_boletim.dados
+                )
+            notas_por_cmid = resultado_boletim.dados or {}
             for secao in secoes:
                 numero_semana = None
                 encontrada = re.match(r"Semana (\d+)$", secao["title"])
@@ -344,6 +361,12 @@ def executar_coleta(estado, anterior=None):
                     item["conta_nota"] = conta_nota(
                         modelo, item, secao["title"]
                     )
+                    nota = notas_por_cmid.get(str(item.get("cmid")))
+                    if nota:
+                        item["nota"] = nota["nota"]
+                        item["nota_txt"] = nota["nota_txt"]
+                        item["tem_nota"] = nota["tem_nota"]
+                        item["feedback"] = nota["feedback"]
                     item["prazo"] = None
                     item["prazo_fonte"] = None
                     item["carencia"] = None
@@ -438,6 +461,35 @@ def executar_coleta(estado, anterior=None):
                     item["motivo_fechado"] = (
                         "o AVA diz que não está aberta"
                     )
+
+            # Segunda prova de entrega, só onde o selo do Moodle é suspeito:
+            # atividade que vale nota, marcada como concluída e sem nota
+            # lançada. Foi assim que a S2 do COM100 passou batido — concluída
+            # por visualização, sem nenhuma tentativa, com prazo em aberto.
+            suspeitos = [
+                item
+                for secao in secoes
+                if not secao.get("locked")
+                for item in secao["items"]
+                if item.get("status") == "Concluído"
+                and item.get("type") in ("quiz", "assign")
+                and not item.get("tem_nota")
+            ]
+            for item in suspeitos[:MAX_ENTREGAS_CONFERIDAS]:
+                item["entrega_confirmada"] = itens.entrega_feita(
+                    page, item.get("url"), item.get("type")
+                )
+                if item["entrega_confirmada"] is False:
+                    nao_entregues += 1
+                    print(
+                        f"  ATENÇÃO: {codigo} · {item['label'][:50]} está "
+                        "'Concluído' no AVA sem entrega registrada"
+                    )
+            if len(suspeitos) > MAX_ENTREGAS_CONFERIDAS:
+                print(
+                    f"  aviso: {len(suspeitos) - MAX_ENTREGAS_CONFERIDAS} "
+                    "entrega(s) suspeita(s) ficaram sem conferência"
+                )
 
             try:
                 paginas_instrucao = instrucoes.ler(page, secoes, hoje)
@@ -542,7 +594,13 @@ def executar_coleta(estado, anterior=None):
         checked_at=checked_at,
         quantidade_atual=verificados,
         last_live_at=checked_at,
-        detalhes={"indefinidos": indefinidos},
+        detalhes={
+            "indefinidos": indefinidos,
+            "entregas_nao_confirmadas": nao_entregues,
+        },
+    )
+    agregado_boletim = _status_agregado(
+        resultados_boletim, checked_at, nao_aplicavel=True
     )
 
     resultados_finais = {
@@ -551,6 +609,7 @@ def executar_coleta(estado, anterior=None):
         "cronograma": agregado_cronograma,
         "foruns": resultado_forum,
         "itens": resultado_itens,
+        "boletim": agregado_boletim,
         "notificacoes": resultado_sinais,
     }
     status_fontes = {
@@ -562,10 +621,14 @@ def executar_coleta(estado, anterior=None):
         (anterior or {}).get("fontes_status") or {},
         checked_at,
     )
+    # Boletim de fora da lista que deixa a Action vermelha: ele só acrescenta
+    # prova de entrega. Sem ele o guia fica mais cauteloso (mantém o item na
+    # fila), nunca menos — o oposto das fontes de prazo, cuja ausência esconde
+    # obrigação. O estado dele continua visível em `fontes_status`.
     degradadas = [
         nome
         for nome, resultado in resultados_finais.items()
-        if resultado.status in ("falhou", "degradado")
+        if resultado.status in ("falhou", "degradado") and nome != "boletim"
     ]
     return {
         "courses": cursos,
