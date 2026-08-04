@@ -654,6 +654,25 @@ com_calendario_ruim["fontes_status"] = {"calendario": {"status": "degradado"}}
 ok_c, _ = SA.validar_cobertura(com_calendario_ruim, None)
 checa(not ok_c, "fonte de prazo degradada continua derrubando")
 
+print("\n== Vencimento não é carência ==")
+
+import pipeline as P  # noqa: E402
+
+semana2 = {"n": 2, "inicio": "2026-07-27",
+           "vencimento": "2026-08-05T23:59:00-03:00",
+           "carencia": "2026-08-09T23:59:00-03:00"}
+crono = {"fonte": "x", "semanas": [semana2]}
+checa(P._semana_do_cronograma(crono, 2) == semana2,
+      "acha a semana do cronograma pelo número")
+checa(P._semana_do_cronograma(crono, 5) is None,
+      "semana que não existe no cronograma devolve nada")
+checa(P._mesma_data("2026-08-09T23:59:00-03:00", semana2) is True,
+      "data do calendário do AVA igual à carência é reconhecida")
+checa(P._mesma_data("2026-08-05T23:59:00-03:00", semana2) is False,
+      "data que bate com o vencimento não é confundida com carência")
+checa(P._mesma_data("2026-08-09T23:59:00-03:00", None) is False,
+      "sem cronograma não há o que reconciliar")
+
 print("\n== Workflow de publicação ==")
 workflow = (ROOT / ".github" / "workflows" / "guia-diario.yml").read_text(encoding="utf-8")
 checa('- cron: "0 11 * * *"' in workflow, "agenda matinal tem gatilho próprio")

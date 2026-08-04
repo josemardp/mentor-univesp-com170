@@ -133,6 +133,26 @@ def _prazo_por_cmid(eventos, agora_iso):
     return escolhidos
 
 
+def _semana_do_cronograma(cronograma_curso, numero_semana):
+    if not (cronograma_curso and numero_semana):
+        return None
+    return next(
+        (
+            valor
+            for valor in cronograma_curso.get("semanas") or []
+            if valor["n"] == numero_semana
+        ),
+        None,
+    )
+
+
+def _mesma_data(quando, semana):
+    """A data do calendário do AVA é a carência daquela semana?"""
+    if not (quando and semana and semana.get("carencia")):
+        return False
+    return quando[:10] == semana["carencia"][:10]
+
+
 def _curso_anterior(anterior, curso_id, codigo):
     return next(
         (
@@ -370,29 +390,29 @@ def executar_coleta(estado, anterior=None):
                     item["prazo"] = None
                     item["prazo_fonte"] = None
                     item["carencia"] = None
+                    semana = _semana_do_cronograma(
+                        cronograma_curso, numero_semana
+                    )
                     evento = prazo_por_cmid.get(str(item.get("cmid")))
                     if evento:
                         item["prazo"] = evento["quando"]
                         item["prazo_fonte"] = "calendário do AVA"
-                    elif (
-                        numero_semana
-                        and cronograma_curso
-                        and item["conta_nota"]
-                    ):
-                        semana = next(
-                            (
-                                valor
-                                for valor in cronograma_curso["semanas"]
-                                if valor["n"] == numero_semana
-                            ),
-                            None,
-                        )
-                        if semana:
+                        # O AVA fecha a atividade no fim da CARÊNCIA, não no
+                        # vencimento. Mostrar a data do calendário como prazo
+                        # dá quatro dias a mais do que o cronograma dá: a S2
+                        # vencia em 05/08 e o guia dizia 09/08.
+                        if _mesma_data(evento["quando"], semana):
                             item["prazo"] = semana["vencimento"]
                             item["carencia"] = semana["carencia"]
                             item["prazo_fonte"] = (
                                 "cronograma oficial da Univesp"
                             )
+                    elif semana and item["conta_nota"]:
+                        item["prazo"] = semana["vencimento"]
+                        item["carencia"] = semana["carencia"]
+                        item["prazo_fonte"] = (
+                            "cronograma oficial da Univesp"
+                        )
 
             lista_foruns = [
                 {"label": item["label"], "url": item["url"]}
