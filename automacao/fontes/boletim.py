@@ -75,34 +75,41 @@ def _rotulo_limpo(bruto):
     return TIPO_NO_ROTULO.sub("", (bruto or "").strip()).strip()
 
 
-def ler(page, curso_id):
-    """Devolve ``(por_cmid, resumo)`` ou levanta ``PlaywrightError``.
+def _abrir(page, curso_id):
+    """Abre o relatório e espera a tabela existir. Devolve as linhas cruas.
 
-    A tabela de notas monta depois do carregamento da página. Esperar por
-    tempo fixo faz a leitura oscilar entre "tem nota" e "não tem", e nota que
-    aparece e some é pior que nota nenhuma. Espera-se pela primeira linha com
-    link de atividade; o estouro dessa espera é informação legítima, porque
-    existe disciplina com o relatório realmente vazio (SOC100 em 04/08/2026).
+    A tabela monta depois do carregamento. Esperar por tempo fixo faz a
+    leitura oscilar entre "tem nota" e "não tem", e nota que aparece e some é
+    pior que nota nenhuma. São duas esperas: a tabela em si e, dentro dela, a
+    primeira linha de atividade. Disciplina sem nenhuma atividade lançada
+    (SOC100 em 04/08/2026) nunca satisfaz a segunda, e isso é estado legítimo.
     """
     page.goto(
         f"{AVA}/grade/report/user/index.php?id={curso_id}",
         wait_until="domcontentloaded",
         timeout=45000,
     )
-    # Duas esperas: a tabela em si e, dentro dela, a primeira linha de
-    # atividade. Disciplina sem nenhuma atividade lançada (SOC100) nunca
-    # satisfaz a segunda, e isso é um estado legítimo, não uma falha.
     try:
         page.wait_for_selector(
-            ".user-grade, .generaltable, .column-itemname", timeout=20000
+            ".user-grade, .generaltable, .column-itemname", timeout=25000
         )
     except PlaywrightError:
         pass
     try:
         page.wait_for_selector('tr a[href*="/mod/"]', timeout=10000)
     except PlaywrightError:
-        page.wait_for_timeout(1000)
-    linhas = page.evaluate(JS_BOLETIM)
+        page.wait_for_timeout(1500)
+    return page.evaluate(JS_BOLETIM)
+
+
+def ler(page, curso_id):
+    """Devolve ``(por_cmid, resumo)`` ou levanta ``PlaywrightError``."""
+    linhas = _abrir(page, curso_id)
+    if not linhas:
+        # Aconteceu com a COM170 no runner, e nunca no navegador local: a
+        # tabela simplesmente não estava lá. Uma segunda chance custa uma
+        # página e evita marcar como falha o que é só lentidão do AVA.
+        linhas = _abrir(page, curso_id)
     por_cmid, media, itens = {}, None, 0
     for linha in linhas:
         rotulo = _rotulo_limpo(linha.get("rotulo"))
