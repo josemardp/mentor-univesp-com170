@@ -211,6 +211,39 @@ checa(
 
 print("\n== Fase de avaliação por pares (o que quebrou em 04/08/2026) ==")
 
+# A página do Laboratório em fase de avaliação diz, nas instruções, "O prazo de
+# envio terminou e o sistema já lhe atribuiu o trabalho de um colega". Essa
+# frase está na lista de encerramento usada por item_aberto, e mandou o M7 para
+# "já encerrou" no dia em que a avaliação vencia.
+em_avaliacao = (
+    "Fase de avaliação\nFase atual\nTarefas a fazer\nAvaliar colegas\n"
+    "total: 1pendente: 1\n"
+    "Prazo limite da avaliação: terça-feira, 04 ago. 2026, 23:59\n"
+    "Seu envio\nenviado em sexta-feira, 31 jul. 2026, 17:03\n"
+    "Instruções para avaliação\n"
+    "O prazo de envio terminou e o sistema já lhe atribuiu aleatoriamente "
+    "o trabalho de um colega.\nAvaliar"
+)
+estado_av = itens.estado_workshop(PaginaFalsa(em_avaliacao), "https://ava/w")
+checa(
+    estado_av["aberto"] is True,
+    "Laboratório com avaliação pendente não é dado como encerrado, mesmo "
+    "com 'o prazo de envio terminou' na página",
+)
+checa(
+    estado_av["avaliacao_pendente"] is True
+    and estado_av["avaliacoes_pendentes"] == 1,
+    "o contador 'total: 1 pendente: 1' é lido da linha do tempo",
+)
+avaliado = em_avaliacao.replace("total: 1pendente: 1", "total: 1pendente: 0")
+checa(
+    itens.estado_workshop(PaginaFalsa(avaliado), "https://ava/w")[
+        "avaliacao_pendente"
+    ]
+    is False,
+    "com 'pendente: 0' o robô sabe que a avaliação já foi feita",
+)
+
 curso_avaliando = curso_com_workshop(enviado=True)
 item_lab = curso_avaliando["sections"][0]["items"][0]
 item_lab["avaliacao_pendente"] = True

@@ -154,6 +154,45 @@ def _verbo_workshop(item):
     return verbo_de(item)
 
 
+QUINZENA_RE = re.compile(r"^quinzena\s+(\d+)$")
+
+
+def quinzenas_encerradas(curso):
+    """Seções da quinzena que já passou, com o rótulo dela.
+
+    A quinzena anterior deixa para trás páginas e fóruns de grupo que nunca
+    ganham data e ficariam para sempre em "sem prazo definido" — o mesmo tipo
+    de ruído que o AIA encerrado já não produz. Só vale para item sem prazo:
+    obrigação com data (a avaliação por pares, que atravessa a virada) segue
+    intacta.
+    """
+    secoes = curso.get("sections") or []
+    por_id = {secao.get("id"): secao for secao in secoes}
+    numeros = {}
+    for secao in secoes:
+        achado = QUINZENA_RE.match(
+            sem_acento(secao.get("title") or "").strip()
+        )
+        if achado and not secao.get("parent") and not secao.get("locked"):
+            numeros[secao.get("id")] = int(achado.group(1))
+    if len(numeros) < 2:
+        return {}
+    atual = max(numeros.values())
+    antigas = {
+        sid: numero for sid, numero in numeros.items() if numero < atual
+    }
+    encerradas = {}
+    for secao in secoes:
+        no, nivel = secao, 0
+        while no is not None and nivel < 6:
+            if no.get("id") in antigas:
+                encerradas[secao.get("id")] = antigas[no["id"]]
+                break
+            no = por_id.get(no.get("parent"))
+            nivel += 1
+    return encerradas
+
+
 def _cmid_da_url(url):
     encontrado = re.search(r"[?&]id=(\d+)", url or "")
     return encontrado.group(1) if encontrado else None
@@ -316,6 +355,7 @@ def montar_acoes(dados, hoje, agora=None):
     """``agora`` só é exigido para tirar da fila encontro que já começou."""
     acoes, encerrados, confirmar, higiene = [], [], [], []
     for curso in dados["courses"]:
+        quinzenas_antigas = quinzenas_encerradas(curso)
         prazos_aviso = [
             {**prazo, "aviso": aviso}
             for aviso in curso.get("avisos", [])
@@ -501,6 +541,17 @@ def montar_acoes(dados, hoje, agora=None):
                     continue
                 prazo = item.get("prazo")
                 fonte = item.get("prazo_fonte")
+                if not prazo and secao.get("id") in quinzenas_antigas:
+                    encerrados.append(
+                        {
+                            **base,
+                            "motivo": (
+                                f"a Quinzena {quinzenas_antigas[secao['id']]}"
+                                " encerrou"
+                            ),
+                        }
+                    )
+                    continue
                 urgencia, texto = urgencia_de(prazo, hoje)
                 if urgencia == "vencido":
                     encerrados.append({**base, "motivo": texto})

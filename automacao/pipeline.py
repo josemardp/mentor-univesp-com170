@@ -417,7 +417,20 @@ def executar_coleta(estado, anterior=None):
                         "a ambientação (AIA) encerrou"
                     )
                     continue
-                item["aberto"] = itens.item_aberto(page, item.get("url"))
+                if item.get("type") == "workshop":
+                    # Uma leitura só: a página do Laboratório responde as duas
+                    # perguntas (ainda há o que fazer, e qual fase falta).
+                    estado_lab = itens.estado_workshop(page, item.get("url"))
+                    item["enviado"] = estado_lab["enviado"]
+                    item["aberto"] = estado_lab["aberto"]
+                    item["avaliacao_pendente"] = estado_lab[
+                        "avaliacao_pendente"
+                    ]
+                    item["avaliacoes_pendentes"] = estado_lab[
+                        "avaliacoes_pendentes"
+                    ]
+                else:
+                    item["aberto"] = itens.item_aberto(page, item.get("url"))
                 verificados += 1
                 if item["aberto"] is None:
                     indefinidos += 1
@@ -425,15 +438,6 @@ def executar_coleta(estado, anterior=None):
                     item["motivo_fechado"] = (
                         "o AVA diz que não está aberta"
                     )
-                if item.get("type") == "workshop":
-                    estado_lab = itens.estado_workshop(page, item.get("url"))
-                    item["enviado"] = estado_lab["enviado"]
-                    item["avaliacao_pendente"] = estado_lab[
-                        "avaliacao_pendente"
-                    ]
-                    item["avaliacoes_pendentes"] = estado_lab[
-                        "avaliacoes_pendentes"
-                    ]
 
             try:
                 paginas_instrucao = instrucoes.ler(page, secoes, hoje)

@@ -59,9 +59,32 @@ definido". `fontes/instrucoes.py` passa a ler essa página. Como texto corrido �
 onde este projeto mais errou, **nada dali entra na fila**: nasce com confiança
 baixa e cai em "Confirme se isto é prazo mesmo", com a frase e o link.
 
+**8. (achado na primeira rodada real) Laboratório em avaliação virava
+"encerrado".** Com os Módulos 6 e 7 finalmente no retrato, a rodada
+[`30950643628`](https://github.com/esdraaline/mentor-univesp-com170/actions/runs/30950643628)
+mostrou o M7 em "já encerrou" no dia em que a avaliação vencia. Causa:
+`item_aberto()` marca como fechado quem tem "o prazo de envio terminou" na
+página — frase que as **instruções da fase de avaliação** repetem
+("o prazo de envio terminou e o sistema já lhe atribuiu o trabalho de um
+colega"). Workshop não passa mais por `item_aberto`: `estado_workshop()`
+decide pela linha do tempo das 5 fases.
+
+**9. Sobra de quinzena antiga voltava como tarefa.** Com a Quinzena 1
+visível de novo, o tutorial do Laboratório e o fórum "Ponto de encontro"
+(sem data, quinzena já encerrada) entraram em "sem prazo definido".
+`quinzenas_encerradas()` manda para "já encerrou" o que não tem prazo numa
+quinzena anterior à atual — obrigação com data, como a avaliação por pares
+que atravessa a virada, continua cobrada.
+
 Testes novos em `testes/test_operacao.py` (leitura do AVA, união do calendário,
-encontros) e `testes/test_workshop_enviado.py` (fase de avaliação por pares).
-Suíte inteira verde, inclusive o teste dourado.
+encontros, quinzena encerrada) e `testes/test_workshop_enviado.py` (fase de
+avaliação por pares, laboratório em avaliação não é encerrado). Suíte inteira
+verde, inclusive o teste dourado.
+
+Resultado conferido contra o AVA: a fila do dia ficou com **uma** linha para
+hoje (avaliação do M7, com link), a live de amanhã com os horários
+alternativos dentro do cartão, a live de tira-dúvidas de 10/08 e os prazos da
+Quinzena 2 no bloco de conferência.
 
 **Segurança:** `MEMORIA.md` estava versionado com a senha do AVA em texto puro
 num repositório público. Removida do arquivo, mas **continua no histórico**: a

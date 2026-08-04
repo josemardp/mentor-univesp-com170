@@ -409,6 +409,44 @@ checa(len(compromissos[0].get("opcoes") or []) == 3,
 checa(compromissos[0]["prazo"].startswith("2026-08-05T11:00"),
       "o horário que abre o cartão é o próximo a acontecer")
 
+print("\n== Quinzena que já passou ==")
+
+curso_q = {
+    "code": "COM170", "modelo": "quinzenal", "id": 18922, "avisos": [],
+    "sections": [
+        {"id": "s1", "title": "Quinzena 1", "parent": None, "fase": "regular",
+         "locked": None, "items": []},
+        {"id": "s1a", "title": "Módulo 7", "parent": "s1", "fase": "regular",
+         "locked": None, "items": [
+             {"cmid": "1", "label": "M7 - Grupo: Ponto de encontro",
+              "type": "forum", "status": None, "conta_nota": True,
+              "aberto": True, "url": "#a", "prazo": None},
+             {"cmid": "2", "label": "M7 - Revisão entre pares",
+              "type": "workshop", "status": "Pendente", "conta_nota": True,
+              "aberto": True, "enviado": True, "avaliacao_pendente": True,
+              "url": "#b", "prazo": "2026-08-04T23:59:00-03:00",
+              "prazo_fonte": "calendário do AVA"},
+         ]},
+        {"id": "s2", "title": "Quinzena 2", "parent": None, "fase": "regular",
+         "locked": None, "items": [
+             {"cmid": "3", "label": "Q2 M1 - Atividade", "type": "scorm",
+              "status": "Pendente", "conta_nota": True, "aberto": True,
+              "url": "#c", "prazo": None},
+         ]},
+    ],
+}
+ac_q, enc_q, hig_q, _ = C.montar_acoes({"courses": [curso_q]}, HOJE_EV,
+                                       agora=AGORA)
+na_fila = {a["o_que"] for a in ac_q} | {h["o_que"] for h in hig_q}
+checa("M7 - Grupo: Ponto de encontro" not in na_fila,
+      "sobra sem prazo da quinzena anterior sai da fila")
+checa(any("Quinzena 1 encerrou" in e["motivo"] for e in enc_q),
+      "e vai para 'já encerrou' dizendo o motivo")
+checa("M7 - Revisão entre pares" in na_fila,
+      "mas obrigação com data da quinzena anterior continua cobrada")
+checa("Q2 M1 - Atividade" in na_fila,
+      "a quinzena atual não é afetada")
+
 print("\n== Workflow de publicação ==")
 workflow = (ROOT / ".github" / "workflows" / "guia-diario.yml").read_text(encoding="utf-8")
 checa('- cron: "0 11 * * *"' in workflow, "agenda matinal tem gatilho próprio")

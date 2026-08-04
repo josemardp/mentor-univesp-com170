@@ -62,7 +62,9 @@ def ler(page, secoes, referencia):
         for prazo in extrair_prazos(texto, referencia):
             if prazo["quando"][:10] < referencia.isoformat():
                 continue
-            chave = (prazo["quando"][:10], prazo.get("tipo"))
+            # Uma linha por data: a mesma página repete "15 de agosto" em
+            # vários parágrafos, e o bloco de conferência não precisa de eco.
+            chave = prazo["quando"][:10]
             if chave in vistos:
                 continue
             vistos.add(chave)

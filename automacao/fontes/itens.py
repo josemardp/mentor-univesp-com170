@@ -122,8 +122,24 @@ def estado_workshop(page, url):
         pendentes = int(encontrado.group(2))
     elif "ja foi avaliada" in corpo and "avaliar" not in corpo:
         total, pendentes = 1, 0
+    # `item_aberto` não serve aqui. A página do Laboratório em fase de
+    # avaliação diz, nas instruções, "o prazo de envio terminou" — frase da
+    # lista de encerramento. Em 04/08/2026 isso mandou o M7 para "já
+    # encerrou" no mesmo dia em que a avaliação vencia. Quem sabe se ainda
+    # há o que fazer é a linha do tempo das 5 fases, não uma frase solta.
+    if pendentes is not None and pendentes > 0:
+        aberto = True
+    elif enviado is True:
+        aberto = True
+    elif enviado is False and any(
+        sinal in corpo for sinal in SINAIS_FECHADO
+    ):
+        aberto = False
+    else:
+        aberto = None
     return {
         "enviado": enviado,
+        "aberto": aberto,
         "avaliacoes_total": total,
         "avaliacoes_pendentes": pendentes,
         "avaliacao_pendente": None if pendentes is None else pendentes > 0,
