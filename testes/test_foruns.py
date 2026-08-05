@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Contratos de prioridade, autoridade e corte dos fóruns."""
 import sys
+from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -58,18 +59,28 @@ assert por_autor["Docente A"] == "institucional"
 assert por_autor["Colega X"] == "colega"
 print("ok | autores de Avisos são institucionais nos outros fóruns do curso")
 
+HOJE_AUT = date(2026, 8, 4)
 estado_autores = {}
 F.acumular_autores_institucionais(
-    estado_autores, "18922", aviso, [post(211, "Docente A")]
+    estado_autores, "18922", aviso, [post(211, "Docente A")], HOJE_AUT
 )
 F.acumular_autores_institucionais(
-    estado_autores, "18922", aviso, [post(212, "Facilitadora B")]
+    estado_autores, "18922", aviso, [post(212, "Facilitadora B")], HOJE_AUT
 )
-assert estado_autores["_autores_institucionais"]["18922"] == [
-    "Docente A",
-    "Facilitadora B",
-]
+registro = estado_autores["_autores_institucionais"]["18922"]
+assert sorted(registro) == ["Docente A", "Facilitadora B"]
+assert registro["Docente A"] == HOJE_AUT.isoformat()
 print("ok | autores institucionais acumulam entre leituras do curso")
+
+# O registro só crescia: quem postasse uma vez em Avisos virava fonte oficial
+# para sempre, e as datas dessa pessoa valiam como confiança alta.
+antigo = {"_autores_institucionais": {"18922": {
+    "Docente A": "2026-08-01", "Visitante": "2026-01-05"}}}
+F.acumular_autores_institucionais(
+    antigo, "18922", aviso, [post(213, "Docente A")], HOJE_AUT
+)
+assert sorted(antigo["_autores_institucionais"]["18922"]) == ["Docente A"]
+print("ok | autor sem aparição recente em Avisos deixa de ser fonte oficial")
 
 colega_com_data = post(301, "Colega X", prazos=True)
 classificados, _, _ = F.priorizar_posts([colega_com_data], autores, 10)

@@ -12,6 +12,7 @@ from configuracao import (
     MAX_POSTS_POR_DISCUSSAO,
     NOVO_ATE_DIAS,
     TRECHO_AVISO,
+    VALIDADE_AUTOR_DIAS,
     VERSAO_CACHE,
 )
 from dominio.datas import sem_acento
@@ -178,14 +179,37 @@ def autores_institucionais_do_forum(forum, posts):
     return {post.get("autor") for post in posts if post.get("autor")}
 
 
-def acumular_autores_institucionais(estado, curso_id, forum, posts):
-    """Acumula autores observados em Avisos ao longo das execuções."""
+def normalizar_registro_autores(bruto, hoje):
+    """Aceita o formato antigo (lista) e devolve o novo (nome -> visto em).
+
+    O registro só crescia: quem postasse uma vez num fórum "Avisos" virava
+    fonte oficial para sempre, e as datas dessa pessoa passavam a valer como
+    confiança alta. Guardar quando cada autor foi visto permite esquecer.
+    """
+    if isinstance(bruto, dict):
+        return dict(bruto)
+    return {nome: hoje.isoformat() for nome in (bruto or [])}
+
+
+def esquecer_autores_antigos(registro, hoje, dias=VALIDADE_AUTOR_DIAS):
+    corte = (hoje - timedelta(days=dias)).isoformat()
+    return {
+        nome: visto
+        for nome, visto in registro.items()
+        if (visto or "") >= corte
+    }
+
+
+def acumular_autores_institucionais(estado, curso_id, forum, posts, hoje):
+    """Acumula autores vistos em Avisos, com validade."""
     chave_curso = str(curso_id or "__sem_curso__")
     por_curso = estado.setdefault("_autores_institucionais", {})
-    autores = set(por_curso.get(chave_curso) or [])
-    autores.update(autores_institucionais_do_forum(forum, posts))
-    por_curso[chave_curso] = sorted(autores)
-    return autores
+    registro = normalizar_registro_autores(por_curso.get(chave_curso), hoje)
+    for autor in autores_institucionais_do_forum(forum, posts):
+        registro[autor] = hoje.isoformat()
+    registro = esquecer_autores_antigos(registro, hoje)
+    por_curso[chave_curso] = registro
+    return set(registro)
 
 
 def post_interessa(post):
@@ -244,12 +268,19 @@ def varrer_foruns(
     institucionais_vistos = institucionais_guardados = 0
     chave_curso = str(curso_id or "__sem_curso__")
     autores_por_curso = estado.setdefault("_autores_institucionais", {})
-    autores = set(autores_por_curso.get(chave_curso) or [])
+    registro_autores = esquecer_autores_antigos(
+        normalizar_registro_autores(
+            autores_por_curso.get(chave_curso), hoje
+        ),
+        hoje,
+    )
+    autores_por_curso[chave_curso] = registro_autores
+    autores = set(registro_autores)
 
     def atualizar_autores(forum, posts):
         autores.update(
             acumular_autores_institucionais(
-                estado, chave_curso, forum, posts
+                estado, chave_curso, forum, posts, hoje
             )
         )
 
@@ -419,7 +450,6 @@ def varrer_foruns(
                 guardar(discussao["url"], discussao.get("ultimo"), bons)
             )
 
-    autores_por_curso[chave_curso] = sorted(autores)
     corte = (hoje - timedelta(days=JANELA_AVISOS_DIAS)).isoformat()
     recente = (hoje - timedelta(days=NOVO_ATE_DIAS)).isoformat()
     saida, vistos = [], set()

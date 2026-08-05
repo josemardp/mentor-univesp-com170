@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Leitura do cronograma oficial da Univesp."""
 import re
-from datetime import datetime
+from datetime import date, datetime, timedelta
 
 from playwright.sync_api import Error as PlaywrightError
 
@@ -44,10 +44,31 @@ def ler(page, url):
         )
     if not semanas:
         return None
-    return {
-        "fonte": url,
-        "semanas": sorted(semanas, key=lambda semana: semana["n"]),
-    }
+    semanas.sort(key=lambda semana: semana["n"])
+    if not _cobre_hoje(semanas):
+        # Cronograma de outro bimestre. Acontece quando a disciplina não
+        # publica o link e a URL de reserva é montada a partir da data, e
+        # aconteceria em silêncio na virada do bimestre: um calendário
+        # inteiro de datas vencidas, apresentado como se fosse o atual.
+        print(f"  aviso: cronograma {url} não cobre a data de hoje; descartado")
+        return None
+    return {"fonte": url, "semanas": semanas}
+
+
+MARGEM_CRONOGRAMA = timedelta(days=30)
+
+
+def _cobre_hoje(semanas, hoje=None):
+    """As semanas deste cronograma cercam a data de hoje?"""
+    hoje = hoje or datetime.now(BR_TZ).date()
+    try:
+        inicio = date.fromisoformat(semanas[0]["inicio"])
+        fim = datetime.fromisoformat(
+            semanas[-1]["carencia"] or semanas[-1]["vencimento"]
+        ).date()
+    except (KeyError, TypeError, ValueError):
+        return True  # sem como conferir, não invento motivo para descartar
+    return inicio - MARGEM_CRONOGRAMA <= hoje <= fim + MARGEM_CRONOGRAMA
 
 
 def resultado(page, url, checked_at, cache=None):

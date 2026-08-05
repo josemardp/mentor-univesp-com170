@@ -15,6 +15,14 @@ def resumo_fontes(dados):
         ),
         "avisos": sum(len(curso.get("avisos") or []) for curso in cursos),
         "eventos_calendario": len(dados.get("eventos") or []),
+        # Evento sem nome não vira ação nem prazo. Contar só os úteis evita
+        # que uma limpeza de ruído pareça perda de fonte para a saúde.
+        "eventos_uteis": sum(
+            1
+            for evento in dados.get("eventos") or []
+            if not isinstance(evento, dict)
+            or (evento.get("nome") or "").strip()
+        ),
         "notificacoes": len(dados.get("notificacoes") or []),
         "cronograma": sum(
             1 for curso in cursos if curso.get("cronograma")
@@ -89,7 +97,7 @@ def validar_cobertura(dados, anterior):
     for nome, mensagem in (
         ("itens_com_prazo", "nenhum item ficou com prazo"),
         ("avisos", "não li nenhum aviso de fórum"),
-        ("eventos_calendario", "o calendário voltou vazio"),
+        ("eventos_uteis", "o calendário voltou sem nenhum evento com nome"),
         ("cronograma", "não li o cronograma de nenhuma disciplina"),
     ):
         antes_n = int(fontes_anteriores.get(nome, 0) or 0)

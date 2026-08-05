@@ -128,6 +128,11 @@ def ler_dom(page, hoje):
     for evento in por_id.values():
         if not evento.get("dia"):
             continue
+        # Id visto na grade do mês sem descrição na lista de próximos eventos.
+        # Não tem nome, url nem atividade: não vira ação nem prazo, só engorda
+        # o artefato público. Em 04/08/2026 eram 30 de 42 registros.
+        if not (evento.get("titulo") or "").strip():
+            continue
         hora, minuto = 23, 59
         if evento.get("hora"):
             try:

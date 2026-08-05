@@ -704,6 +704,48 @@ checa('data-tab="notas"' in R.render_tabs(dados_notas),
 checa('data-tab="notas"' not in R.render_tabs({"courses": [], "acoes": []}),
       "e não entra quando não há")
 
+print("\n== Fontes endurecidas (Etapa 5) ==")
+
+from configuracao import cronograma_padrao  # noqa: E402
+from fontes import foruns as FO  # noqa: E402
+
+checa(cronograma_padrao(date(2026, 8, 4)).endswith("2026/cronograma_regular_3.html"),
+      "agosto cai no 3º bimestre")
+checa(cronograma_padrao(date(2026, 10, 1)).endswith("2026/cronograma_regular_4.html"),
+      "outubro cai no 4º, em vez de repetir o bimestre passado para sempre")
+
+from fontes.cronograma import _cobre_hoje  # noqa: E402
+
+semanas_agosto = [
+    {"n": 1, "inicio": "2026-07-20", "vencimento": "2026-07-29T23:59:00-03:00",
+     "carencia": "2026-08-02T23:59:00-03:00"},
+    {"n": 7, "inicio": "2026-08-31", "vencimento": "2026-09-09T23:59:00-03:00",
+     "carencia": "2026-09-11T23:59:00-03:00"},
+]
+checa(_cobre_hoje(semanas_agosto, date(2026, 8, 4)) is True,
+      "cronograma do bimestre corrente é aceito")
+checa(_cobre_hoje(semanas_agosto, date(2026, 12, 1)) is False,
+      "cronograma de outro bimestre é descartado em vez de virar prazo vencido")
+checa(_cobre_hoje([{"n": 1}], date(2026, 8, 4)) is True,
+      "sem datas para conferir, não inventa motivo para descartar")
+checa(cronograma_padrao(date(2027, 2, 9)).endswith("2027/cronograma_regular_1.html"),
+      "virada de ano acompanha o ano na URL")
+checa(cronograma_padrao(date(2026, 12, 20)).endswith("cronograma_regular_4.html"),
+      "dezembro não estoura para um 5º bimestre")
+
+registro = FO.normalizar_registro_autores(["formador", "formador"], date(2026, 8, 4))
+checa(registro == {"formador": "2026-08-04", "formador": "2026-08-04"},
+      "registro antigo em lista vira registro com data")
+antigo = {"formador": "2026-08-01", "Colega": "2026-01-10"}
+sobrou = FO.esquecer_autores_antigos(antigo, date(2026, 8, 4))
+checa(set(sobrou) == {"formador"},
+      "autor que não aparece em Avisos há um bimestre deixa de ser fonte oficial")
+
+sem_nome = [{"nome": "", "quando": "2026-08-01T23:59:00-03:00"},
+            {"nome": "Término de S3", "quando": "2026-08-16T23:59:00-03:00"}]
+checa(SA.resumo_fontes({"eventos": sem_nome, "courses": []})["eventos_uteis"] == 1,
+      "a saúde conta só os eventos que têm nome")
+
 print("\n== Cobrança de avaliação some quando o laboratório está na sub-seção ==")
 
 def curso_quinzena(avaliacao_pendente):

@@ -653,13 +653,36 @@ interativo" saiu de "sem prazo" e passou a exibir "faça antes de 09/08, é ele
 que destrava o Q2 Módulo 4". O Módulo 4 aparece como alerta bloqueado com a
 data. Nenhuma linha nova apareceu para a Quinzena 1.
 
-### Etapa 5 — Endurecer as fontes frágeis
+### Etapa 5 — Endurecer as fontes frágeis · FEITA em 04/08/2026
 
-Cronograma pelo `.ics` com a tabela como reserva; `CRONOGRAMA_PADRAO` derivado
-da data corrente; autor institucional com validade e reconfirmação; limpeza dos
-eventos sem nome junto com a mudança do contador de saúde.
+**Autor institucional com validade.** O registro só crescia: quem postasse uma
+vez num fórum "Avisos" virava fonte oficial para sempre, e as datas dessa
+pessoa passavam a valer com confiança alta. Agora guarda-se **quando** cada
+autor foi visto, e quem some por mais de `VALIDADE_AUTOR_DIAS` (90) deixa de
+ser fonte. Formato antigo (lista) é convertido na leitura, sem perder o que já
+havia.
 
-*Aceite:* suíte verde, e uma rodada real sem queda de contagem.
+**Cronograma de reserva não fica preso a um bimestre.** A URL estava fixa em
+`cronograma_regular_3.html`. Na virada do bimestre a reserva aplicaria um
+calendário inteiro de datas vencidas, em silêncio. Agora sai da data corrente.
+
+Só que derivar bimestre de mês é palpite, e palpite que acerta uma página
+válida com datas erradas é pior que erro visível. Então **quem lê o cronograma
+confere se as semanas cercam a data de hoje** (com 30 dias de margem) e
+descarta o que não cobre. Vale para qualquer cronograma, inclusive o que a
+disciplina publica: se ela linkar um cronograma velho, isso aparece.
+
+**Eventos sem nome saíram do artefato.** A grade do mês devolve `data-event-id`
+que a lista de próximos eventos não descreve: eram 30 de 42 registros sem nome,
+sem URL e sem atividade. Não viravam ação, só engordavam o JSON público.
+
+A limpeza esbarrou na própria saúde: ela reprova fonte que cai para menos da
+metade da leitura anterior, então cortar 30 de 42 faria a rodada seguinte
+falhar fechado sem motivo real. A checagem passou a usar `eventos_uteis`
+(eventos com nome), chave nova e sem histórico, que fica sem baseline na
+primeira rodada e protege a partir da segunda.
+
+*Aceite:* suíte verde, incluindo o teste dourado com a chave nova congelada.
 
 ### Etapa 6 — Prova presencial
 

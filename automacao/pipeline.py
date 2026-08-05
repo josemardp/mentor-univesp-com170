@@ -10,7 +10,7 @@ from playwright.sync_api import sync_playwright
 import sessao
 from configuracao import (
     BR_TZ,
-    CRONOGRAMA_PADRAO,
+    cronograma_padrao,
     MAX_DISCUSSOES_POR_RUN,
     MAX_ENTREGAS_CONFERIDAS,
     MAX_ITENS_CONFERIDOS,
@@ -341,7 +341,7 @@ def executar_coleta(estado, anterior=None):
 
             url_cronograma = links.get("cronograma")
             if not url_cronograma and modelo == "regular":
-                url_cronograma = CRONOGRAMA_PADRAO
+                url_cronograma = cronograma_padrao(hoje)
             resultado_cronograma = cronograma.resultado(
                 page,
                 url_cronograma,
