@@ -593,13 +593,28 @@ zero e não como defeito do guia. Disciplina cujo boletim não lista atividade
 da COM170 explicado, o elogio do facilitador na S2 - Ferramenta para Envio, e a
 S2 do COM100 marcada como sem entrega registrada.
 
-### Etapa 3 — Participação da COM170
+### Etapa 3 — Participação da COM170 · FEITA em 04/08/2026
 
-Ler `ativa.univesp.br/lti/progress` (a sessão do AVA já autentica) e publicar os
-cinco critérios da quinzena corrente, o que falta e o perfil temporal.
+`fontes/participacao.py`. O item "Meu Progresso de Participação" é um
+lançamento LTI: navegar até ele **abre uma aba nova** em `ativa.univesp.br`, e
+a leitura precisa capturar a página que nasce (`context.expect_page`), não a
+que foi navegada. Se nenhuma aba nascer, procura entre as já abertas antes de
+desistir.
 
-*Aceite:* o guia mostra "Q2: módulos 1 a 4, faltam 3" e avisa quando a quinzena
-passa da metade com participação concentrada num dia só.
+Publica por disciplina: resultado da quinzena corrente, perfil temporal,
+critérios um a um com a situação, e o panorama das sete quinzenas. A aba "Como
+estou" mostra isso acima das notas.
+
+O perfil temporal ganhou frase explicando o que ele mede, porque é a régua
+menos óbvia: a ferramenta considera **como as interações se distribuem na
+quinzena**, então entregar tudo no último dia pontua menos mesmo entregando
+tudo.
+
+Como o boletim, participação **não bloqueia a publicação**: é fonte que
+acrescenta leitura, e sua ausência não esconde prazo.
+
+*Aceite:* o guia mostra "Q1 - Resultado final · Progresso muito avançado",
+perfil temporal "No prazo", os critérios atendidos e o panorama Q1 a Q7.
 
 ### Etapa 4 — Prazo herdado por quem destrava
 

@@ -34,7 +34,7 @@ def resumo_fontes(dados):
 # prova), nunca menos — o oposto de uma fonte de prazo, cuja ausência esconde
 # obrigação. Em 04/08/2026 o boletim de uma disciplina não renderizou e a
 # rodada inteira virou "coleta_incompleta", segurando um retrato bom.
-FONTES_QUE_NAO_BLOQUEIAM = ("boletim",)
+FONTES_QUE_NAO_BLOQUEIAM = ("boletim", "participacao")
 
 
 def validar_cobertura(dados, anterior):

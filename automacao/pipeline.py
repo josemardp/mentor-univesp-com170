@@ -26,6 +26,7 @@ from fontes import (
     instrucoes,
     itens,
     notificacoes,
+    participacao,
 )
 from fontes.moodle import FalhaFonte
 from fontes.moodle import user_id
@@ -318,6 +319,7 @@ def executar_coleta(estado, anterior=None):
         erros_estrutura = []
         resultados_cronograma = []
         resultados_boletim = []
+        resultados_participacao = []
         diagnosticos_forum = []
         indefinidos = verificados = nao_entregues = 0
         orcamento = MAX_DISCUSSOES_POR_RUN
@@ -360,17 +362,24 @@ def executar_coleta(estado, anterior=None):
             )
 
             cache_boletins = cache_fontes.setdefault("boletins", {})
+            cache_medias = cache_fontes.setdefault("boletim_medias", {})
+            chave_curso = str(descoberto["id"])
             resultado_boletim = boletim.resultado(
                 page,
                 descoberto["id"],
                 checked_at,
-                cache=cache_boletins.get(str(descoberto["id"])),
+                cache=cache_boletins.get(chave_curso),
             )
             resultados_boletim.append(resultado_boletim)
+            media_boletim = (resultado_boletim.detalhes or {}).get("media")
             if resultado_boletim.status == "live":
-                cache_boletins[str(descoberto["id"])] = (
-                    resultado_boletim.dados
-                )
+                cache_boletins[chave_curso] = resultado_boletim.dados
+                cache_medias[chave_curso] = media_boletim
+            elif media_boletim is None:
+                # Leitura falhou e as notas vieram do cache. A média mora só
+                # na telemetria, então sem guardá-la à parte a aba "Como
+                # estou" perdia a linha da disciplina inteira.
+                media_boletim = cache_medias.get(chave_curso)
             notas_por_cmid = resultado_boletim.dados or {}
             for secao in secoes:
                 numero_semana = None
@@ -511,6 +520,20 @@ def executar_coleta(estado, anterior=None):
                     "entrega(s) suspeita(s) ficaram sem conferência"
                 )
 
+            cache_participacao = cache_fontes.setdefault("participacao", {})
+            resultado_participacao = participacao.resultado(
+                page,
+                secoes,
+                checked_at,
+                cache=cache_participacao.get(chave_curso),
+            )
+            if resultado_participacao.status == "live":
+                cache_participacao[chave_curso] = (
+                    resultado_participacao.dados
+                )
+            if resultado_participacao.status != "nao_aplicavel":
+                resultados_participacao.append(resultado_participacao)
+
             try:
                 paginas_instrucao = instrucoes.ler(page, secoes, hoje)
             except FalhaFonte as erro:
@@ -530,11 +553,10 @@ def executar_coleta(estado, anterior=None):
                     "paginas_instrucao": paginas_instrucao,
                     "boletim": {
                         "status": resultado_boletim.status,
-                        "media": (resultado_boletim.detalhes or {}).get(
-                            "media"
-                        ),
+                        "media": media_boletim,
                         "itens": len(notas_por_cmid),
                     },
+                    "participacao": resultado_participacao.dados,
                     "sections": secoes,
                 }
             )
@@ -629,6 +651,9 @@ def executar_coleta(estado, anterior=None):
     agregado_boletim = _status_agregado(
         resultados_boletim, checked_at, nao_aplicavel=True
     )
+    agregado_participacao = _status_agregado(
+        resultados_participacao, checked_at, nao_aplicavel=True
+    )
 
     resultados_finais = {
         "disciplinas": descoberta,
@@ -637,6 +662,7 @@ def executar_coleta(estado, anterior=None):
         "foruns": resultado_forum,
         "itens": resultado_itens,
         "boletim": agregado_boletim,
+        "participacao": agregado_participacao,
         "notificacoes": resultado_sinais,
     }
     status_fontes = {
@@ -655,7 +681,8 @@ def executar_coleta(estado, anterior=None):
     degradadas = [
         nome
         for nome, resultado in resultados_finais.items()
-        if resultado.status in ("falhou", "degradado") and nome != "boletim"
+        if resultado.status in ("falhou", "degradado")
+        and nome not in ("boletim", "participacao")
     ]
     return {
         "courses": cursos,

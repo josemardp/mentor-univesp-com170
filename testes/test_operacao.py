@@ -704,6 +704,54 @@ checa('data-tab="notas"' in R.render_tabs(dados_notas),
 checa('data-tab="notas"' not in R.render_tabs({"courses": [], "acoes": []}),
       "e não entra quando não há")
 
+print("\n== Participação da COM170 (ativa.univesp.br) ==")
+
+from fontes import participacao as PA  # noqa: E402
+
+# Texto real da ferramenta, lido em 04/08/2026.
+VISAO_REAL = ["Visão geral", "Meu progresso de participação",
+ "Última atualização: 04/08/2026 às 18:07", "Quinzena atual",
+ "Q1 - Resultado final", "Progresso muito avançado",
+ "Todos os critérios previstos para esta quinzena foram identificados.",
+ "Ver detalhes da Quinzena 1", "Panorama das sete quinzenas",
+ "Q1", "Final", "Q2", "Ainda não iniciada", "Q3", "Ainda não iniciada"]
+DETALHE_REAL = ["Q1", "Final", "Perfil temporal", "No prazo",
+ "Cobertura de conteúdos", "atendido", "Regularidade de acesso", "atendido"]
+
+v = PA._visao_geral(VISAO_REAL)
+checa(v.get("atualizado_em") == "04/08/2026 às 18:07",
+      "lê quando a própria ferramenta atualizou")
+checa(v["quinzena_atual"]["progresso"] == "Progresso muito avançado",
+      "lê o resultado da quinzena corrente")
+checa([q["quinzena"] for q in v["quinzenas"]] == ["Q1", "Q2", "Q3"]
+      and v["quinzenas"][1]["estado"] == "Ainda não iniciada",
+      "lê o panorama das quinzenas sem confundir rótulo com estado")
+
+d = PA._visao_geral(DETALHE_REAL)
+checa(d["perfil_temporal"] == "No prazo",
+      "lê o perfil temporal, que é o critério de distribuição")
+checa([c["nome"] for c in d["criterios"]]
+      == ["Cobertura de conteúdos", "Regularidade de acesso"],
+      "lê os critérios com a situação de cada um")
+
+checa(PA.item_de_participacao([{"items": [
+        {"type": "lti", "label": "Meu Progresso de Participação",
+         "url": "#p"}]}])["url"] == "#p",
+      "acha o item de participação pelo rótulo")
+checa(PA.item_de_participacao([{"items": [
+        {"type": "lti", "label": "Live com facilitador", "url": "#l"}]}])
+      is None,
+      "não confunde com outro item de ferramenta externa")
+
+html_p = R.render_participacao({"courses": [{"code": "COM170",
+    "participacao": {**v, **d}}]})
+checa("Progresso muito avançado" in html_p and "No prazo" in html_p,
+      "o site mostra o resultado e o perfil temporal")
+checa("Cobertura de conteúdos" in html_p,
+      "e mostra os critérios um a um")
+checa(R.render_participacao({"courses": [{"code": "X"}]}) == "",
+      "disciplina sem a ferramenta não gera bloco")
+
 print("\n== Vencimento não é carência ==")
 
 import pipeline as P  # noqa: E402

@@ -680,6 +680,64 @@ def render_higiene(data):
             f'<ul class="tasklist">{"".join(li)}</ul>')
 
 
+def render_participacao(data):
+    """Placar oficial de participação da COM170, lido fora do Moodle.
+
+    Metade da nota da disciplina sai daqui, e a régua não é só "entregou":
+    conta a distribuição das interações ao longo da quinzena. Sem isto à
+    vista, dá pra entregar tudo no último dia e perder ponto sem saber.
+    """
+    blocos = []
+    for c in data.get("courses", []):
+        p = c.get("participacao") or {}
+        atual = p.get("quinzena_atual") or {}
+        if not (atual or p.get("criterios") or p.get("quinzenas")):
+            continue
+        linhas = []
+        if atual:
+            linhas.append(
+                f'<div class="acao-txt"><b>{esc(atual.get("rotulo") or "")}</b>'
+                f' · {esc(atual.get("progresso") or "")}</div>'
+            )
+            if atual.get("detalhe"):
+                linhas.append(
+                    f'<div class="acao-pe">{esc(atual["detalhe"])}</div>'
+                )
+        if p.get("perfil_temporal"):
+            linhas.append(
+                '<div class="acao-pe">Perfil temporal: '
+                f'<b>{esc(p["perfil_temporal"])}</b>. A ferramenta considera '
+                'como as interações se distribuem na quinzena, não só se você '
+                'entregou.</div>'
+            )
+        criterios = "".join(
+            f'<li><span class="status '
+            f'{"ok" if _sem_acento(cr.get("situacao", "")).startswith("atendido") else "pend"}">'
+            f'{esc(cr.get("situacao") or "")}</span>'
+            f'<span class="tlabel">{esc(cr.get("nome") or "")}</span></li>'
+            for cr in (p.get("criterios") or [])
+        )
+        if criterios:
+            linhas.append(f'<ul class="tasklist">{criterios}</ul>')
+        panorama = " · ".join(
+            f'{esc(q.get("quinzena") or "")}: {esc(q.get("estado") or "")}'
+            for q in (p.get("quinzenas") or [])[:7]
+        )
+        if panorama:
+            linhas.append(f'<div class="acao-pe">{panorama}</div>')
+        if p.get("atualizado_em"):
+            linhas.append(
+                '<div class="acao-pe">A própria ferramenta atualiza de tempos '
+                f'em tempos. Última atualização dela: {esc(p["atualizado_em"])}.'
+                '</div>'
+            )
+        blocos.append(
+            f'<h3 class="grupo">Participação · {esc(c.get("code") or "")}</h3>'
+            f'<ul class="acoes"><li class="acao">{"".join(linhas)}</li></ul>'
+        )
+    return "".join(blocos)
+
+
 def render_notas(data):
     """Aba "Como estou": nota por atividade e devolutiva do facilitador.
 
@@ -739,11 +797,13 @@ def render_notas(data):
                           'boletim.</div></li>')
         blocos.append(f'<h3 class="grupo">{cabecalho}</h3>'
                       f'<ul class="acoes">{"".join(linhas)}</ul>')
-    if not blocos:
+    participacao_html = render_participacao(data)
+    if not blocos and not participacao_html:
         return ""
     return ('<p class="sub" style="margin:0 0 10px;">Lido do boletim de cada '
             'disciplina. Nota em branco numa atividade que vale nota quer '
             'dizer que o AVA ainda não registrou entrega ou correção.</p>'
+            + participacao_html
             + "".join(blocos))
 
 
