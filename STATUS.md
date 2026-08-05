@@ -733,6 +733,14 @@ pendência, e não deve voltar como cobrança em sessão futura.
 
 ## Decisões que valem lembrar
 
+- **Suíte verde não é prova de que funciona.** Em 04/08/2026 três defeitos
+  passaram por todos os testes e falharam no AVA: o selo do Moodle aceito como
+  entrega, a tabela de notas que monta depois da página, e o texto de aviso
+  cortado em 400 caracteres. Nos três casos o teste usava um dado gentil que eu
+  mesmo escrevi. Quando um teste cobre leitura do AVA, o corpo dele tem que ser
+  o texto real, copiado da página, com truncamento e quebras e tudo.
+- **Rodar contra o AVA de verdade e conferir a saída** é o único passo que pegou
+  esses três. Vale especialmente na virada de quinzena e de bimestre.
 - **Prazo nunca é estimado.** Foi o erro original e não deve voltar.
 - **Item fechado sai da fila** e vai pro bloco recolhido "já encerrou".
 - **Seção bloqueada com prazo vira alerta**, senão o item mais urgente ficaria
