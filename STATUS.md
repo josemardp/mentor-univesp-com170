@@ -616,14 +616,42 @@ acrescenta leitura, e sua ausência não esconde prazo.
 *Aceite:* o guia mostra "Q1 - Resultado final · Progresso muito avançado",
 perfil temporal "No prazo", os critérios atendidos e o panorama Q1 a Q7.
 
-### Etapa 4 — Prazo herdado por quem destrava
+### Etapa 4 — Prazo herdado por quem destrava · FEITA em 04/08/2026
 
-Seção bloqueada passa a gerar item com `bloqueio`, para que a cadeia de
-dependência tenha alvo. Os SCORM que destravam o Módulo 4 herdam prioridade
-(nunca prazo, a regra antiga continua valendo).
+O plano original não sobrevivia ao contato com o AVA: **seção bloqueada não
+traz item nenhum** (o Moodle não renderiza o conteúdo de seção travada), então
+não havia o que gerar. O alvo com prazo tinha que vir de outro lugar.
 
-*Aceite:* "Q2 M1 - tokenizador" sai de "sem prazo" e ganha "faça antes de 09/08,
-é ele que destrava o Módulo 4".
+Veio da tabela. A página de instruções da quinzena tem um calendário com
+legenda ("Calendário da Quinzena 2, de 3 a 18 de agosto de 2026") e células
+marcadas por classe: `prazo` no fechamento, `estudo`/`entrega`/`leitura` nas
+etapas. Isso é **estrutura, não prosa**: o dia vem do número da célula, o mês e
+o ano vêm da legenda, o rótulo vem escrito ("PRAZO MÓDULO 4"). Por isso estes
+prazos nascem com **confiança alta**, ao contrário do resto de
+`fontes/instrucoes.py`, que continua indo para "confirme se é prazo".
+
+Três defeitos apareceram no caminho, todos de identidade de seção:
+
+1. **`FAMILIA_RE` não casa título prefixado.** "Q2 Módulo 4" começa por
+   dígito depois do Q, e o padrão exige começar por não-dígito. O prefixo
+   passa a ser removido antes da comparação.
+2. **"Módulo 4" existe em toda quinzena.** Sem qualificar, o prazo de 09/08
+   grudou no Módulo 4 da Quinzena 1, que encerrou. O escopo vindo da tabela
+   carrega `quinzena`, e a regra ficou estrita nos dois sentidos: escopo com
+   quinzena só cobre seção daquela quinzena, e escopo sem quinzena (avisos
+   antigos) não invade a quinzena nova. Sem a segunda metade, o aviso sobre
+   "Módulo 6 e 7" da Quinzena 1 passou a cobrar o Q2 Módulo 6, que sequer
+   abriu.
+3. **A cadeia de desbloqueio lia o marcador errado.** "Q2 M3 - Alucinação"
+   tem dois marcadores, e `secao_do_predecessor` pegava o primeiro: entendia
+   "quinzena 2" onde devia entender "módulo 3", e a cadeia parava no lugar
+   errado. Agora o módulo vem do último marcador e o primeiro diz em qual
+   quinzena procurar.
+
+*Aceite, verificado com os dados reais:* "Q2 M1 - Atividade: tokenizador
+interativo" saiu de "sem prazo" e passou a exibir "faça antes de 09/08, é ele
+que destrava o Q2 Módulo 4". O Módulo 4 aparece como alerta bloqueado com a
+data. Nenhuma linha nova apareceu para a Quinzena 1.
 
 ### Etapa 5 — Endurecer as fontes frágeis
 

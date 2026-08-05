@@ -704,6 +704,37 @@ checa('data-tab="notas"' in R.render_tabs(dados_notas),
 checa('data-tab="notas"' not in R.render_tabs({"courses": [], "acoes": []}),
       "e não entra quando não há")
 
+print("\n== Prazo da quinzena e cadeia de desbloqueio (Etapa 4) ==")
+
+from dominio.prazos import casar_prazos, escopo_cobre  # noqa: E402
+from dominio.dependencias import secao_do_predecessor  # noqa: E402
+
+esc_q2 = {"familia": "modulo", "numeros": [4], "quinzena": 2, "txt": ""}
+esc_sem = {"familia": "modulo", "numeros": [6, 7], "txt": ""}
+checa(escopo_cobre(esc_q2, "Q2 Módulo 4") is True,
+      "prazo da Quinzena 2 cobre a seção prefixada daquela quinzena")
+checa(escopo_cobre(esc_q2, "Módulo 4") is False,
+      "e não cobre o Módulo 4 da quinzena anterior, que já encerrou")
+checa(escopo_cobre(esc_sem, "Módulo 6") is True,
+      "escopo de aviso antigo continua casando com o título sem prefixo")
+checa(escopo_cobre(esc_sem, "Q2 Módulo 6") is False,
+      "e não invade a quinzena nova, que sequer abriu")
+
+prazo_q2 = {"rotulo": "Prazo módulo 4", "quando": "2026-08-09T23:59:00-03:00",
+            "tipo": "fim", "confianca": "alta", "escopo": esc_q2, "frase": ""}
+checa([p["rotulo"] for p in casar_prazos("Q2 Módulo 4", [prazo_q2])]
+      == ["Prazo módulo 4"],
+      "o casamento entrega o prazo à seção certa")
+checa(casar_prazos("Módulo 4", [prazo_q2]) == [],
+      "a reserva por rótulo não atropela o escopo que já disse a quinzena")
+
+titulos = ["Quinzena 1", "Módulo 3", "Quinzena 2", "Q2 Módulo 2", "Q2 Módulo 3"]
+checa(secao_do_predecessor("Q2 M3 - Alucinação: o teste", titulos)
+      == "Q2 Módulo 3",
+      "o módulo vem do último marcador, não do prefixo da quinzena")
+checa(secao_do_predecessor("M3 - Alucinação", titulos) == "Módulo 3",
+      "rótulo sem prefixo continua achando a seção sem prefixo")
+
 print("\n== Participação da COM170 (ativa.univesp.br) ==")
 
 from fontes import participacao as PA  # noqa: E402

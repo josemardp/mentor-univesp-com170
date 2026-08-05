@@ -17,16 +17,42 @@ def predecessor_de(bloqueio):
     return encontrado.group(1).strip(" .:-") if encontrado else None
 
 
+MARCADOR_RE = re.compile(r"\b([A-Za-zÀ-ÿ])\s*0*(\d+)\b")
+PREFIXO_RE = re.compile(r"^\s*([A-Za-zÀ-ÿ])\s*0*(\d+)\s+")
+
+
 def secao_do_predecessor(predecessor, titulos):
-    encontrado = re.match(
-        r"\s*([A-Za-zÀ-ÿ]{1,12})\s*0*(\d+)", predecessor or ""
-    )
-    if not encontrado:
+    """De "Q2 M3 - Alucinação..." para a seção "Q2 Módulo 3".
+
+    A partir da Quinzena 2 tudo ganhou prefixo, e o rótulo do item traz dois
+    marcadores: a quinzena e o módulo. Lendo o primeiro, "Q2 M3" virava
+    "quinzena 2" e a cadeia de desbloqueio parava no lugar errado. Quem
+    identifica o módulo é o último marcador; o primeiro, quando existe, diz
+    em qual quinzena procurar.
+    """
+    cabeca = (predecessor or "").split(" - ")[0]
+    marcadores = MARCADOR_RE.findall(cabeca)
+    if not marcadores:
         return None
-    inicial = sem_acento(encontrado.group(1))[:1]
-    numero = int(encontrado.group(2))
+    inicial = sem_acento(marcadores[-1][0])[:1]
+    numero = int(marcadores[-1][1])
+    prefixo = marcadores[0] if len(marcadores) > 1 else None
     for titulo in titulos:
-        secao = FAMILIA_RE.match(titulo or "")
+        alvo = titulo or ""
+        if prefixo:
+            achado = PREFIXO_RE.match(alvo)
+            if not achado:
+                continue
+            mesma_letra = (
+                sem_acento(achado.group(1))[:1] == sem_acento(prefixo[0])[:1]
+            )
+            if not (mesma_letra and int(achado.group(2)) == int(prefixo[1])):
+                continue
+            alvo = alvo[achado.end():]
+        elif PREFIXO_RE.match(alvo):
+            # Predecessor sem prefixo não aponta para seção de outra quinzena.
+            continue
+        secao = FAMILIA_RE.match(alvo)
         if (
             secao
             and int(secao.group(2)) == numero

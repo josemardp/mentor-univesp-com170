@@ -237,10 +237,39 @@ def encerra_escopo(fragmento):
     return not any(palavra in rotulo for palavra in PALAVRAS_FASE)
 
 
+# A partir da Quinzena 2 o AVA prefixa a seção com a quinzena: o Módulo 4 se
+# chama "Q2 Módulo 4". Sem tirar o prefixo, o padrão de família nem casa,
+# porque ele exige que o título comece por não-dígito.
+PREFIXO_QUINZENA_RE = re.compile(r"^q(\d+)\s+", re.IGNORECASE)
+
+
 def escopo_cobre(escopo, titulo_secao):
+    """O prazo é desta seção?
+
+    "Módulo 4" existe em toda quinzena. Um prazo que veio do calendário da
+    Quinzena 2 carrega ``quinzena: 2`` e só cobre seções daquela quinzena,
+    senão a data de 09/08 grudaria no Módulo 4 da Quinzena 1, que encerrou.
+    Escopo de aviso, que não diz a quinzena, continua casando pelos dois
+    formatos de título.
+    """
     if not escopo:
         return False
-    encontrado = FAMILIA_RE.match(titulo_secao or "")
+    titulo = (titulo_secao or "").strip()
+    prefixo = PREFIXO_QUINZENA_RE.match(titulo)
+    quinzena_do_titulo = int(prefixo.group(1)) if prefixo else None
+    if prefixo:
+        titulo = titulo[prefixo.end():]
+    exigida = escopo.get("quinzena")
+    if exigida is not None:
+        # Prazo que sabe de qual quinzena é só cobre seções daquela quinzena.
+        if quinzena_do_titulo != exigida:
+            return False
+    elif quinzena_do_titulo is not None:
+        # E prazo que não sabe não invade a quinzena nova: o aviso sobre
+        # "Módulo 6 e 7" da Quinzena 1 chegou a cobrar o Q2 Módulo 6, que
+        # sequer abriu.
+        return False
+    encontrado = FAMILIA_RE.match(titulo)
     if not encontrado:
         return False
     familia = sem_acento(encontrado.group(1)).strip().rstrip("s")
@@ -378,9 +407,14 @@ def casar_prazos(titulo_secao, prazos_aviso, so_confiaveis=True):
         # live não pertence a um módulo, e casar por seção nunca acharia.
         if prazo.get("tipo") in ("inicio", "compromisso"):
             continue
-        if escopo_cobre(prazo.get("escopo"), titulo_secao) or chave in sem_acento(
-            prazo.get("rotulo") or ""
-        ):
+        escopo = prazo.get("escopo") or {}
+        cobre = escopo_cobre(escopo, titulo_secao)
+        # A reserva por rótulo ("Módulo 4" aparece no texto do prazo) não pode
+        # atropelar um escopo que já disse a quinzena: senão o prazo de
+        # 09/08 da Quinzena 2 voltava a cair no Módulo 4 da Quinzena 1.
+        if not cobre and escopo.get("quinzena") is not None:
+            continue
+        if cobre or chave in sem_acento(prazo.get("rotulo") or ""):
             saida.append(prazo)
     saida.sort(key=lambda item: item["quando"])
     if not so_confiaveis:
