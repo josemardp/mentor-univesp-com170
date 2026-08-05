@@ -28,6 +28,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_PATH = ROOT / "docs" / "data.json"
+ULTIMO_ENVIO_PATH = ROOT / "automacao" / ".ultimo_email_enviado"
 SITE = "https://esdraaline.github.io/mentor-univesp-com170/"
 BR_TZ = timezone(timedelta(hours=-3))
 
@@ -277,6 +278,16 @@ def main():
         print(f"::error::{mensagem}")
         return 2
 
+    # O publication_id e um timestamp, muda a cada execucao: nao serve pra
+    # saber se ja mandei hoje. Reenvio (rerun manual, retry de job que falhou
+    # depois deste passo) sem essa trava foi o que gerou 8 alertas iguais no
+    # mesmo dia em 04/08/2026. A trava e por data de Brasilia, nao por conteudo:
+    # a intencao e sempre um e-mail por dia, mesmo que o guia mude ao longo dele.
+    hoje_str = datetime.now(BR_TZ).strftime("%Y-%m-%d")
+    if ULTIMO_ENVIO_PATH.exists() and ULTIMO_ENVIO_PATH.read_text(encoding="utf-8").strip() == hoje_str:
+        print(f"E-mail de hoje ({hoje_str}) ja foi enviado antes. Pulando para nao duplicar.")
+        return 0
+
     data = json.loads(DATA_PATH.read_text(encoding="utf-8"))
     msg = EmailMessage()
     msg["Subject"] = assunto(data)
@@ -289,6 +300,7 @@ def main():
             s.starttls(context=ssl.create_default_context())
             s.login(user, senha)
             s.send_message(msg)
+        ULTIMO_ENVIO_PATH.write_text(hoje_str, encoding="utf-8")
         print(f"E-mail enviado para {para}.")
     except Exception as e:
         # Antes devolvia 0 aqui "pra nao derrubar a Action". O efeito era pior:

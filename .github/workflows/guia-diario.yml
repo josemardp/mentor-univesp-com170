@@ -127,6 +127,23 @@ jobs:
             echo "Rodada intermediária: só atualizo o site, o e-mail é o da manhã."
           fi
 
+      # Registra a data do envio para o próprio script pular reenvio se este
+      # job for re-executado no mesmo dia (rerun manual, retry após falha nos
+      # passos seguintes). Sem isso, um rerun manda o e-mail de novo do zero.
+      - name: Registrar data do envio
+        run: |
+          git config user.name "guia-univesp-bot"
+          git config user.email "actions@users.noreply.github.com"
+          if [ -f automacao/.ultimo_email_enviado ]; then
+            git add automacao/.ultimo_email_enviado
+            if git diff --cached --quiet; then
+              echo "Sem mudança na data do último envio."
+            else
+              git commit -m "Registra data do envio do e-mail diário"
+              git push
+            fi
+          fi
+
       # Falha visível: se a leitura não foi confiável, a Action fica vermelha.
       # Silêncio aqui é o que faria o site dizer "tudo em dia" sem ter lido nada.
       - name: Verificar saúde da coleta
