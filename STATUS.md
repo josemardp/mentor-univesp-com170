@@ -684,11 +684,32 @@ primeira rodada e protege a partir da segunda.
 
 *Aceite:* suíte verde, incluindo o teste dourado com a chave nova congelada.
 
-### Etapa 6 — Prova presencial
+### Etapa 6 — Prova presencial · PARCIAL em 04/08/2026
 
-Vale 60% da nota e está fora do retrato. Precisa de coletor próprio para
-`acesso.univesp.br`, com credencial separada. Fica por último por ser o único
-item que depende de decidir onde guardar mais uma credencial.
+**Feito: a lacuna deixou de ser invisível.** `dominio/avaliacao.py` lê a
+composição da nota de aviso institucional já coletado, e a aba "Como estou"
+passa a mostrar, por disciplina, "40% AVA · 60% prova presencial" com a frase
+que faltava: *este guia acompanha só a parte do AVA; a data e o local saem no
+Sistema de Provas, que tem login separado*.
+
+Isso importa mais do que parece. Sem a linha, "está tudo em dia" soava como
+"está tudo em dia na disciplina", quando o robô só enxerga a menor metade.
+
+A regra não é chutada: só aparece quando **um mesmo aviso oficial declara os
+dois percentuais e eles somam 100**. Percentual solto não vira afirmação sobre
+a nota inteira, e post de colega não define regra de avaliação. Foi lida com
+sucesso nas duas redações que existem no AVA hoje ("40% - nota pela
+participação na fase de estudos (AVA)" no COM100, e "40% atividades
+avaliativas do AVA mais 60% da prova final" no LET110).
+
+**Não feito: a data da prova.** Continua fora do alcance, em
+`acesso.univesp.br`, com autenticação própria. O coletor exige decidir onde
+guardar mais uma credencial, e essa decisão é do Josemar. Enquanto isso o guia
+declara a ausência em vez de omiti-la.
+
+Quando for feito, o caminho já mapeado: o calendário do AVA não lista prova
+para estas disciplinas, e nenhum aviso trouxe data até agora, então a fonte
+tem mesmo que ser o Sistema de Provas.
 
 ### Manutenção que não é código
 

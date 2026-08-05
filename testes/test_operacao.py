@@ -704,6 +704,44 @@ checa('data-tab="notas"' in R.render_tabs(dados_notas),
 checa('data-tab="notas"' not in R.render_tabs({"courses": [], "acoes": []}),
       "e não entra quando não há")
 
+print("\n== Composição da nota e a lacuna da prova (Etapa 6) ==")
+
+from dominio.avaliacao import composicao_da_nota, lacuna_da_prova  # noqa: E402
+
+# Texto real do aviso do COM100, lido em 04/08/2026.
+aviso_com100 = {"autor": "facilitador", "autoridade": "institucional",
+    "url": "#c", "texto": "CRITÉRIOS DE AVALIAÇÃO Eixos de COMPUTAÇÂO e de "
+    "NEGÓCIOS E PRODUÇÃO 40% - nota pela participação na fase de estudos "
+    "(AVA) 60% - nota pelo desempenho nas provas presenciais (nos Polos)"}
+aviso_let110 = {"autor": "Paulo Otavio", "autoridade": "institucional",
+    "url": "#l", "texto": "sua nota de uma disciplina regular é composta por "
+    "40% atividades avaliativas do AVA mais 60% da prova final."}
+
+comp = composicao_da_nota({"avisos": [aviso_com100]})
+checa(comp and comp["ava"] == 40 and comp["prova"] == 60,
+      "lê 40/60 do aviso de critérios do COM100")
+comp2 = composicao_da_nota({"avisos": [aviso_let110]})
+checa(comp2 and comp2["ava"] == 40 and comp2["prova"] == 60,
+      "lê a mesma regra escrita de outro jeito, no LET110")
+checa(composicao_da_nota({"avisos": [
+        {"autoridade": "institucional", "texto": "a prova vale 60% da nota"}]})
+      is None,
+      "um percentual solto não vira afirmação sobre a nota inteira")
+checa(composicao_da_nota({"avisos": [
+        {**aviso_com100, "autoridade": "colega"}]}) is None,
+      "post de colega não define a regra de avaliação")
+checa(composicao_da_nota({"avisos": [
+        {"autoridade": "institucional",
+         "texto": "30% do AVA e 60% da prova presencial"}]}) is None,
+      "pesos que não fecham 100 são descartados em vez de exibidos")
+
+html_c = R.render_composicao({"courses": [
+    {"code": "COM100", "avisos": [aviso_com100]}]})
+checa("60% prova presencial" in html_c and "login separado" in html_c,
+      "o site diz o que não acompanha, em vez de omitir")
+checa(R.render_composicao({"courses": [{"code": "X", "avisos": []}]}) == "",
+      "sem aviso oficial, o guia fica calado sobre a composição")
+
 print("\n== Fontes endurecidas (Etapa 5) ==")
 
 from configuracao import cronograma_padrao  # noqa: E402

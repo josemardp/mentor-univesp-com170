@@ -680,6 +680,42 @@ def render_higiene(data):
             f'<ul class="tasklist">{"".join(li)}</ul>')
 
 
+def render_composicao(data):
+    """O que o guia acompanha da nota, e o que ele não acompanha.
+
+    Sem esta linha, "está tudo em dia" soa como "está tudo em dia na
+    disciplina", quando o robô só enxerga a menor metade: os 60% da prova
+    presencial ficam fora, num sistema com login próprio.
+    """
+    from dominio.avaliacao import lacuna_da_prova
+
+    linhas = []
+    for c in data.get("courses", []):
+        lacuna = lacuna_da_prova(c)
+        if not lacuna:
+            continue
+        origem = f'aviso de {esc(lacuna.get("autor") or "facilitador")}'
+        if lacuna.get("url"):
+            origem = (f'<a href="{esc(lacuna["url"])}" target="_blank" '
+                      f'rel="noopener">{origem}</a>')
+        linhas.append(
+            f'<li class="acao"><div class="acao-chips">'
+            f'<span class="status lock">{esc(c.get("code") or "")}</span>'
+            f'<span class="status ok">{lacuna["ava"]}% AVA</span>'
+            f'<span class="status pend">{lacuna["prova"]}% prova presencial'
+            '</span></div>'
+            '<div class="acao-pe">Este guia acompanha só a parte do AVA. A '
+            'prova presencial não é lida por ele: a data e o local saem no '
+            f'<a href="{esc(lacuna["onde"])}" target="_blank" '
+            'rel="noopener">Sistema de Provas</a>, que tem login separado.'
+            f'</div><div class="acao-pe">{origem}</div></li>'
+        )
+    if not linhas:
+        return ""
+    return ('<h3 class="grupo">Como a nota é composta</h3>'
+            f'<ul class="acoes">{"".join(linhas)}</ul>')
+
+
 def render_participacao(data):
     """Placar oficial de participação da COM170, lido fora do Moodle.
 
@@ -798,11 +834,13 @@ def render_notas(data):
         blocos.append(f'<h3 class="grupo">{cabecalho}</h3>'
                       f'<ul class="acoes">{"".join(linhas)}</ul>')
     participacao_html = render_participacao(data)
-    if not blocos and not participacao_html:
+    composicao_html = render_composicao(data)
+    if not (blocos or participacao_html or composicao_html):
         return ""
     return ('<p class="sub" style="margin:0 0 10px;">Lido do boletim de cada '
             'disciplina. Nota em branco numa atividade que vale nota quer '
             'dizer que o AVA ainda não registrou entrega ou correção.</p>'
+            + composicao_html
             + participacao_html
             + "".join(blocos))
 
