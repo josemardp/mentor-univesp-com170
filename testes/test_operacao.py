@@ -708,14 +708,22 @@ print("\n== Composição da nota e a lacuna da prova (Etapa 6) ==")
 
 from dominio.avaliacao import composicao_da_nota, lacuna_da_prova  # noqa: E402
 
-# Texto real do aviso do COM100, lido em 04/08/2026.
+# Texto REAL como o robô guarda, cortado em 400 caracteres e com o parágrafo
+# seguinte colado. A primeira versão deste teste usava frases curtas e passava
+# enquanto o dado de verdade falhava: a descrição do último percentual invadia
+# a frase seguinte e ficava ambígua entre prova e AVA.
 aviso_com100 = {"autor": "facilitador", "autoridade": "institucional",
-    "url": "#c", "texto": "CRITÉRIOS DE AVALIAÇÃO Eixos de COMPUTAÇÂO e de "
-    "NEGÓCIOS E PRODUÇÃO 40% - nota pela participação na fase de estudos "
-    "(AVA) 60% - nota pelo desempenho nas provas presenciais (nos Polos)"}
+    "url": "#c", "texto": "CRITÉRIOS DE AVALIAÇÃO \n\nEixos de COMPUTAÇÂO e de "
+    "NEGÓCIOS E PRODUÇÃO \n\n40% - nota pela participação na fase de estudos "
+    "(AVA) \xa0\n\n60% - nota pelo desempenho nas provas presenciais (nos "
+    "Polos)\xa0\n\nParticipação na fase de estudos (AVA): a nota será "
+    "atribuída com base na participação dos estudantes ao longo da disciplina"}
 aviso_let110 = {"autor": "Paulo Otavio", "autoridade": "institucional",
-    "url": "#l", "texto": "sua nota de uma disciplina regular é composta por "
-    "40% atividades avaliativas do AVA mais 60% da prova final."}
+    "url": "#l", "texto": "Olá, aluno (a)! Tudo bem?\n\nComo você já deve "
+    "saber, sua nota de uma disciplina regular é composta por 40% atividades "
+    "avaliativas do AVA mais 60% da prova final.\n\nTeremos atividades "
+    "avaliativas nas semanas 1 a 7, para que você acompanhe melhor seu "
+    "aprendizado ao longo de toda a disciplina."}
 
 comp = composicao_da_nota({"avisos": [aviso_com100]})
 checa(comp and comp["ava"] == 40 and comp["prova"] == 60,

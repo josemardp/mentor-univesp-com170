@@ -31,6 +31,28 @@ PERCENTUAL_RE = re.compile(r"(\d{1,3})\s*%")
 LIMITE_DESCRICAO = 90
 
 
+FIM_DE_FRASE = ("\n", ". ", ".\t", ";", " · ")
+
+
+def _ate_o_fim_da_frase(trecho):
+    """Corta na primeira quebra de frase.
+
+    O último percentual do aviso não tem outro percentual depois dele para
+    servir de parada, e a janela fixa invadia o parágrafo seguinte. No texto
+    real do COM100 isso fazia a descrição de "60%" carregar junto a palavra
+    "Participação" da frase seguinte, ficar ambígua entre prova e AVA, e a
+    regra inteira ser descartada.
+    """
+    corte = len(trecho)
+    for marca in FIM_DE_FRASE:
+        posicao = trecho.find(marca)
+        if 0 <= posicao < corte:
+            corte = posicao
+    if trecho[corte:corte + 1] == ".":
+        corte += 1
+    return trecho[:corte]
+
+
 def _percentuais(texto):
     achados = list(PERCENTUAL_RE.finditer(texto or ""))
     for indice, achado in enumerate(achados):
@@ -40,7 +62,7 @@ def _percentuais(texto):
             else len(texto)
         )
         trecho = texto[achado.end():fim][:LIMITE_DESCRICAO]
-        yield int(achado.group(1)), trecho
+        yield int(achado.group(1)), _ate_o_fim_da_frase(trecho)
 TERMOS_AVA = ("ava", "participacao", "fase de estudos", "atividades avaliativas")
 TERMOS_PROVA = ("prova", "presencia", "polo")
 
