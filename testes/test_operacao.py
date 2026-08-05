@@ -704,6 +704,43 @@ checa('data-tab="notas"' in R.render_tabs(dados_notas),
 checa('data-tab="notas"' not in R.render_tabs({"courses": [], "acoes": []}),
       "e não entra quando não há")
 
+print("\n== Cobrança de avaliação some quando o laboratório está na sub-seção ==")
+
+def curso_quinzena(avaliacao_pendente):
+    return {"code": "COM170", "modelo": "quinzenal", "id": 18922,
+            "avisos": [{"autor": "formador", "url": "#a",
+                        "autoridade": "institucional",
+                        "prazos": [{"rotulo": "avaliação por pares da Quinzena 1",
+                                    "quando": "2026-08-04T23:59:00-03:00",
+                                    "tipo": "fim", "hora_certa": True,
+                                    "confianca": "alta",
+                                    "frase": "prazos da avaliação por pares",
+                                    "escopo": {"familia": "quinzena",
+                                               "numeros": [1], "txt": ""}}]}],
+            "sections": [
+                {"id": "s1", "title": "Quinzena 1", "parent": None,
+                 "fase": "regular", "locked": None, "items": []},
+                {"id": "s7", "title": "Módulo 7", "parent": "s1",
+                 "fase": "regular", "locked": None, "items": [
+                    {"cmid": "173857", "label": "M7 - Revisão entre pares",
+                     "type": "workshop", "status": "Pendente",
+                     "conta_nota": True, "aberto": True, "enviado": True,
+                     "avaliacao_pendente": avaliacao_pendente, "url": "#w",
+                     "prazo": "2026-08-04T23:59:00-03:00",
+                     "prazo_fonte": "calendário do AVA"}]},
+            ]}
+
+ainda_falta = C.montar_acoes({"courses": [curso_quinzena(True)]},
+                             HOJE_EV, agora=AGORA)[0]
+checa(any("Avalie" in a["verbo"] for a in ainda_falta),
+      "com a avaliação pendente, a cobrança aparece")
+
+ja_avaliou = C.montar_acoes({"courses": [curso_quinzena(False)]},
+                            HOJE_EV, agora=AGORA)[0]
+checa(not [a for a in ja_avaliou if a["verbo"].startswith("Avalie")],
+      "depois de avaliar, o aviso da quinzena para de cobrar mesmo com o "
+      "laboratório numa sub-seção")
+
 print("\n== Prazo da quinzena e cadeia de desbloqueio (Etapa 4) ==")
 
 from dominio.prazos import casar_prazos, escopo_cobre  # noqa: E402

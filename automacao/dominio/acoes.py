@@ -117,31 +117,47 @@ def urgencia_de(prazo_iso, hoje, hora_certa=True, evento=False, agora=None):
     return "depois", f"vence {prazo:%d/%m}"
 
 
-def _workshop_ja_enviado(secao):
-    """Existe um Laboratório de Avaliação nesta seção que o aluno já enviou.
+def laboratorios_por_secao(curso):
+    """Laboratórios de cada seção, incluindo os das seções filhas.
+
+    O aviso do facilitador fala da quinzena inteira ("prazos da avaliação por
+    pares da Quinzena 1"), mas os laboratórios moram nos módulos, que são
+    sub-seções. Olhando só os itens da própria seção, a Quinzena 1 parece não
+    ter laboratório nenhum, e a cobrança sobrevive à entrega: em 04/08/2026 o
+    guia continuou pedindo "avalie hoje" depois da avaliação salva.
+    """
+    secoes = curso.get("sections") or []
+    filhos = {}
+    for secao in secoes:
+        filhos.setdefault(secao.get("parent"), []).append(secao)
+
+    def coletar(secao, nivel=0):
+        labs = [
+            item
+            for item in secao.get("items") or []
+            if item.get("type") == "workshop"
+        ]
+        if nivel < 6:
+            for filha in filhos.get(secao.get("id"), []):
+                labs.extend(coletar(filha, nivel + 1))
+        return labs
+
+    return {secao.get("id"): coletar(secao) for secao in secoes}
+
+
+def _workshop_ja_enviado(labs):
+    """Algum Laboratório desta seção (ou das filhas) já foi enviado.
 
     Selo "Concluído" do Moodle só fecha quando as 5 fases terminam pra ele,
     inclusive avaliar o trabalho de outro grupo — não serve pra saber se a
     entrega em si já foi feita. A fonte da verdade é ``item["enviado"]``,
     lido direto da página "Meu envio" (ver ``fontes/itens.estado_workshop``).
     """
-    return any(
-        item.get("type") == "workshop" and item.get("enviado") is True
-        for item in secao.get("items", [])
-    )
+    return any(item.get("enviado") is True for item in labs)
 
 
-def _workshop_avaliacao_feita(secao):
-    """Nenhum Laboratório desta seção tem avaliação por pares pendente.
-
-    Sem isto, o guia cobrava "avalie o trabalho do outro grupo" de quem já
-    tinha avaliado — e continuava cobrando até o prazo virar.
-    """
-    labs = [
-        item
-        for item in secao.get("items", [])
-        if item.get("type") == "workshop"
-    ]
+def _workshop_avaliacao_feita(labs):
+    """Nenhum Laboratório em jogo tem avaliação por pares pendente."""
     if not labs:
         return False
     return all(item.get("avaliacao_pendente") is False for item in labs)
@@ -498,6 +514,7 @@ def montar_acoes(dados, hoje, agora=None):
     resolvidos = set()
     for curso in dados["courses"]:
         quinzenas_antigas = quinzenas_encerradas(curso)
+        labs_por_secao = laboratorios_por_secao(curso)
         prazos_aviso = [
             {**prazo, "aviso": aviso}
             for aviso in curso.get("avisos", [])
@@ -601,9 +618,10 @@ def montar_acoes(dados, hoje, agora=None):
                 if urgencia == "vencido":
                     continue
                 verbo, coisa = fase_de(prazo)
-                if verbo == "Entregue" and _workshop_ja_enviado(secao):
+                labs = labs_por_secao.get(secao.get("id")) or []
+                if verbo == "Entregue" and _workshop_ja_enviado(labs):
                     continue
-                if verbo == "Avalie" and _workshop_avaliacao_feita(secao):
+                if verbo == "Avalie" and _workshop_avaliacao_feita(labs):
                     continue
                 # Dedup pelo que o Josemar vê. O facilitador postou o mesmo
                 # lembrete de 04/08 em dois fóruns no mesmo minuto, e a fila
