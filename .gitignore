@@ -5,3 +5,6 @@ segredos/
 __pycache__/
 *.pyc
 .venv/
+
+# Scratch de sessao (PDFs baixados para conferencia, nao fazem parte do guia)
+tmp/
