@@ -24,7 +24,7 @@ O **COM170 avançou para uma estrutura nova**: além das 4 Semanas do AIA, agora
 
 ## Pendências do Josemar
 
-- Responder a **S2 - Atividade Avaliativa do COM100** (fecha domingo 09/08 23:59; confirmado ao vivo: nenhuma tentativa enviada ainda).
+- ~~Responder a S2 - Atividade Avaliativa do COM100~~ feito em 08/08, nota 10,00/10,00 (confirmado ao vivo).
 - Responder a **S3 - Atividade Avaliativa do COM100** (abriu 03/08, fecha domingo 16/08 23:59; sem tentativa, sem urgência ainda).
 - Fazer as duas atividades do **COM170, Quinzena 2, Módulo 1** ("Atividade: tokenizador interativo" e "Atividade de embeddings: Mapa dos significados"): travam o acesso aos Módulos 2 a 6 da quinzena.
 - Regularizar o **S1 - Formulário de conhecimentos prévios do COM170** (segue pendente, mesmo caso desde julho: falar com SAE ou orientador de polo).
