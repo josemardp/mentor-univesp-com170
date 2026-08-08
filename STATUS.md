@@ -16,9 +16,18 @@ Secrets no repo `esdraaline/mentor-univesp-com170`: `AVA_USUARIO`, `AVA_SENHA`, 
 
 **Data da prova presencial** — única lacuna funcional aberta. Fica em `acesso.univesp.br`, com autenticação própria. Depende de uma decisão do Josemar: onde guardar mais uma credencial. Enquanto isso, o guia declara a ausência em vez de omiti-la ("40% AVA · 60% prova presencial", com aviso de que o guia só acompanha a parte do AVA).
 
+## Auditoria ao vivo (08/08/2026, 23:37 UTC)
+
+Conferido item por item nos quatro cursos (COM100, SOC100, LET110, COM170), entrando em cada atividade avaliativa em vez de confiar só no rótulo "Concluído" (esse rótulo do Moodle às vezes marca por visualização, não por envio).
+
+O **COM170 avançou para uma estrutura nova**: além das 4 Semanas do AIA, agora tem "Quinzena 1" e "Quinzena 2", com módulos que se destravam em sequência. Essa estrutura ainda não está mapeada nas referências da skill mentor-univesp (que são um retrato de 02/07/2026).
+
 ## Pendências do Josemar
 
-- Responder a **S2 - Atividade Avaliativa do COM100** (venceu 05/08, carência até 09/08; sem tentativa em 04/08).
+- Responder a **S2 - Atividade Avaliativa do COM100** (fecha domingo 09/08 23:59; confirmado ao vivo: nenhuma tentativa enviada ainda).
+- Responder a **S3 - Atividade Avaliativa do COM100** (abriu 03/08, fecha domingo 16/08 23:59; sem tentativa, sem urgência ainda).
+- Fazer as duas atividades do **COM170, Quinzena 2, Módulo 1** ("Atividade: tokenizador interativo" e "Atividade de embeddings: Mapa dos significados"): travam o acesso aos Módulos 2 a 6 da quinzena.
+- Regularizar o **S1 - Formulário de conhecimentos prévios do COM170** (segue pendente, mesmo caso desde julho: falar com SAE ou orientador de polo).
 - Apagar o Secret `AVA_STORAGE_STATE`, obsoleto desde 25/07.
 - Revisão semanal da mentora, ainda manual: escrever `docs/revisao.json` e rodar `python automacao/gerar_guia.py --render-only`.
 
