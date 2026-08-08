@@ -25,8 +25,8 @@ O **COM170 avançou para uma estrutura nova**: além das 4 Semanas do AIA, agora
 ## Pendências do Josemar
 
 - ~~Responder a S2 - Atividade Avaliativa do COM100~~ feito em 08/08, nota 10,00/10,00 (confirmado ao vivo).
+- **URGENTE — COM170, Quinzena 2: concluir o Módulo 4 até domingo 09/08, 23h59.** Prazo em destaque no calendário oficial da quinzena (página "Q2 - Instruções da Quinzena 2"). Os módulos destravam em sequência (M1 → M2 → M3 → M4) e o Módulo 1 ainda tem duas atividades pendentes ("Atividade: tokenizador interativo" e "Atividade de embeddings: Mapa dos significados"), então falta passar pelos quatro módulos até lá. Depois disso: 10 a 15/08 pra enviar os trabalhos individual e de grupo, 16 a 18/08 pra leitura entre colegas.
 - Responder a **S3 - Atividade Avaliativa do COM100** (abriu 03/08, fecha domingo 16/08 23:59; sem tentativa, sem urgência ainda).
-- Fazer as duas atividades do **COM170, Quinzena 2, Módulo 1** ("Atividade: tokenizador interativo" e "Atividade de embeddings: Mapa dos significados"): travam o acesso aos Módulos 2 a 6 da quinzena.
 - Regularizar o **S1 - Formulário de conhecimentos prévios do COM170** (segue pendente, mesmo caso desde julho: falar com SAE ou orientador de polo).
 - Apagar o Secret `AVA_STORAGE_STATE`, obsoleto desde 25/07.
 - Revisão semanal da mentora, ainda manual: escrever `docs/revisao.json` e rodar `python automacao/gerar_guia.py --render-only`.
@@ -47,3 +47,4 @@ O **COM170 avançou para uma estrutura nova**: além das 4 Semanas do AIA, agora
 - **Seção bloqueada com prazo vira alerta**, senão o item mais urgente fica invisível justo por estar travado.
 - **A urgência sobe pela cadeia de módulos:** o que destrava a etapa com prazo herda o prazo dela.
 - **O site é público**, então mensagem privada entra só como metadado (sem conteúdo) e post de fórum entra truncado, com link pro original.
+- **Prazo de módulo trancado não aparece na página do módulo, aparece na página de instruções da quinzena/semana.** Auditoria de 08/08 checou a atividade do Módulo 1 e concluiu "sem prazo visível", mas o prazo do Módulo 4 estava na página "Instruções da Quinzena" (id=215566), não na atividade em si. Conferir sempre a página de instruções/calendário da unidade inteira, não só os itens travados.
