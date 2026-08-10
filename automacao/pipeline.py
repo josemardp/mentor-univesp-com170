@@ -15,7 +15,7 @@ from configuracao import (
     MAX_ENTREGAS_CONFERIDAS,
     MAX_ITENS_CONFERIDOS,
 )
-from dominio.acoes import conta_nota
+from dominio.acoes import TIPOS_DE_ABERTURA, conta_nota
 from dominio.datas import sem_acento
 from fontes import (
     boletim,
@@ -107,16 +107,8 @@ def politica_publicacao(resultados, anterior, attempted_at):
     return saida
 
 
-def _prazo_por_cmid(eventos, agora_iso):
-    """O próximo evento de cada atividade, não um qualquer.
-
-    Uma mesma atividade tem vários eventos no calendário (abertura de envio,
-    fechamento de envio, abertura da avaliação, fechamento da avaliação). O
-    dicionário por compreensão guardava o último da lista, então o prazo
-    mostrado dependia da ordem em que o Moodle devolveu — um M6 já entregue
-    podia exibir a data de abertura como se fosse o prazo.
-    """
-    agora = datetime.fromisoformat(agora_iso)
+def _eventos_por_cmid(eventos):
+    """Todos os eventos de cada atividade, ordenados no tempo."""
     por_cmid = {}
     for evento in eventos:
         if not (evento.get("cmid") and evento.get("quando")):
@@ -126,12 +118,57 @@ def _prazo_por_cmid(eventos, agora_iso):
         except ValueError:
             continue
         por_cmid.setdefault(str(evento["cmid"]), []).append((quando, evento))
-    escolhidos = {}
-    for cmid, lista in por_cmid.items():
+    for lista in por_cmid.values():
         lista.sort(key=lambda par: par[0])
-        futuros = [evento for quando, evento in lista if quando >= agora]
-        escolhidos[cmid] = futuros[0] if futuros else lista[-1][1]
+    return por_cmid
+
+
+def _prazo_por_cmid(eventos, agora_iso):
+    """O próximo FECHAMENTO de cada atividade, nunca uma abertura.
+
+    Uma mesma atividade tem vários eventos no calendário (abertura de envio,
+    fechamento de envio, abertura da avaliação, fechamento da avaliação). Pegar
+    "o próximo" resolveu a ordem aleatória, mas não o papel: a abertura também
+    é um evento futuro, e virava prazo.
+    """
+    agora = datetime.fromisoformat(agora_iso)
+    escolhidos = {}
+    for cmid, lista in _eventos_por_cmid(eventos).items():
+        fins = [
+            (quando, evento)
+            for quando, evento in lista
+            if evento.get("tipo") not in TIPOS_DE_ABERTURA
+        ]
+        if not fins:
+            continue
+        futuros = [evento for quando, evento in fins if quando >= agora]
+        escolhidos[cmid] = futuros[0] if futuros else fins[-1][1]
     return escolhidos
+
+
+def janela_declarada(eventos, agora_iso):
+    """Ainda há prazo por vir nesta atividade? ``True``/``False``/``None``.
+
+    Resposta tirada do que o próprio Moodle declara no calendário, não de
+    frases soltas na página. Os dois Laboratórios da Quinzena 2 ficaram com
+    "abertura indefinida" em 09/08/2026 porque a página do Laboratório, antes
+    do primeiro envio, não diz nem que está aberta nem que fechou — mas o
+    calendário já dizia, com tipo e hora, que os envios fecham em 15/08 e as
+    avaliações em 18/08.
+
+    ``None`` continua sendo a resposta honesta quando não há evento com data
+    para esta atividade: a meta é ler melhor, nunca afirmar sem base.
+    """
+    agora = datetime.fromisoformat(agora_iso)
+    janela = {}
+    for cmid, lista in _eventos_por_cmid(eventos).items():
+        fins = [
+            quando
+            for quando, evento in lista
+            if evento.get("tipo") not in TIPOS_DE_ABERTURA
+        ]
+        janela[cmid] = any(quando >= agora for quando in fins) if fins else None
+    return janela
 
 
 def _semana_do_cronograma(cronograma_curso, numero_semana):
@@ -356,10 +393,11 @@ def executar_coleta(estado, anterior=None):
                 )
             cronograma_curso = resultado_cronograma.dados
 
-            prazo_por_cmid = _prazo_por_cmid(
-                eventos_por_curso.get(str(descoberto["id"]), []),
-                checked_at,
+            eventos_do_curso = eventos_por_curso.get(
+                str(descoberto["id"]), []
             )
+            prazo_por_cmid = _prazo_por_cmid(eventos_do_curso, checked_at)
+            janela_por_cmid = janela_declarada(eventos_do_curso, checked_at)
 
             cache_boletins = cache_fontes.setdefault("boletins", {})
             cache_medias = cache_fontes.setdefault("boletim_medias", {})
@@ -483,6 +521,19 @@ def executar_coleta(estado, anterior=None):
                     ]
                 else:
                     item["aberto"] = itens.item_aberto(page, item.get("url"))
+                # Só onde a página não afirmou nada. O calendário responde por
+                # último para nunca contradizer a atividade em si, e responde
+                # com o que o Moodle declarou — não com suposição sobre o que
+                # o silêncio da página quer dizer.
+                if item["aberto"] is None and item.get("cmid"):
+                    declarado = janela_por_cmid.get(str(item["cmid"]))
+                    if declarado is not None:
+                        item["aberto"] = declarado
+                        item["aberto_fonte"] = "calendário do AVA"
+                        if declarado is False:
+                            item["motivo_fechado"] = (
+                                "todos os prazos do calendário já passaram"
+                            )
                 verificados += 1
                 if item["aberto"] is None:
                     indefinidos += 1

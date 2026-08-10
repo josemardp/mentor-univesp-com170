@@ -836,6 +836,43 @@ checa(not [a for a in ja_avaliou if a["verbo"].startswith("Avalie")],
       "depois de avaliar, o aviso da quinzena para de cobrar mesmo com o "
       "laboratório numa sub-seção")
 
+print("\n== Abertura não é prazo, e o calendário resolve o indefinido ==")
+
+from pipeline import _prazo_por_cmid, janela_declarada  # noqa: E402
+
+# Os três eventos que o AVA publica para um Laboratório, com os tipos reais
+# lidos em 09/08/2026 (opensubmission / closesubmission / closeassessment).
+LAB = [
+    {"cmid": "215612", "tipo": "opensubmission",
+     "nome": "Q2 M7 - início de envios", "quando": "2026-08-10T00:00:00-03:00"},
+    {"cmid": "215612", "tipo": "closesubmission",
+     "nome": "Q2 M7 - prazo limite de envios",
+     "quando": "2026-08-15T23:59:00-03:00"},
+    {"cmid": "215612", "tipo": "closeassessment",
+     "nome": "Q2 M7 - prazo limite para avaliação",
+     "quando": "2026-08-18T23:59:00-03:00"},
+]
+NOITE = "2026-08-09T23:30:00-03:00"
+
+escolhido = _prazo_por_cmid(LAB, NOITE)["215612"]
+checa(escolhido["quando"] == "2026-08-15T23:59:00-03:00",
+      "o prazo é o fechamento do envio, não a abertura de amanhã")
+checa(escolhido["tipo"] not in ("opensubmission",),
+      "abertura nunca é escolhida como prazo, mesmo sendo o próximo evento")
+
+checa(janela_declarada(LAB, NOITE)["215612"] is True,
+      "com fechamento no futuro, o calendário responde 'ainda aberto'")
+checa(janela_declarada(LAB, "2026-08-19T08:00:00-03:00")["215612"] is False,
+      "passados todos os fechamentos, o calendário responde 'encerrado'")
+# Sem prova nenhuma a resposta continua sendo "não sei": a meta é ler melhor,
+# nunca preencher silêncio com suposição.
+checa(janela_declarada(
+        [{"cmid": "9", "tipo": "opensubmission",
+          "quando": "2026-08-10T00:00:00-03:00"}], NOITE)["9"] is None,
+      "só com abertura, sem nenhum fechamento, a resposta segue indefinida")
+checa(janela_declarada([], NOITE) == {},
+      "atividade sem evento no calendário não ganha resposta inventada")
+
 print("\n== Soneca de rede não custa a página inteira (09/08/2026) ==")
 
 from playwright.sync_api import Error as PWError  # noqa: E402

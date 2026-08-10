@@ -455,9 +455,20 @@ def compromissos_do_calendario(dados, hoje, agora, ja_na_fila):
     return novos
 
 
+# O Moodle declara o papel do evento no campo ``tipo``. Abertura marca quando a
+# atividade passa a aceitar trabalho — é o oposto de prazo, e confundir os dois
+# foi o que fez o guia de 09/08/2026 anunciar "vence amanhã, 10/08 às 00:00"
+# para uma entrega que só fechava em 15/08.
+TIPOS_DE_ABERTURA = ("open", "opensubmission", "openassessment")
+
 TIPOS_DE_FIM = (
     "close",
     "closeassessment",
+    # O Moodle emite "closesubmission"; a lista só tinha o nome invertido, e o
+    # prazo de envio do Laboratório vinha sendo salvo pelo nome do evento
+    # ("prazo limite de envios"), não pelo tipo. Um evento com nome genérico
+    # teria passado batido.
+    "closesubmission",
     "due",
     "gradingdue",
     "submissionclose",
@@ -474,6 +485,11 @@ NOMES_DE_FIM = (
 
 
 def _eh_fim_de_prazo(evento):
+    # O tipo declarado pelo Moodle manda. Abertura nunca vira prazo, mesmo que
+    # o nome do evento fale em encerramento: 10/08 00:00 é quando a entrega do
+    # Laboratório ABRE, e virou "vence amanhã" no guia de 09/08/2026.
+    if evento.get("tipo") in TIPOS_DE_ABERTURA:
+        return False
     if evento.get("tipo") in TIPOS_DE_FIM:
         return True
     nome = sem_acento(evento.get("nome") or "")
