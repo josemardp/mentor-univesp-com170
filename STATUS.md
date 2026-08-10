@@ -4,9 +4,11 @@
 > Site: https://esdraaline.github.io/mentor-univesp-com170/ (conta GitHub `esdraaline`)
 > Histórico completo de sessões, auditorias e etapas concluídas: [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
-## Estado atual (08/08/2026)
+## Estado atual (10/08/2026)
 
-Funcionando e verificado na nuvem. O robô roda todo dia às 8h, entra no AVA sozinho, lê as 6 fontes, monta a agenda e manda o resumo por e-mail.
+Funcionando e verificado na nuvem. O robô roda sozinho em cinco janelas do dia (8h de Brasília com site + e-mail; 11h, 14h, 17h e 20h só o site), entra no AVA, lê as 8 fontes (`disciplinas`, `itens`, `calendario`, `cronograma`, `foruns`, `notificacoes`, `boletim`, `participacao`), monta a agenda e manda o resumo por e-mail.
+
+**Fechado em 10/08:** o boletim vazio do SOC100 é estado real do AVA (conferido ao vivo: a página do relatório de notas só tem cabeçalho). Duas correções saíram disso: (1) disciplina com boletim lido não some mais da aba "Como estou", e a mensagem distingue "li e está vazio" de "não consegui ler"; (2) **nota que sai virou notícia** — a aba "Chegou novo" e o e-mail passam a anunciar nota lançada ou corrigida, com a devolutiva do facilitador junto. Antes disso a nota só existia na aba "Como estou", sem nada dizer que ela tinha acabado de aparecer.
 
 Prazos vêm de três fontes e a origem de cada data aparece no site: calendário do AVA, cronograma oficial e avisos de facilitador (com link pro post). **Nenhuma data é estimada** — sem fonte oficial, o site diz que não há prazo.
 
@@ -25,7 +27,7 @@ O **COM170 avançou para uma estrutura nova**: além das 4 Semanas do AIA, agora
 ## Pendências do Josemar
 
 - ~~Responder a S2 - Atividade Avaliativa do COM100~~ feito em 08/08, nota 10,00/10,00 (confirmado ao vivo).
-- **URGENTE — COM170, Quinzena 2: concluir o Módulo 4 até domingo 09/08, 23h59.** Prazo em destaque no calendário oficial da quinzena (página "Q2 - Instruções da Quinzena 2"). Os módulos destravam em sequência (M1 → M2 → M3 → M4) e o Módulo 1 ainda tem duas atividades pendentes ("Atividade: tokenizador interativo" e "Atividade de embeddings: Mapa dos significados"), então falta passar pelos quatro módulos até lá. Depois disso: 10 a 15/08 pra enviar os trabalhos individual e de grupo, 16 a 18/08 pra leitura entre colegas.
+- ~~COM170, Quinzena 2: concluir o Módulo 4 até 09/08~~ feito. Em 10/08 os módulos M1 a M4 estão concluídos com nota lançada no boletim (prova de entrega, não só selo do Moodle). O que segue é o **Laboratório de Avaliação**: envio até **15/08 23:59** e revisão entre pares até **18/08 23:59** (prazo do calendário do AVA, campo `closesubmission`/`closeassessment`, não presumido). No AVA os itens abertos da quinzena são "Q2 M5 - Caso B", "Q2 M6 - Tutorial/Revisão entre pares" e "Q2 M7 - Grupo/Revisão entre pares".
 - Responder a **S3 - Atividade Avaliativa do COM100** (abriu 03/08, fecha domingo 16/08 23:59; sem tentativa, sem urgência ainda).
 - Regularizar o **S1 - Formulário de conhecimentos prévios do COM170** (segue pendente, mesmo caso desde julho: falar com SAE ou orientador de polo).
 - Apagar o Secret `AVA_STORAGE_STATE`, obsoleto desde 25/07.
@@ -47,4 +49,6 @@ O **COM170 avançou para uma estrutura nova**: além das 4 Semanas do AIA, agora
 - **Seção bloqueada com prazo vira alerta**, senão o item mais urgente fica invisível justo por estar travado.
 - **A urgência sobe pela cadeia de módulos:** o que destrava a etapa com prazo herda o prazo dela.
 - **O site é público**, então mensagem privada entra só como metadado (sem conteúdo) e post de fórum entra truncado, com link pro original.
+- **Silêncio não é resposta.** Boletim vazio, leitura que falhou e "não entregou" levam a decisões diferentes e não podem sair com a mesma frase — nem sumir da tela, que foi o que o SOC100 fazia até 10/08.
+- **Nota nova se apoia no retrato anterior, nunca no cache.** Leitura de boletim que falha devolve nota do cache; comparar contra ela anunciaria como nova uma nota velha. Disciplina sem leitura boa na rodada anterior fica de fora até haver duas seguidas. A notícia vale por `NOVO_ATE_DIAS` (3), porque o robô roda 5 vezes ao dia e ele lê o guia uma.
 - **Prazo de módulo trancado não aparece na página do módulo, aparece na página de instruções da quinzena/semana.** Auditoria de 08/08 checou a atividade do Módulo 1 e concluiu "sem prazo visível", mas o prazo do Módulo 4 estava na página "Instruções da Quinzena" (id=215566), não na atividade em si. Conferir sempre a página de instruções/calendário da unidade inteira, não só os itens travados.

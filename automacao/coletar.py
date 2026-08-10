@@ -10,6 +10,7 @@ from dominio.acoes import (
     entrega_provada,
     identidade_item,
     montar_acoes,
+    notas_novas,
     novidades,
     urgencia_de,
 )
@@ -95,6 +96,7 @@ def main():
         "acoes": acoes, "encerrados": encerrados, "higiene": higiene,
         "confirmar": confirmar,
         "novidades": novidades(anterior, dados),
+        "notas_novas": notas_novas(anterior, dados, estado, agora),
     }
     gravar_snapshot(saida, estado)
     print(

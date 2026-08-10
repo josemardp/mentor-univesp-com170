@@ -836,6 +836,145 @@ checa(not [a for a in ja_avaliou if a["verbo"].startswith("Avalie")],
       "depois de avaliar, o aviso da quinzena para de cobrar mesmo com o "
       "laboratório numa sub-seção")
 
+print("\n== Boletim vazio não faz a disciplina sumir (SOC100, 10/08/2026) ==")
+
+
+def curso_boletim(estado, media=None, entrega=None):
+    item = {"cmid": "1", "label": "S1 - Atividade Avaliativa", "type": "quiz",
+            "status": "Concluído", "conta_nota": True, "url": "#q"}
+    if entrega is not None:
+        item["entrega_confirmada"] = entrega
+    return {"code": "SOC100", "modelo": "regular",
+            "boletim": {"status": estado, "media": media, "itens": 0},
+            "sections": [{"id": "s1", "title": "Semana 1", "fase": "regular",
+                          "locked": None, "items": [item]}]}
+
+
+vazio = R.render_notas({"courses": [curso_boletim("vazio_confirmado")]})
+checa("SOC100" in vazio,
+      "disciplina com boletim vazio continua aparecendo na aba")
+checa("ainda não publicou nenhuma nota" in vazio,
+      "e diz que o boletim é que está vazio, em vez de sumir calada")
+checa("deixou de entregar" in vazio,
+      "sem nota não é apresentado como entrega faltando")
+
+com_prova = R.render_notas(
+    {"courses": [curso_boletim("vazio_confirmado", entrega=True)]}
+)
+checa("a entrega está registrada" in com_prova,
+      "entrega conferida na página da atividade é dita, mesmo sem boletim")
+
+falhou = R.render_notas({"courses": [curso_boletim("falhou")]})
+checa("Não consegui ler o boletim" in falhou and "Confira no AVA" in falhou,
+      "boletim que não abriu pede conferência, em vez de virar 'sem nota'")
+checa("ainda não publicou nenhuma nota" not in falhou,
+      "'não li' nunca é apresentado como 'está vazio'")
+
+sem_boletim = R.render_notas(
+    {"courses": [{"code": "X", "modelo": "regular", "sections": []}]}
+)
+checa(sem_boletim == "",
+      "disciplina sem boletim nenhum continua fora, sem inventar bloco")
+
+print("\n== Nota que sai é notícia (10/08/2026) ==")
+
+from dominio.acoes import notas_novas  # noqa: E402
+
+
+def pacote(estado_boletim="live", nota=None, feedback=None, code="SOC100"):
+    """Um retrato mínimo com uma atividade avaliada (ou não)."""
+    item = {"cmid": "1", "label": "S1 - Atividade Avaliativa", "type": "quiz",
+            "conta_nota": True, "url": "#q"}
+    if nota is not None:
+        item.update({"nota_txt": nota, "tem_nota": True, "feedback": feedback})
+    return {"courses": [{
+        "code": code, "modelo": "regular",
+        "boletim": {"status": estado_boletim, "media": None, "itens": 0},
+        "sections": [{"id": "s1", "title": "Semana 1", "fase": "regular",
+                      "locked": None, "items": [item]}]}]}
+
+
+T0 = "2026-08-10T09:00:00+00:00"
+T1 = "2026-08-10T15:00:00+00:00"   # mesma janela, rodada seguinte
+T5 = "2026-08-15T09:00:00+00:00"   # cinco dias depois, fora da janela
+
+# O caso que puxou este fio: SOC100 com boletim vazio até a nota sair.
+estado_novo = {}
+saiu = notas_novas(pacote("vazio_confirmado"), pacote(nota="8,00"),
+                   estado_novo, T0)
+checa(len(saiu) == 1 and saiu[0]["nota"] == "8,00",
+      "nota que aparece num boletim antes vazio vira notícia")
+checa(saiu[0]["de"] is None,
+      "nota que nunca existiu é anunciada como nova, não como mudança")
+
+# A notícia precisa sobreviver às rodadas do mesmo dia: ele lê o guia uma vez.
+ainda = notas_novas(pacote(nota="8,00"), pacote(nota="8,00"), estado_novo, T1)
+checa(len(ainda) == 1,
+      "a nota continua anunciada nas rodadas seguintes, dentro da janela")
+depois = notas_novas(pacote(nota="8,00"), pacote(nota="8,00"), estado_novo, T5)
+checa(depois == [] and estado_novo["_notas_vistas"] == {},
+      "passada a janela, a notícia sai e não fica entulhando o estado")
+
+# Nota que já estava no retrato anterior nunca é anunciada de novo.
+checa(notas_novas(pacote(nota="8,00"), pacote(nota="8,00"), {}, T0) == [],
+      "nota que já estava no retrato anterior não vira notícia")
+
+# Correção de nota é notícia, e diz de onde veio.
+mudou = notas_novas(pacote(nota="7,50"), pacote(nota="9,00"), {}, T0)
+checa(len(mudou) == 1 and mudou[0]["de"] == "7,50" and mudou[0]["nota"] == "9,00",
+      "nota corrigida é anunciada com o valor anterior")
+
+# O alarme falso que este desenho existe para evitar.
+checa(notas_novas(pacote("falhou", nota="8,00"), pacote(nota="8,00"), {}, T0) == [],
+      "boletim que falhou na rodada anterior não gera 'nota nova' falsa")
+checa(notas_novas(None, pacote(nota="8,00"), {}, T0) == [],
+      "primeira rodada, sem retrato anterior, não anuncia nota nenhuma")
+checa(notas_novas({"courses": []}, pacote(nota="8,00"), {}, T0) == [],
+      "disciplina que ainda não tinha sido lida entra sem alarde")
+
+# Zero é nota, e é exatamente a que ele precisa ver.
+zero = notas_novas(pacote("vazio_confirmado"), pacote(nota="0,00"), {}, T0)
+checa(len(zero) == 1, "0,00 é nota lançada e é anunciada como qualquer outra")
+tracinho = notas_novas(pacote("vazio_confirmado"), pacote("live"), {}, T0)
+checa(tracinho == [], "atividade sem nota lançada não vira notícia de nota")
+
+# A notícia chega no site...
+com_nota = R.render_novidades(
+    {"notas_novas": [{"curso": "SOC100", "label": "S1 - Atividade Avaliativa",
+                      "url": "#q", "nota": "8,00", "de": None,
+                      "feedback": "bom trabalho", "em": T0}]}
+)
+checa("8,00" in com_nota and "SOC100" in com_nota,
+      "a aba 'Chegou novo' mostra a nota que saiu")
+checa("saiu a nota" in com_nota and "bom trabalho" in com_nota,
+      "e mostra a devolutiva do facilitador junto")
+vazia = R.render_novidades({})
+checa("Nenhuma nota" in vazia,
+      "sem novidade nenhuma, a aba diz isso incluindo as notas")
+
+checa(R.contar_novidades(
+        {"notas_novas": [{"curso": "SOC100", "nota": "8,00"}]}) == 1,
+      "o contador da aba soma a nota nova")
+checa(R.contar_novidades(
+        {"notas_novas": [{"curso": "SOC100", "nota": "8,00"}],
+         "mensagens": [{"nao_lidas": 2}],
+         "notificacoes": [{"lida": False}]}) == 4,
+      "e continua somando fórum, mensagem e notificação junto")
+
+# ...e no e-mail, que é o que ele lê antes de abrir o site.
+corpo = E.montar_texto({
+    "acoes": [], "notas_novas": [{"curso": "SOC100", "label": "S1 - Atividade",
+    "nota": "8,00", "de": None, "feedback": "bom trabalho", "em": T0}]})
+checa("SAIU NOTA" in corpo and "SOC100: S1 - Atividade = 8,00" in corpo,
+      "o e-mail traz a nota que saiu, com a disciplina e o valor")
+checa("devolutiva: bom trabalho" in corpo,
+      "e traz a devolutiva junto, que é o que explica a nota")
+checa("saiu nota em SOC100" in E.assunto({
+        "acoes": [], "notas_novas": [{"curso": "SOC100", "nota": "8,00"}]}),
+      "sem nada urgente, o assunto anuncia a nota em vez de 'tudo em dia'")
+checa("tudo em dia" in E.assunto({"acoes": [], "notas_novas": []}),
+      "sem nota nova, o assunto de dia calmo continua o mesmo")
+
 print("\n== Abertura não é prazo, e o calendário resolve o indefinido ==")
 
 from pipeline import _prazo_por_cmid, janela_declarada  # noqa: E402

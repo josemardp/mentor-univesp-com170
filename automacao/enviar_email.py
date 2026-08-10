@@ -154,6 +154,23 @@ def montar_texto(data):
     # Topo: a decisão. Embaixo: a lista inteira, pra não precisar abrir o site.
     linhas += topo_decisorio(data, acoes)
 
+    # Nota que saiu não é tarefa, mas é a notícia que ele mais espera, e nao
+    # aparecia em lugar nenhum do e-mail ate 10/08/2026.
+    notas = data.get("notas_novas") or []
+    if notas:
+        linhas.append(f"SAIU NOTA ({len(notas)})")
+        for n in notas[:8]:
+            if n.get("de"):
+                virada = f"{n['de']} -> {n.get('nota')}"
+            else:
+                virada = f"{n.get('nota')}"
+            linhas.append(f"- {n.get('curso')}: {curto(n.get('label'), 46)} = {virada}")
+            if n.get("feedback"):
+                linhas.append(f"    devolutiva: {curto(n['feedback'], 70)}")
+        if len(notas) > 8:
+            linhas.append(f"  ... e mais {len(notas) - 8}, no site.")
+        linhas.append("")
+
     if acoes:
         linhas.append("-" * 58)
         linhas.append("LISTA COMPLETA")
@@ -250,6 +267,18 @@ def assunto(data):
             return (f"[Univesp {hoje:%d/%m}] Hoje: {primeira['curso']} {alvo}"
                     f"; entrega {q:%d/%m} {q:%H:%M}")
         return f"[Univesp {hoje:%d/%m}] Hoje: {primeira['curso']} {alvo}"
+    # Sem nada urgente, "tudo em dia" no assunto escondia a única novidade do
+    # dia quando o que mudou foi a nota. Nota entra no assunto só aqui, para
+    # não empurrar prazo para baixo.
+    notas = data.get("notas_novas") or []
+    if notas:
+        primeira_nota = notas[0]
+        aviso = f"saiu nota em {primeira_nota['curso']} ({primeira_nota.get('nota')})"
+        if len(notas) > 1:
+            aviso = f"saiu nota em {len(notas)} atividades"
+        if acoes:
+            return f"[Univesp {hoje:%d/%m}] {aviso}; {len(acoes)} na fila"
+        return f"[Univesp {hoje:%d/%m}] {aviso}"
     if acoes:
         return f"[Univesp {hoje:%d/%m}] {len(acoes)} na fila, nada urgente"
     return f"[Univesp {hoje:%d/%m}] tudo em dia"

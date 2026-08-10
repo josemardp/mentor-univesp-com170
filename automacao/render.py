@@ -503,8 +503,57 @@ def _dias_para_evento(aviso):
 _MAX_DIAS_URGENTE = 4  # hoje + 3 dias para frente
 
 
+def render_nota_nova(n):
+    """Uma linha de nota que saiu ou mudou desde a leitura anterior."""
+    nome = esc(n.get("label") or "")
+    if n.get("url"):
+        nome = (f'<a href="{esc(n["url"])}" target="_blank" rel="noopener">'
+                f'{nome}</a>')
+    if n.get("de"):
+        motivo = (f'a nota mudou de {esc(n["de"])} para '
+                  f'{esc(n.get("nota") or "")}')
+    else:
+        motivo = "saiu a nota desta atividade"
+    devolutiva = ""
+    if n.get("feedback"):
+        devolutiva = f'<div class="trava">💬 {esc(n["feedback"][:600])}</div>'
+    return (f'<li class="acao"><div class="acao-chips">'
+            f'<span class="status ok">{esc(n.get("nota") or "")}</span>'
+            f'<span class="status lock">{esc(n.get("curso") or "")}</span>'
+            f'</div><div class="acao-txt">{nome}</div>'
+            f'<div class="acao-pe">{motivo}</div>{devolutiva}</li>')
+
+
+def contar_novidades(data):
+    """O número no rótulo da aba. Tem que contar tudo o que a aba mostra."""
+    novos = sum(
+        1 for c in data.get("courses", []) or []
+        for a in (c.get("avisos") or [])
+        if a.get("novo")
+    )
+    nao_lidas = len(
+        [n for n in data.get("notificacoes") or [] if not n.get("lida")]
+    )
+    mensagens = sum(m.get("nao_lidas", 0) for m in data.get("mensagens") or [])
+    return novos + nao_lidas + mensagens + len(data.get("notas_novas") or [])
+
+
 def render_novidades(data):
     hoje = date.today()
+    # Nota vem primeiro: é a única novidade aqui que muda o resultado dele, e
+    # até 10/08/2026 o guia mostrava a nota na aba "Como estou" sem nunca
+    # dizer que ela tinha acabado de sair.
+    notas = data.get("notas_novas") or []
+    notas_html = ""
+    if notas:
+        quantas = len(notas)
+        notas_html = (
+            '<p class="sub" style="margin:0 0 10px;">'
+            f'{"Saiu nota nova" if quantas == 1 else "Saíram notas novas"} '
+            'desde a leitura anterior.</p>'
+            f'<ul class="acoes">'
+            f'{"".join(render_nota_nova(n) for n in notas[:12])}</ul>'
+        )
     # --- Fase 1: coletar candidatos (sem corte por disciplina para urgentes) ---
     linhas = []
     for c in data.get("courses", []):
@@ -551,13 +600,19 @@ def render_novidades(data):
             f'</span></li>')
 
     if not avisos_html and not extras:
+        if notas_html:
+            return f'<div class="bloco">{notas_html}</div>'
         return ('<div class="bloco">'
-                '<p class="sub" style="margin:0;">Nenhum post, notificação ou mensagem nova '
-                'desde a última checagem.</p></div>')
+                '<p class="sub" style="margin:0;">Nenhuma nota, post, notificação ou '
+                'mensagem nova desde a última checagem.</p></div>')
 
     extras_html = f'<ul class="tasklist">{"".join(extras)}</ul>' if extras else ""
+    # Nota e fórum são assuntos diferentes: colados, o olho lê a lista de posts
+    # como se fosse continuação das notas.
+    respiro = "22px 0 10px" if notas_html else "0 0 10px"
     return ('<div class="bloco">'
-            '<p class="sub" style="margin:0 0 10px;">Fóruns, notificações e mensagens que '
+            f'{notas_html}'
+            f'<p class="sub" style="margin:{respiro};">Fóruns, notificações e mensagens que '
             'apareceram desde a última leitura.</p>'
             f'<ul class="acoes">{avisos_html}</ul>{extras_html}</div>')
 
@@ -774,6 +829,40 @@ def render_participacao(data):
     return "".join(blocos)
 
 
+def _boletim_vazio(curso, boletim):
+    """Diz por que não há nota, sem deixar o silêncio parecer resposta.
+
+    "Sem nota" e "não consegui ler" levam a decisões opostas: o primeiro é
+    estado do AVA e não pede nada dele; o segundo é falha do guia e pede que
+    ele confira na mão. Uma frase só para os dois casos escondia essa
+    diferença.
+    """
+    estado = boletim.get("status")
+    if estado == "vazio_confirmado":
+        texto = ("Li o boletim desta disciplina e ele está vazio: o AVA ainda "
+                 "não publicou nenhuma nota aqui. Isso é estado do boletim, "
+                 "não sinal de que você deixou de entregar.")
+        # A prova de entrega não vem só da nota. Onde o robô abriu a atividade
+        # e viu a tentativa registrada, ele sabe mais que o boletim.
+        entregues = [
+            item
+            for secao in curso.get("sections") or []
+            for item in secao.get("items") or []
+            if item.get("entrega_confirmada") is True
+        ]
+        if entregues:
+            quantas = len(entregues)
+            texto += (f' Mesmo assim, conferi {quantas} '
+                      f'{"atividade" if quantas == 1 else "atividades"} '
+                      "abrindo a página no AVA e a entrega está registrada.")
+    elif estado == "falhou":
+        texto = ("Não consegui ler o boletim desta disciplina nesta leitura, "
+                 "então não sei se há nota. Confira no AVA.")
+    else:
+        texto = "Esta disciplina não mostra nenhuma atividade no boletim."
+    return f'<li class="acao"><div class="acao-txt">{texto}</div></li>'
+
+
 def render_notas(data):
     """Aba "Como estou": nota por atividade e devolutiva do facilitador.
 
@@ -790,7 +879,13 @@ def render_notas(data):
             for item in secao.get("items") or []
             if item.get("nota_txt") or item.get("feedback")
         ]
-        if not avaliadas and not boletim.get("media"):
+        # Sumir com a disciplina era o pior desfecho: em 10/08/2026 o SOC100
+        # não aparecia nesta aba, e não dava para saber se ele estava sem nota
+        # ou se o guia é que não tinha olhado. Boletim lido, mesmo vazio, é
+        # informação e fica à vista; some só o que nunca foi lido.
+        if not avaliadas and not boletim.get("media") and not boletim.get(
+            "status"
+        ):
             continue
         linhas = []
         for _, item in avaliadas:
@@ -828,9 +923,7 @@ def render_notas(data):
                 cabecalho += (f' · {esc(media.get("rotulo") or "média")}: '
                               f'<span class="status ok">{esc(valor)}</span>')
         if not linhas:
-            linhas.append('<li class="acao"><div class="acao-txt">'
-                          'Esta disciplina não mostra nenhuma atividade no '
-                          'boletim.</div></li>')
+            linhas.append(_boletim_vazio(c, boletim))
         blocos.append(f'<h3 class="grupo">{cabecalho}</h3>'
                       f'<ul class="acoes">{"".join(linhas)}</ul>')
     participacao_html = render_participacao(data)
@@ -890,14 +983,7 @@ def render_tabs(data):
             ("confirmar", "Confirme se é prazo", len(confirmar_itens), confirmar_html)
         )
 
-    novos = sum(
-        1 for c in data.get("courses", [])
-        for a in (c.get("avisos") or [])
-        if a.get("novo")
-    )
-    nao_lidas = len([n for n in data.get("notificacoes", []) if not n.get("lida")])
-    mensagens = sum(m.get("nao_lidas", 0) for m in data.get("mensagens", []))
-    badge_novidades = (novos + nao_lidas + mensagens) or None
+    badge_novidades = contar_novidades(data) or None
     abas.append(("novidades", "Chegou novo", badge_novidades, render_novidades(data)))
 
     notas_html = render_notas(data)

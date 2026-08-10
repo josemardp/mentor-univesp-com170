@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """Montagem, ordenação e deduplicação da fila de ações."""
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
+from configuracao import NOVO_ATE_DIAS
 from dominio.datas import sem_acento
 from dominio.dependencias import propagar_urgencia
 from dominio.prazos import casar_prazos, fase_de, rotulo_fase
@@ -957,3 +958,101 @@ def novidades(anterior, dados):
                     }
                 )
     return mudancas
+
+
+# Só boletim que o robô abriu de fato serve de termo de comparação. Leitura
+# que falhou devolve as notas do cache, e comparar contra o cache faria o guia
+# anunciar como nova uma nota que já estava lá desde sempre.
+BOLETIM_LIDO = ("live", "vazio_confirmado")
+
+
+def _notas_lidas(pacote):
+    """``({(curso, cmid): nota}, {cursos cujo boletim foi lido})``."""
+    notas, lidos = {}, set()
+    for curso in (pacote or {}).get("courses") or []:
+        if (curso.get("boletim") or {}).get("status") not in BOLETIM_LIDO:
+            continue
+        codigo = curso.get("code")
+        lidos.add(codigo)
+        for secao in curso.get("sections") or []:
+            for item in secao.get("items") or []:
+                # "-" é o AVA dizendo que não há nota. Só valor lançado conta,
+                # inclusive 0,00, que é nota e é notícia.
+                if not item.get("tem_nota") or item.get("cmid") is None:
+                    continue
+                notas[f"{codigo}:{item['cmid']}"] = item.get("nota_txt")
+    return notas, lidos
+
+
+def notas_novas(anterior, dados, estado, agora, janela_dias=NOVO_ATE_DIAS):
+    """Nota que saiu ou mudou, e que continua à vista por alguns dias.
+
+    Motivo, achado em 10/08/2026: o guia lia o boletim das quatro disciplinas
+    e mostrava as notas na aba "Como estou", mas não avisava quando uma nota
+    aparecia. Ele só descobriria comparando de memória com o que viu ontem.
+    Isso ficou visível pelo SOC100, cujo boletim está vazio: do jeito antigo,
+    o dia em que a primeira nota fosse lançada seria um dia igual aos outros.
+
+    O que sustenta a comparação é o retrato anterior, não o cache: disciplina
+    cujo boletim não foi lido na rodada passada fica de fora até haver duas
+    leituras boas seguidas. Assim o guia nunca chama de nova uma nota que só
+    reapareceu depois de uma falha de leitura.
+
+    A janela em dias existe porque o robô roda cinco vezes ao dia. Anunciar
+    só na rodada seguinte faria a notícia passar enquanto ele dormia.
+    """
+    registro = estado.setdefault("_notas_vistas", {}) if estado is not None else {}
+    antes, confiaveis = _notas_lidas(anterior)
+    depois, _ = _notas_lidas(dados)
+
+    for chave, nota in depois.items():
+        if chave.split(":", 1)[0] not in confiaveis:
+            continue  # sem leitura anterior boa, não dá para saber se é nova
+        anotado = registro.get(chave)
+        if anotado and anotado.get("nota") == nota:
+            continue  # já anunciada, e o valor não mudou
+        if antes.get(chave) == nota:
+            continue  # já estava no retrato anterior: não é notícia
+        registro[chave] = {
+            "nota": nota,
+            "de": (anotado or {}).get("nota") or antes.get(chave),
+            "em": agora,
+        }
+
+    corte = (datetime.fromisoformat(agora) - timedelta(days=janela_dias))
+    itens = {}
+    for curso in dados.get("courses") or []:
+        for secao in curso.get("sections") or []:
+            for item in secao.get("items") or []:
+                if item.get("cmid") is not None:
+                    itens[f"{curso.get('code')}:{item['cmid']}"] = (curso, item)
+
+    saida = []
+    for chave in list(registro):
+        anotado = registro[chave]
+        try:
+            # Fora da janela o retrato anterior já cobre o caso. Registro de
+            # formato estranho (cache antigo) é descartado em vez de derrubar
+            # a rodada inteira por causa de uma linha.
+            velha = datetime.fromisoformat(anotado.get("em")) < corte
+        except (AttributeError, TypeError, ValueError):
+            velha = True
+        if velha:
+            del registro[chave]
+            continue
+        achado = itens.get(chave)
+        if not achado:
+            continue  # atividade sumiu do AVA; não invento linha para ela
+        curso, item = achado
+        saida.append({
+            "curso": curso.get("code"),
+            "label": item.get("label"),
+            "url": item.get("url"),
+            "cmid": chave.split(":", 1)[1],
+            "nota": anotado.get("nota"),
+            "de": anotado.get("de"),
+            "feedback": item.get("feedback") or None,
+            "em": anotado.get("em"),
+        })
+    saida.sort(key=lambda linha: (linha["em"], linha["curso"]), reverse=True)
+    return saida
