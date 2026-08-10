@@ -131,6 +131,7 @@ print("\n== SMTP obrigatório em CI ==")
 chaves = ("SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "EMAIL_PARA", "EMAIL_OPCIONAL")
 ambiente = {k: os.environ.get(k) for k in chaves}
 smtp_antigo, data_email_antigo = E.smtplib.SMTP, E.DATA_PATH
+ultimo_envio_antigo = E.ULTIMO_ENVIO_PATH
 try:
     for k in chaves:
         os.environ.pop(k, None)
@@ -145,6 +146,11 @@ try:
 
     with tempfile.TemporaryDirectory() as tmp:
         E.DATA_PATH = Path(tmp) / "data.json"
+        # Sem isolar este arquivo também, um envio real de hoje (o robô já
+        # escreve a data aqui após mandar o e-mail da manhã) faz o main()
+        # devolver 0 antes de chegar no SMTP mockado: o teste passava só
+        # em dias sem envio prévio, e falhava em qualquer segunda rodada.
+        E.ULTIMO_ENVIO_PATH = Path(tmp) / ".ultimo_email_enviado"
         os.environ.update({
             "SMTP_HOST": "smtp.invalid", "SMTP_PORT": "587",
             "SMTP_USER": "x", "SMTP_PASS": "x", "EMAIL_PARA": "x@example.invalid",
@@ -167,6 +173,7 @@ try:
         checa(rc_smtp == 1, "pane de transporte continua derrubando o passo")
 finally:
     E.smtplib.SMTP, E.DATA_PATH = smtp_antigo, data_email_antigo
+    E.ULTIMO_ENVIO_PATH = ultimo_envio_antigo
     for chave, valor in ambiente.items():
         if valor is None:
             os.environ.pop(chave, None)
