@@ -8,6 +8,10 @@ class FalhaFonte(RuntimeError):
     """Falha operacional conhecida que permite usar o último cache válido."""
 
 
+class SessaoExpirada(FalhaFonte):
+    """Caiu para a tela de login. Insistir não resolve, só gasta orçamento."""
+
+
 JS_API = """
 async ([nome, args]) => {
   const sk = (window.M && M.cfg && M.cfg.sesskey) || null;
@@ -75,4 +79,38 @@ def navegar(page, url, timeout=45000, espera_ms=0):
             f"não consegui abrir {url} ({type(erro).__name__})"
         ) from erro
     if deslogado(page):
-        raise FalhaFonte(f"sessão expirou ao abrir {url}")
+        raise SessaoExpirada(f"sessão expirou ao abrir {url}")
+
+
+def navegar_insistindo(
+    page, url, timeout=45000, espera_ms=0, tentativas=3, rotulo=None
+):
+    """Uma soneca de rede não pode custar a leitura inteira daquela página.
+
+    Em 09/08/2026 uma única falha em 34 fóruns marcou a rodada como degradada,
+    deixou a Action vermelha e o site anunciando "leitura parcial" — por um
+    tropeço que a segunda tentativa teria resolvido. Só falha transitória é
+    repetida: sessão expirada não melhora insistindo, e cada tentativa a mais
+    gastaria o orçamento de páginas que ainda dá para ler logadas.
+
+    Cada tentativa perdida é impressa: falha silenciosa foi o que impediu
+    descobrir, pelo log da nuvem, qual fórum tinha caído.
+    """
+    ultima = None
+    for tentativa in range(1, max(1, tentativas) + 1):
+        try:
+            navegar(page, url, timeout=timeout, espera_ms=espera_ms)
+            if tentativa > 1:
+                print(f"    ok na {tentativa}ª tentativa: {rotulo or url}")
+            return
+        except SessaoExpirada:
+            raise
+        except FalhaFonte as erro:
+            ultima = erro
+            print(
+                f"    tentativa {tentativa}/{tentativas} falhou em "
+                f"{rotulo or url}: {erro}"
+            )
+            if tentativa < tentativas:
+                page.wait_for_timeout(1500 * tentativa)
+    raise ultima

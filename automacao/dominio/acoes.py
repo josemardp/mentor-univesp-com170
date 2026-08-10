@@ -117,8 +117,8 @@ def urgencia_de(prazo_iso, hoje, hora_certa=True, evento=False, agora=None):
     return "depois", f"vence {prazo:%d/%m}"
 
 
-def laboratorios_por_secao(curso):
-    """Laboratórios de cada seção, incluindo os das seções filhas.
+def itens_por_secao(curso, filtro=None):
+    """Itens de cada seção, incluindo os das seções filhas.
 
     O aviso do facilitador fala da quinzena inteira ("prazos da avaliação por
     pares da Quinzena 1"), mas os laboratórios moram nos módulos, que são
@@ -132,17 +132,24 @@ def laboratorios_por_secao(curso):
         filhos.setdefault(secao.get("parent"), []).append(secao)
 
     def coletar(secao, nivel=0):
-        labs = [
+        itens = [
             item
             for item in secao.get("items") or []
-            if item.get("type") == "workshop"
+            if filtro is None or filtro(item)
         ]
         if nivel < 6:
             for filha in filhos.get(secao.get("id"), []):
-                labs.extend(coletar(filha, nivel + 1))
-        return labs
+                itens.extend(coletar(filha, nivel + 1))
+        return itens
 
     return {secao.get("id"): coletar(secao) for secao in secoes}
+
+
+def laboratorios_por_secao(curso):
+    """Só os Laboratórios de Avaliação, para as fases de entrega e avaliação."""
+    return itens_por_secao(
+        curso, lambda item: item.get("type") == "workshop"
+    )
 
 
 def _workshop_ja_enviado(labs):
@@ -185,6 +192,49 @@ def entrega_provada(item):
     if item.get("type") == "workshop":
         return True if item.get("enviado") is True else None
     return item.get("entrega_confirmada")
+
+
+def _item_resolvido(item):
+    """O item já está feito? Mesmas regras que tiram o item da fila.
+
+    Mantido em uma função só porque o laço de itens e a supressão da cobrança
+    de seção precisam concordar: se divergirem, o guia tira o item da fila e
+    continua cobrando a seção que só tinha aquele item — que é exatamente o
+    defeito de 09/08/2026.
+    """
+    sem_entrega = (
+        item.get("type") in TIPOS_QUE_VALEM_NOTA
+        and entrega_provada(item) is False
+    )
+    if item.get("status") == "Concluído" and not sem_entrega:
+        return True
+    return (
+        item.get("type") == "workshop"
+        and item.get("enviado") is True
+        and item.get("avaliacao_pendente") is not True
+    )
+
+
+def _item_rastreado(item):
+    """Item que o Moodle acompanha, ou que vale nota.
+
+    Fórum sem marcação de conclusão nunca fica "feito" e travaria a supressão
+    para sempre; o laço de itens já o ignora pelo mesmo critério.
+    """
+    return item.get("status") is not None or bool(item.get("conta_nota"))
+
+
+def _secao_cumprida(itens):
+    """Todo item rastreado da seção (e das filhas) já está resolvido.
+
+    Sem evidência nenhuma — seção vazia ou só com itens que o Moodle não
+    acompanha — devolve ``False``: silenciar cobrança exige prova, e a falta
+    de prova nunca pode virar "está tudo feito".
+    """
+    rastreados = [item for item in itens if _item_rastreado(item)]
+    if not rastreados:
+        return False
+    return all(_item_resolvido(item) for item in rastreados)
 
 
 def _verbo_workshop(item):
@@ -515,6 +565,7 @@ def montar_acoes(dados, hoje, agora=None):
     for curso in dados["courses"]:
         quinzenas_antigas = quinzenas_encerradas(curso)
         labs_por_secao = laboratorios_por_secao(curso)
+        itens_de_secao = itens_por_secao(curso)
         prazos_aviso = [
             {**prazo, "aviso": aviso}
             for aviso in curso.get("avisos", [])
@@ -622,6 +673,15 @@ def montar_acoes(dados, hoje, agora=None):
                 if verbo == "Entregue" and _workshop_ja_enviado(labs):
                     continue
                 if verbo == "Avalie" and _workshop_avaliacao_feita(labs):
+                    continue
+                # "Conclua o Módulo 4 até hoje" não tem fase própria para
+                # conferir, e por isso sobrevivia à conclusão: em 09/08/2026 o
+                # guia cobrou três seções 100% concluídas (COM100 Semana 2,
+                # COM170 Módulo 4 e Q2 Módulo 4), todas com o quiz já
+                # pontuado. Cobrança de seção morre quando a seção acaba.
+                if verbo == "Conclua" and _secao_cumprida(
+                    itens_de_secao.get(secao.get("id")) or []
+                ):
                     continue
                 # Dedup pelo que o Josemar vê. O facilitador postou o mesmo
                 # lembrete de 04/08 em dois fóruns no mesmo minuto, e a fila

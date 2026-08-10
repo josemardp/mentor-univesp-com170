@@ -17,7 +17,7 @@ from configuracao import (
 )
 from dominio.datas import sem_acento
 from dominio.prazos import GATILHOS_PRAZO, extrair_prazos
-from fontes.moodle import FalhaFonte
+from fontes.moodle import FalhaFonte, navegar_insistindo
 
 JS_DISCUSSOES = """
 () => {
@@ -248,10 +248,6 @@ def preparar(post, rotulo_forum, url, titulo_alternativo, hoje):
     return preparado
 
 
-def deslogado(page):
-    return "/login" in page.url or "univesp_login.php" in page.url
-
-
 def varrer_foruns(
     page,
     foruns,
@@ -343,15 +339,16 @@ def varrer_foruns(
             pulados_orcamento += 1
             continue
         try:
-            page.goto(
-                forum["url"], wait_until="domcontentloaded", timeout=45000
+            navegar_insistindo(
+                page,
+                forum["url"],
+                espera_ms=700,
+                rotulo=f"fórum {forum.get('label') or forum['url']}",
             )
-            page.wait_for_timeout(700)
-            if deslogado(page):
-                raise FalhaFonte("sessão expirou ao abrir fórum")
             orcamento -= 1
             listas_live += 1
-        except (PlaywrightError, TimeoutError, FalhaFonte):
+        except (PlaywrightError, TimeoutError, FalhaFonte) as erro:
+            print(f"  falha ao ler o fórum {forum.get('label')}: {erro}")
             atualizar_autores(forum, cache_forum.get("posts", []))
             coletados.extend(usar_cache(cache_forum))
             falhas += 1
@@ -415,17 +412,18 @@ def varrer_foruns(
                     pulados_orcamento += 1
                 continue
             try:
-                page.goto(
+                navegar_insistindo(
+                    page,
                     discussao["url"],
-                    wait_until="domcontentloaded",
-                    timeout=45000,
+                    espera_ms=600,
+                    rotulo=f"discussão {discussao.get('titulo') or ''}".strip(),
                 )
-                page.wait_for_timeout(600)
-                if deslogado(page):
-                    raise FalhaFonte("sessão expirou ao abrir discussão")
                 orcamento -= 1
                 posts = page.evaluate(JS_POSTS)
-            except (PlaywrightError, TimeoutError, FalhaFonte):
+            except (PlaywrightError, TimeoutError, FalhaFonte) as erro:
+                print(
+                    f"  falha na discussão {discussao.get('titulo')}: {erro}"
+                )
                 atualizar_autores(forum, cache.get("posts", []))
                 coletados.extend(usar_cache(cache))
                 falhas += 1

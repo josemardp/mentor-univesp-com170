@@ -836,6 +836,120 @@ checa(not [a for a in ja_avaliou if a["verbo"].startswith("Avalie")],
       "depois de avaliar, o aviso da quinzena para de cobrar mesmo com o "
       "laboratório numa sub-seção")
 
+print("\n== Soneca de rede não custa a página inteira (09/08/2026) ==")
+
+from playwright.sync_api import Error as PWError  # noqa: E402
+
+from fontes.moodle import (  # noqa: E402
+    FalhaFonte, SessaoExpirada, navegar_insistindo,
+)
+
+
+class PaginaFake:
+    """Falha ``quedas`` vezes e só então responde, como um tropeço de rede."""
+
+    def __init__(self, quedas=0, login=False):
+        self.quedas, self.login = quedas, login
+        self.idas = self.esperas = 0
+        self.url = "https://ava.univesp.br/mod/forum/view.php?id=1"
+
+    def goto(self, url, **kwargs):
+        self.idas += 1
+        if self.idas <= self.quedas:
+            raise PWError("net::ERR_TIMED_OUT")
+        self.url = (
+            "https://ava.univesp.br/custom/univesp_login.php"
+            if self.login
+            else url
+        )
+
+    def wait_for_timeout(self, ms):
+        self.esperas += 1
+
+
+pagina_ok = PaginaFake(quedas=1)
+with contextlib.redirect_stdout(io.StringIO()):
+    navegar_insistindo(pagina_ok, "http://x", tentativas=3, rotulo="Avisos")
+checa(pagina_ok.idas == 2,
+      "falha transitória é repetida e a segunda tentativa salva a leitura")
+
+pagina_morta = PaginaFake(quedas=9)
+saida = io.StringIO()
+try:
+    with contextlib.redirect_stdout(saida):
+        navegar_insistindo(pagina_morta, "http://x", tentativas=3,
+                           rotulo="Avisos")
+except FalhaFonte:
+    caiu = True
+else:
+    caiu = False
+checa(caiu and pagina_morta.idas == 3,
+      "falha persistente ainda falha, depois de esgotar as tentativas")
+checa("Avisos" in saida.getvalue(),
+      "o log diz qual página caiu, em vez de falhar em silêncio")
+
+pagina_login = PaginaFake(quedas=0, login=True)
+try:
+    navegar_insistindo(pagina_login, "http://x", tentativas=3)
+except SessaoExpirada:
+    parou = True
+except FalhaFonte:
+    parou = False
+checa(parou and pagina_login.idas == 1,
+      "sessão expirada não é repetida: insistir não loga de novo")
+
+print("\n== 'Conclua o Módulo X' morre quando o módulo acaba (09/08/2026) ==")
+
+
+def curso_modulo(itens):
+    """Aviso 'finalizar o Módulo 4 até hoje' + o módulo que ele cobra."""
+    return {"code": "COM170", "modelo": "quinzenal", "id": 18922,
+            "avisos": [{"autor": "formador", "url": "#a",
+                        "autoridade": "institucional",
+                        "prazos": [{"rotulo": "conclusão",
+                                    "quando": "2026-08-04T23:59:00-03:00",
+                                    "tipo": "fim", "hora_certa": True,
+                                    "confianca": "alta",
+                                    "frase": "finalizar o Módulo 4",
+                                    "escopo": {"familia": "modulo",
+                                               "numeros": [4], "txt": ""}}]}],
+            "sections": [{"id": "m4", "title": "Módulo 4", "parent": None,
+                          "fase": "regular", "locked": None, "items": itens}]}
+
+
+def pagina(status):
+    return {"cmid": "1", "label": "M4 - Videoaula", "type": "page",
+            "status": status, "conta_nota": True, "aberto": True, "url": "#p"}
+
+
+def quiz(status, tem_nota):
+    return {"cmid": "2", "label": "M4 - Quiz", "type": "scorm",
+            "status": status, "conta_nota": True, "aberto": True, "url": "#q",
+            "tem_nota": tem_nota}
+
+
+def cobra(itens):
+    acoes = C.montar_acoes({"courses": [curso_modulo(itens)]},
+                           HOJE_EV, agora=AGORA)[0]
+    return [a for a in acoes if a["tipo"] == "obrigacao"]
+
+
+checa(bool(cobra([pagina("Pendente"), quiz("Concluído", True)])),
+      "com item pendente, a cobrança do módulo aparece")
+checa(not cobra([pagina("Concluído"), quiz("Concluído", True)]),
+      "módulo inteiro concluído para de ser cobrado")
+# O selo do Moodle fecha por visualização: quiz "Concluído" sem nota e sem
+# tentativa não é entrega, e silenciar por causa dele esconderia o dever.
+checa(bool(cobra([pagina("Concluído"),
+                  {**quiz("Concluído", None), "entrega_confirmada": False}])),
+      "selo 'Concluído' sem prova de entrega não silencia a cobrança")
+# Sem nada rastreado não há prova de conclusão, e falta de prova nunca pode
+# virar "está tudo feito".
+checa(bool(cobra([{"cmid": "3", "label": "M4 - Fórum", "type": "forum",
+                   "status": None, "conta_nota": False, "aberto": True,
+                   "url": "#f"}])),
+      "seção sem item rastreado continua cobrada, por falta de evidência")
+
 print("\n== Prazo da quinzena e cadeia de desbloqueio (Etapa 4) ==")
 
 from dominio.prazos import casar_prazos, escopo_cobre  # noqa: E402
