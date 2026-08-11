@@ -372,15 +372,17 @@ f = C.resumo_fontes({"courses": [{"code": "A", "cronograma": {"semanas": []},
                                  {"code": "B", "cronograma": None, "sections": []}]})
 checa(f["cronograma"] == 1, "telemetria conta só a disciplina que tem cronograma")
 
-# identidade de novidade pelo cmid, não pelo rótulo
+# identidade de novidade pelo cmid, não pelo rótulo: o AVA repete o mesmo
+# rótulo em atividades diferentes, e o guia não pode confundi-las
 ant4 = {"courses": [{"code": "X", "sections": [
     {"items": [{"label": "S1 - Videoaulas", "cmid": "1", "status": "Pendente"},
                {"label": "S1 - Videoaulas", "cmid": "2", "status": "Pendente"}]}]}]}
 ago4 = {"courses": [{"code": "X", "sections": [
     {"items": [{"label": "S1 - Videoaulas", "cmid": "1", "status": "Concluído"},
-               {"label": "S1 - Videoaulas", "cmid": "2", "status": "Pendente"}]}]}]}
+               {"label": "S1 - Videoaulas", "cmid": "2", "status": "Pendente"},
+               {"label": "S1 - Videoaulas", "cmid": "3", "status": "Pendente"}]}]}]}
 nov4 = C.novidades(ant4, ago4)
-checa(len(nov4) == 1 and nov4[0]["kind"] == "concluido",
+checa(len(nov4) == 1 and nov4[0]["cmid"] == "3",
       "dois itens de mesmo rótulo não mascaram a mudança um do outro")
 
 # escrita atômica não deixa arquivo pela metade

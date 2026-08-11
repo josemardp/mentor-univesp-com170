@@ -911,50 +911,42 @@ def identidade_item(curso, secao, item):
 
 
 def novidades(anterior, dados):
-    mudancas = []
-    antes = {}
+    """Atividade que apareceu no AVA desde o retrato anterior.
+
+    Calculava também item concluído e post de aviso, e nada lia o resultado:
+    ficava gravando três tipos de mudança no ``data.json`` que nunca chegaram
+    a uma tela. Item concluído é ação dele, não notícia; aviso de fórum já
+    entra por conta própria na aba. Sobrou o que é novidade de verdade: a
+    atividade que não existia na leitura anterior, que é como a abertura de
+    uma semana nova aparece.
+    """
+    antes = set()
     for curso in (anterior or {}).get("courses", []):
         for secao in curso.get("sections", []):
             for item in secao.get("items", []):
-                antes[identidade_item(curso, secao, item)] = item.get("status")
+                antes.add(identidade_item(curso, secao, item))
+    if not antes:
+        # Sem retrato anterior o AVA inteiro pareceria novidade.
+        return []
+    mudancas = []
     for curso in dados["courses"]:
         for secao in curso["sections"]:
             for item in secao["items"]:
-                chave = identidade_item(curso, secao, item)
-                cmid = (
-                    str(item["cmid"])
-                    if item.get("cmid") is not None
-                    else None
-                )
-                if chave not in antes and item.get("status") is not None:
-                    mudancas.append(
-                        {
-                            "curso": curso["code"],
-                            "label": item["label"],
-                            "kind": "novo",
-                            "cmid": cmid,
-                        }
-                    )
-                elif (
-                    antes.get(chave) != item.get("status")
-                    and item.get("status") == "Concluído"
-                ):
-                    mudancas.append(
-                        {
-                            "curso": curso["code"],
-                            "label": item["label"],
-                            "kind": "concluido",
-                            "cmid": cmid,
-                        }
-                    )
-        for aviso in curso.get("avisos", []):
-            if aviso.get("novo"):
+                if item.get("status") is None:
+                    continue
+                if identidade_item(curso, secao, item) in antes:
+                    continue
                 mudancas.append(
                     {
                         "curso": curso["code"],
-                        "label": aviso.get("titulo") or "novo post",
-                        "kind": "aviso",
-                        "autoridade": aviso.get("autoridade", "colega"),
+                        "secao": secao.get("title"),
+                        "label": item["label"],
+                        "url": item.get("url"),
+                        "cmid": (
+                            str(item["cmid"])
+                            if item.get("cmid") is not None
+                            else None
+                        ),
                     }
                 )
     return mudancas

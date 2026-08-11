@@ -75,6 +75,43 @@ def _rotulo_limpo(bruto):
     return TIPO_NO_ROTULO.sub("", (bruto or "").strip()).strip()
 
 
+def _tipo_e_rotulo(bruto):
+    """Separa o tipo declarado pelo Moodle do nome do item.
+
+    "NOTA CALCULADA Média AVA" e "FORMA DE AGREGAÇÃO DAS NOTAS Quinzena 1
+    total" são coisas diferentes, e esse prefixo é o próprio AVA dizendo qual
+    é qual. Jogar o prefixo fora antes de decidir foi o que deixou o guia
+    trocar uma pela outra.
+    """
+    texto = (bruto or "").strip()
+    achado = TIPO_NO_ROTULO.match(texto)
+    tipo = sem_acento(achado.group(1)).lower() if achado else ""
+    return tipo, _rotulo_limpo(texto)
+
+
+def _media_do_curso(calculadas):
+    """A nota do curso inteiro, nunca o total de uma unidade dele.
+
+    Achado em 10/08/2026, conferido no AVA: o COM170 publica sete linhas
+    "Quinzena N total" antes da "Média AVA". Pegando a primeira linha
+    calculada, o guia estampava 2,00 (total da Quinzena 1) no lugar onde o AVA
+    dizia 0,29 (Média AVA) — número errado justamente onde ele olha para saber
+    como está. Nas outras três disciplinas dava certo por acaso, porque lá a
+    Média AVA é a única linha calculada.
+
+    Quem responde é o tipo declarado: "nota calculada" é do curso, "forma de
+    agregação das notas" é de uma categoria dentro dele. Sem nenhuma linha do
+    curso, a resposta é nenhuma: total de unidade não é promovido a média.
+    """
+    for calculada in calculadas:
+        if calculada["tipo"] == "nota calculada":
+            return calculada
+    for calculada in calculadas:
+        if "media" in sem_acento(calculada["rotulo"]):
+            return calculada
+    return None
+
+
 def _abrir(page, curso_id):
     """Abre o relatório e espera a tabela existir. Devolve as linhas cruas.
 
@@ -110,16 +147,18 @@ def ler(page, curso_id):
         # tabela simplesmente não estava lá. Uma segunda chance custa uma
         # página e evita marcar como falha o que é só lentidão do AVA.
         linhas = _abrir(page, curso_id)
-    por_cmid, media, itens = {}, None, 0
+    por_cmid, calculadas, itens = {}, [], 0
     for linha in linhas:
-        rotulo = _rotulo_limpo(linha.get("rotulo"))
+        tipo, rotulo = _tipo_e_rotulo(linha.get("rotulo"))
         nota_txt = _limpar_nota(linha.get("nota"))
         if sem_acento(rotulo).startswith("item de nota"):
             continue  # cabeçalho
         if not linha.get("url"):
-            # Linha calculada (Média AVA, Total do curso): não é atividade.
+            # Linha calculada (Média AVA, total de quinzena): não é atividade.
             if "media" in sem_acento(rotulo) or "total" in sem_acento(rotulo):
-                media = media or {"rotulo": rotulo, "nota": nota_txt}
+                calculadas.append(
+                    {"rotulo": rotulo, "nota": nota_txt, "tipo": tipo}
+                )
             continue
         achado = CMID_RE.search(linha["url"])
         if not achado:
@@ -142,10 +181,19 @@ def ler(page, curso_id):
             continue
         por_cmid[cmid] = registro
         itens += 1
+    media = _media_do_curso(calculadas)
+    # Os totais por unidade continuam à vista, só que como detalhe: sabendo o
+    # que a Quinzena 1 fechou, ele entende de onde veio a média do curso.
+    totais = [
+        calculada
+        for calculada in calculadas
+        if calculada is not media and _numero(calculada["nota"]) is not None
+    ]
     # `linhas` inclui o cabeçalho quando a tabela existe. Zero linhas significa
     # que nem a tabela apareceu, e isso é falha de leitura, não boletim vazio.
     return por_cmid, {
         "media": media,
+        "totais": totais,
         "itens": itens,
         "linhas_brutas": len(linhas),
     }

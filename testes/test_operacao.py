@@ -332,13 +332,15 @@ with tempfile.TemporaryDirectory() as tmp:
         levantou = True
 checa(levantou, "data.json corrompido falha explicitamente")
 
+# Identidade do item, provada pelo que o guia anuncia: rótulo igual em seção
+# diferente é outra atividade; cmid igual escrito como número ou texto é a
+# mesma. Errar aqui faz o guia anunciar como nova uma atividade de sempre.
 ant = {"courses": [{"code": "X", "sections": [
     {"id": "a", "items": [{"label": "Mesmo", "cmid": None, "status": "Pendente"}]},
-    {"id": "b", "items": [{"label": "Mesmo", "cmid": None, "status": "Concluído"}]},
 ]}]}
 novo = {"courses": [{"code": "X", "sections": [
-    {"id": "a", "items": [{"label": "Mesmo", "cmid": None, "status": "Concluído"}]},
-    {"id": "b", "items": [{"label": "Mesmo", "cmid": None, "status": "Concluído"}]},
+    {"id": "a", "items": [{"label": "Mesmo", "cmid": None, "status": "Pendente"}]},
+    {"id": "b", "items": [{"label": "Mesmo", "cmid": None, "status": "Pendente"}]},
 ]}]}
 checa(len(C.novidades(ant, novo)) == 1, "seção distingue itens sem cmid")
 ant_tipo = {"courses": [{"code": "X", "sections": [
@@ -347,8 +349,7 @@ ant_tipo = {"courses": [{"code": "X", "sections": [
 novo_tipo = {"courses": [{"code": "X", "sections": [
     {"id": "a", "items": [{"label": "Mesmo", "cmid": "1", "status": "Concluído"}]},
 ]}]}
-nov_tipo = C.novidades(ant_tipo, novo_tipo)
-checa(len(nov_tipo) == 1 and nov_tipo[0]["kind"] == "concluido",
+checa(C.novidades(ant_tipo, novo_tipo) == [],
       "cmid numérico e textual têm a mesma identidade")
 
 
@@ -974,6 +975,156 @@ checa("saiu nota em SOC100" in E.assunto({
       "sem nada urgente, o assunto anuncia a nota em vez de 'tudo em dia'")
 checa("tudo em dia" in E.assunto({"acoes": [], "notas_novas": []}),
       "sem nota nova, o assunto de dia calmo continua o mesmo")
+
+print("\n== A média do curso não é o total de uma quinzena (10/08/2026) ==")
+
+from fontes import boletim as B  # noqa: E402
+
+
+class BoletimFake:
+    """Devolve as linhas cruas, como o ``page.evaluate`` do boletim."""
+
+    def __init__(self, linhas):
+        self.linhas = linhas
+
+    def goto(self, url, **kwargs):
+        pass
+
+    def wait_for_selector(self, seletor, timeout=None):
+        pass
+
+    def wait_for_timeout(self, ms):
+        pass
+
+    def evaluate(self, script):
+        return self.linhas
+
+
+def linha(rotulo, nota, url=None):
+    return {"rotulo": rotulo, "nota": nota, "feedback": "", "url": url}
+
+
+CABECALHO = linha("Item de nota", "Nota")
+# Rótulos copiados do relatório do COM170 (id 18922) em 10/08/2026, com o
+# prefixo de tipo que o Moodle escreve na frente do nome.
+COM170_REAL = [
+    CABECALHO,
+    linha("QUESTIONÁRIO M1 - Quiz: Identifique o paradigma", "0,00",
+          "https://ava.univesp.br/mod/quiz/view.php?id=173832"),
+    linha("FORMA DE AGREGAÇÃO DAS NOTAS Quinzena 1 total", "2,00"),
+    linha("FORMA DE AGREGAÇÃO DAS NOTAS Quinzena 2 total", "-"),
+    linha("FORMA DE AGREGAÇÃO DAS NOTAS Quinzena 3 total", "-"),
+    linha("FORMA DE AGREGAÇÃO DAS NOTAS Quiz total", "-"),
+    linha("NOTA CALCULADA Média AVA", "0,29"),
+]
+
+_, resumo = B.ler(BoletimFake(COM170_REAL), 18922)
+checa(resumo["media"] == {"rotulo": "Média AVA", "nota": "0,29",
+                          "tipo": "nota calculada"},
+      "a média do curso é a linha que o Moodle declara como nota calculada")
+checa(resumo["media"]["nota"] != "2,00",
+      "o total da Quinzena 1 não é mais estampado como se fosse a média")
+checa([t["rotulo"] for t in resumo["totais"]] == ["Quinzena 1 total"],
+      "totais de unidade viram detalhe, e só os que têm nota lançada")
+
+# COM100 e LET110: uma linha calculada só, e continua funcionando.
+_, simples = B.ler(BoletimFake([CABECALHO, linha("NOTA CALCULADA Média AVA", "2,00")]), 18870)
+checa(simples["media"]["nota"] == "2,00" and simples["totais"] == [],
+      "disciplina com uma linha calculada só segue lendo a média igual")
+
+# Sem linha do curso inteiro, o guia não promove total de unidade a média.
+_, sem_media = B.ler(
+    BoletimFake([CABECALHO,
+                 linha("FORMA DE AGREGAÇÃO DAS NOTAS Quinzena 1 total", "2,00")]),
+    99)
+checa(sem_media["media"] is None and len(sem_media["totais"]) == 1,
+      "sem nota calculada do curso, a média fica vazia em vez de inventada")
+
+cabec = R.render_notas({"courses": [{
+    "code": "COM170", "modelo": "regular",
+    "boletim": {"status": "live",
+                "media": {"rotulo": "Média AVA", "nota": "0,29"},
+                "totais": [{"rotulo": "Quinzena 1 total", "nota": "2,00"}],
+                "itens": 1},
+    "sections": [{"id": "s1", "title": "Quinzena 1", "fase": "regular",
+                  "locked": None, "items": [
+                      {"cmid": "1", "label": "M1 - Quiz", "type": "quiz",
+                       "conta_nota": True, "nota_txt": "0,00",
+                       "tem_nota": True, "url": "#q"}]}]}]})
+checa("Média AVA: " in cabec and "0,29" in cabec,
+      "a aba mostra a média do curso como número principal")
+checa("Quinzena 1 total: 2,00" in cabec,
+      "e o total da quinzena continua à vista, como detalhe")
+
+print("\n== As oito fontes aparecem na linha de saúde ==")
+
+saude_ok = R.render_fontes_status({"status": "ok", "fontes_status": {
+    "disciplinas": {"status": "live", "quantidade_atual": 4,
+                    "last_live_at": T0},
+    "boletim": {"status": "live", "quantidade_atual": 25, "last_live_at": T0},
+    "participacao": {"status": "live", "quantidade_atual": 7,
+                     "last_live_at": T0}}})
+checa("25 notas no boletim" in saude_ok
+      and "7 quinzenas de participação" in saude_ok,
+      "boletim e participação entram no 'o que eu li'")
+
+saude_ruim = R.render_fontes_status({"status": "ok", "fontes_status": {
+    "disciplinas": {"status": "live", "quantidade_atual": 4,
+                    "last_live_at": T0},
+    "boletim": {"status": "falhou", "from_cache": True,
+                "quantidade_atual": 25, "last_live_at": T0}}})
+checa("Atenção" in saude_ruim and "boletins" in saude_ruim,
+      "boletim que falhou passa a ser dito, em vez de sumir da linha de saúde")
+
+saude_na = R.render_fontes_status({"status": "ok", "fontes_status": {
+    "disciplinas": {"status": "live", "quantidade_atual": 4,
+                    "last_live_at": T0},
+    "participacao": {"status": "nao_aplicavel", "quantidade_atual": 0}}})
+checa("participação" not in saude_na and "Atenção" not in saude_na,
+      "fonte que nenhuma disciplina tem não vira 0 nem alarme")
+
+print("\n== Atividade nova deixou de ser cálculo sem tela ==")
+
+from dominio.acoes import novidades  # noqa: E402
+
+
+def com_itens(rotulos):
+    return {"courses": [{
+        "code": "COM100", "modelo": "regular",
+        "sections": [{"id": "s4", "title": "Semana 4", "fase": "regular",
+                      "locked": None, "items": [
+                          {"cmid": str(900 + i), "label": r,
+                           "status": "Pendente", "url": f"#i{i}"}
+                          for i, r in enumerate(rotulos)]}]}]}
+
+
+novos = novidades(com_itens(["S4 - Início"]),
+                  com_itens(["S4 - Início", "S4 - Avaliação", "S4 - Live"]))
+checa(len(novos) == 2 and novos[0]["secao"] == "Semana 4",
+      "atividade que não existia na leitura anterior vira novidade, com a seção")
+checa(novidades(None, com_itens(["S4 - Início"])) == [],
+      "sem retrato anterior o AVA inteiro não é anunciado como novidade")
+checa(novidades(com_itens(["S4 - Início"]), com_itens(["S4 - Início"])) == [],
+      "sem item novo, nada é anunciado")
+
+muitos = {"novidades": [
+    {"curso": "COM100", "secao": "Semana 4", "label": f"S4 - item {i}"}
+    for i in range(20)]}
+html_novos = R.render_novidades(muitos)
+checa("COM100" in html_novos and "Semana 4" in html_novos
+      and "e mais 17" in html_novos,
+      "vinte itens de uma semana viram uma linha só, com a conta do resto")
+checa(R.contar_novidades(muitos) == 1,
+      "e contam como uma novidade no rótulo da aba, não vinte")
+
+# Formato antigo do data.json, que sobrevive até a próxima leitura do robô.
+legado = {"novidades": [
+    {"curso": "COM100", "label": "Re: Fórum de dúvidas", "kind": "aviso"},
+    {"curso": "COM100", "label": "S3 - Videoaula", "kind": "concluido"},
+    {"curso": "COM100", "label": "S4 - Início", "kind": "novo"}]}
+checa(R.contar_novidades(legado) == 1
+      and "Re: Fórum de dúvidas" not in R.render_novidades(legado),
+      "post e item concluído do formato antigo não viram atividade nova")
 
 print("\n== Abertura não é prazo, e o calendário resolve o indefinido ==")
 

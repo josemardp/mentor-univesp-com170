@@ -401,6 +401,7 @@ def executar_coleta(estado, anterior=None):
 
             cache_boletins = cache_fontes.setdefault("boletins", {})
             cache_medias = cache_fontes.setdefault("boletim_medias", {})
+            cache_totais = cache_fontes.setdefault("boletim_totais", {})
             chave_curso = str(descoberto["id"])
             resultado_boletim = boletim.resultado(
                 page,
@@ -410,14 +411,17 @@ def executar_coleta(estado, anterior=None):
             )
             resultados_boletim.append(resultado_boletim)
             media_boletim = (resultado_boletim.detalhes or {}).get("media")
+            totais_boletim = (resultado_boletim.detalhes or {}).get("totais")
             if resultado_boletim.status == "live":
                 cache_boletins[chave_curso] = resultado_boletim.dados
                 cache_medias[chave_curso] = media_boletim
+                cache_totais[chave_curso] = totais_boletim or []
             elif media_boletim is None:
                 # Leitura falhou e as notas vieram do cache. A média mora só
                 # na telemetria, então sem guardá-la à parte a aba "Como
                 # estou" perdia a linha da disciplina inteira.
                 media_boletim = cache_medias.get(chave_curso)
+                totais_boletim = cache_totais.get(chave_curso)
             notas_por_cmid = resultado_boletim.dados or {}
             for secao in secoes:
                 numero_semana = None
@@ -605,6 +609,7 @@ def executar_coleta(estado, anterior=None):
                     "boletim": {
                         "status": resultado_boletim.status,
                         "media": media_boletim,
+                        "totais": totais_boletim or [],
                         "itens": len(notas_por_cmid),
                     },
                     "participacao": resultado_participacao.dados,

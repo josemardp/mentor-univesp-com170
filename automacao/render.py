@@ -166,26 +166,37 @@ def render_fontes_status(data):
         "foruns": "fóruns",
         "itens": "itens",
         "notificacoes": "notificações",
+        "boletim": "boletins",
+        "participacao": "progresso de participação",
     }
     # Esta linha existe pra responder "posso confiar no que estou lendo?".
     # A primeira versão saía em idioma de programador ("foruns: live (60,
     # truncado, último ao vivo 20:46)") e o dono do projeto, que não é dev,
     # precisou perguntar o que significava. Agora: uma frase no caso normal,
     # e nome aos bois quando alguma fonte falha.
+    # Boletim e participação ficavam de fora desta linha, então podiam falhar
+    # dias seguidos enquanto a frase continuava dizendo "li tudo agora, sem
+    # reaproveitar dados antigos". Oito fontes lidas, oito fontes declaradas.
     ordem = ("disciplinas", "calendario", "cronograma", "foruns", "itens",
-             "notificacoes")
+             "notificacoes", "boletim", "participacao")
     quantidades = {
         "disciplinas": "{n} disciplinas",
         "calendario": "{n} prazos no calendário",
         "cronograma": "{n} cronogramas",
         "itens": "{n} atividades conferidas",
         "notificacoes": "{n} notificações",
+        "boletim": "{n} notas no boletim",
+        "participacao": "{n} quinzenas de participação",
     }
 
     horas, numeros, falhas, parciais, truncadas = set(), [], [], [], []
     for chave in ordem:
         info = estados.get(chave) or {}
         if not info.get("status"):
+            continue
+        if info.get("status") == "nao_aplicavel":
+            # Disciplina nenhuma tem essa fonte nesta leitura. Contar "0" aqui
+            # pareceria perda de dado onde não há dado a perder.
             continue
         quando = ""
         if info.get("last_live_at"):
@@ -524,6 +535,52 @@ def render_nota_nova(n):
             f'<div class="acao-pe">{motivo}</div>{devolutiva}</li>')
 
 
+def agrupar_itens_novos(data):
+    """Atividades novas juntadas por disciplina e seção.
+
+    Uma semana que abre traz vinte itens de uma vez. Vinte linhas soltas viram
+    parede e escondem o que interessa, que é "a Semana 4 do COM100 abriu".
+    """
+    grupos = {}
+    for novo in data.get("novidades") or []:
+        # O formato antigo trazia item concluído e post de fórum misturados,
+        # marcados por "kind". Sem esta linha, no primeiro dia da mudança o
+        # data.json ainda velho faria a aba anunciar título de post como se
+        # fosse atividade nova.
+        if novo.get("kind") is not None and novo.get("kind") != "novo":
+            continue
+        grupos.setdefault(
+            (novo.get("curso") or "", novo.get("secao") or ""), []
+        ).append(novo)
+    return grupos
+
+
+def render_itens_novos(data):
+    grupos = agrupar_itens_novos(data)
+    if not grupos:
+        return ""
+    linhas = []
+    for (codigo, secao), itens in list(grupos.items())[:8]:
+        quantas = len(itens)
+        titulo = f"{esc(codigo)}"
+        if secao:
+            titulo += f' · {esc(secao)}'
+        exemplos = ", ".join(esc(i.get("label") or "") for i in itens[:3])
+        if quantas > 3:
+            exemplos += f" e mais {quantas - 3}"
+        linhas.append(
+            f'<li class="acao"><div class="acao-chips">'
+            f'<span class="status pend">{quantas}</span></div>'
+            f'<div class="acao-txt">{titulo}</div>'
+            f'<div class="acao-pe">{exemplos}</div></li>'
+        )
+    rotulo = ("Atividade nova no AVA" if len(grupos) == 1
+              else "Atividades novas no AVA")
+    return (f'<p class="sub" style="margin:22px 0 10px;">{rotulo} '
+            'desde a leitura anterior.</p>'
+            f'<ul class="acoes">{"".join(linhas)}</ul>')
+
+
 def contar_novidades(data):
     """O número no rótulo da aba. Tem que contar tudo o que a aba mostra."""
     novos = sum(
@@ -535,7 +592,11 @@ def contar_novidades(data):
         [n for n in data.get("notificacoes") or [] if not n.get("lida")]
     )
     mensagens = sum(m.get("nao_lidas", 0) for m in data.get("mensagens") or [])
-    return novos + nao_lidas + mensagens + len(data.get("notas_novas") or [])
+    # Atividade nova conta por grupo, não por item: uma semana que abre com
+    # vinte itens é uma novidade para ele, não vinte.
+    return (novos + nao_lidas + mensagens
+            + len(data.get("notas_novas") or [])
+            + len(agrupar_itens_novos(data)))
 
 
 def render_novidades(data):
@@ -599,19 +660,21 @@ def render_novidades(data):
             f'<a href="{esc(m["url"])}" target="_blank" rel="noopener">abrir no AVA</a>'
             f'</span></li>')
 
+    itens_html = render_itens_novos(data)
+
     if not avisos_html and not extras:
-        if notas_html:
-            return f'<div class="bloco">{notas_html}</div>'
+        if notas_html or itens_html:
+            return f'<div class="bloco">{notas_html}{itens_html}</div>'
         return ('<div class="bloco">'
-                '<p class="sub" style="margin:0;">Nenhuma nota, post, notificação ou '
-                'mensagem nova desde a última checagem.</p></div>')
+                '<p class="sub" style="margin:0;">Nenhuma nota, atividade, post, '
+                'notificação ou mensagem nova desde a última checagem.</p></div>')
 
     extras_html = f'<ul class="tasklist">{"".join(extras)}</ul>' if extras else ""
-    # Nota e fórum são assuntos diferentes: colados, o olho lê a lista de posts
-    # como se fosse continuação das notas.
-    respiro = "22px 0 10px" if notas_html else "0 0 10px"
+    # Nota, atividade e fórum são assuntos diferentes: colados, o olho lê a
+    # lista de posts como se fosse continuação do bloco de cima.
+    respiro = "22px 0 10px" if (notas_html or itens_html) else "0 0 10px"
     return ('<div class="bloco">'
-            f'{notas_html}'
+            f'{notas_html}{itens_html}'
             f'<p class="sub" style="margin:{respiro};">Fóruns, notificações e mensagens que '
             'apareceram desde a última leitura.</p>'
             f'<ul class="acoes">{avisos_html}</ul>{extras_html}</div>')
@@ -922,6 +985,15 @@ def render_notas(data):
             else:
                 cabecalho += (f' · {esc(media.get("rotulo") or "média")}: '
                               f'<span class="status ok">{esc(valor)}</span>')
+        # Total de quinzena entra como detalhe, nunca como o número principal:
+        # é ele que explica de onde veio a média, não a média em si.
+        parciais = " · ".join(
+            f'{esc(total.get("rotulo") or "")}: {esc(total.get("nota") or "")}'
+            for total in (boletim.get("totais") or [])[:6]
+        )
+        if parciais:
+            cabecalho += (f' <span class="sub" style="font-size:.78em;'
+                          f'font-weight:400;">({parciais})</span>')
         if not linhas:
             linhas.append(_boletim_vazio(c, boletim))
         blocos.append(f'<h3 class="grupo">{cabecalho}</h3>'
