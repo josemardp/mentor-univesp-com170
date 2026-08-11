@@ -109,8 +109,10 @@ jobs:
 
       # Sem continue-on-error: e-mail que para de chegar tem que ficar visível.
       # O site já foi publicado no passo acima, então falhar aqui não o perde.
-      # O site relê várias vezes ao dia, mas o e-mail continua sendo um por
-      # dia: cinco e-mails viram ruído e param de ser lidos.
+      # O resumo continua sendo um por dia: cinco e-mails iguais viram ruído e
+      # param de ser lidos. Mas prazo que o AVA publica às 14h não podia
+      # esperar até as 8h do dia seguinte, então a rodada intermediária ganhou
+      # voz própria — e ela só fala quando há prazo novo e perto.
       - name: Enviar resumo por e-mail
         env:
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
@@ -124,24 +126,7 @@ jobs:
           if [ "$AGENDA" = "0 11 * * *" ] || [ "$EVENTO" = "workflow_dispatch" ]; then
             python automacao/enviar_email.py
           else
-            echo "Rodada intermediária: só atualizo o site, o e-mail é o da manhã."
-          fi
-
-      # Registra a data do envio para o próprio script pular reenvio se este
-      # job for re-executado no mesmo dia (rerun manual, retry após falha nos
-      # passos seguintes). Sem isso, um rerun manda o e-mail de novo do zero.
-      - name: Registrar data do envio
-        run: |
-          git config user.name "guia-univesp-bot"
-          git config user.email "actions@users.noreply.github.com"
-          if [ -f automacao/.ultimo_email_enviado ]; then
-            git add automacao/.ultimo_email_enviado
-            if git diff --cached --quiet; then
-              echo "Sem mudança na data do último envio."
-            else
-              git commit -m "Registra data do envio do e-mail diário"
-              git push
-            fi
+            python automacao/enviar_email.py --alerta
           fi
 
       # Falha visível: se a leitura não foi confiável, a Action fica vermelha.
@@ -159,4 +144,41 @@ jobs:
           if grep -q '"status": "coleta_degradada"' docs/data.json; then
             echo "::error::Atualizei as fontes saudáveis, mas pelo menos uma fonte falhou e usou cache. Consulte fontes_status no docs/data.json."
             exit 1
+          fi
+
+      # A Action vermelha só avisa quem lê notificação do GitHub. Se a rodada
+      # morreu antes do passo de e-mail, nada chegava nele — e caixa de entrada
+      # vazia é idêntica a "nada pendente". Vem por último para pegar também a
+      # falha da verificação de saúde acima.
+      - name: Avisar por e-mail que o robô não terminou
+        if: failure()
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          EMAIL_PARA: ${{ secrets.EMAIL_PARA }}
+          PASSO_FALHOU: ${{ github.job }} (rodada ${{ github.run_number }})
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: python automacao/enviar_email.py --falha
+
+      # Registra a data do envio para o próprio script pular reenvio se este
+      # job for re-executado no mesmo dia (rerun manual, retry após falha nos
+      # passos seguintes). Sem isso, um rerun manda o e-mail de novo do zero.
+      # Roda mesmo com o job vermelho, senão o aviso de falha se repetiria a
+      # cada uma das cinco rodadas de um dia ruim.
+      - name: Registrar data do envio
+        if: always()
+        run: |
+          git config user.name "guia-univesp-bot"
+          git config user.email "actions@users.noreply.github.com"
+          for marcador in automacao/.ultimo_email_enviado automacao/.ultimo_aviso_falha; do
+            if [ -f "$marcador" ]; then git add "$marcador"; fi
+          done
+          if git diff --cached --quiet; then
+            echo "Sem mudança nas datas de envio."
+          else
+            git commit -m "Registra data do envio do e-mail diário"
+            git pull --rebase --autostash || true
+            git push || echo "::warning::não consegui registrar a data do envio; no pior caso o aviso se repete na próxima rodada."
           fi

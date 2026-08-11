@@ -225,17 +225,33 @@ def render_fontes_status(data):
         elif status == "parcial":
             parciais.append(nomes[chave])
         if info.get("truncado"):
-            truncadas.append(nomes[chave])
+            # Cada corte tem um motivo diferente e uma consequência diferente:
+            # post que ficou de fora é ruído perdido, atividade que ficou sem
+            # conferência é obrigação dele que o guia não olhou.
+            if chave == "itens":
+                quantos = info.get("nao_conferidos")
+                truncadas.append(
+                    f"{quantos} atividade(s) ficaram sem conferência de "
+                    "abertura nesta leitura, por limite de tempo da rodada; "
+                    "elas continuam na lista, só não tive como confirmar se "
+                    "ainda estão abertas"
+                    if quantos
+                    else "algumas atividades ficaram sem conferência"
+                )
+            else:
+                truncadas.append(
+                    f"nos {nomes[chave]} havia mais posts do que eu guardo, "
+                    "então fiquei com os mais importantes"
+                )
 
     if not numeros and not falhas and not parciais:
         return ""
 
     detalhes = ""
     if numeros:
-        extra = ""
-        if truncadas:
-            extra = (f' Nos {esc(" e ".join(truncadas))} havia mais posts do que '
-                     'eu guardo, então fiquei com os mais importantes.')
+        extra = "".join(
+            f" {esc(frase[0].upper() + frase[1:])}." for frase in truncadas
+        )
         detalhes = (f'<details class="fontes-det"><summary>o que eu li</summary>'
                     f'<p>{esc(", ".join(numeros))}.{extra}</p></details>')
 
@@ -535,6 +551,54 @@ def render_nota_nova(n):
             f'<div class="acao-pe">{motivo}</div>{devolutiva}</li>')
 
 
+def render_prazo_novo(p):
+    """Uma linha de prazo que o AVA passou a mostrar."""
+    nome = esc(p.get("label") or "")
+    if p.get("url"):
+        nome = (f'<a href="{esc(p["url"])}" target="_blank" rel="noopener">'
+                f'{nome}</a>')
+    try:
+        quando = datetime.fromisoformat(p["prazo"]).astimezone(BR_TZ)
+        momento = f"{quando:%d/%m às %H:%M}"
+    except (KeyError, TypeError, ValueError):
+        momento = esc(str(p.get("prazo") or ""))
+    if p.get("de"):
+        try:
+            antes = datetime.fromisoformat(p["de"]).astimezone(BR_TZ)
+            motivo = f"antes era {antes:%d/%m às %H:%M}"
+        except (TypeError, ValueError):
+            motivo = "a data mudou"
+    elif p.get("atividade_nova"):
+        motivo = "atividade nova, já com prazo"
+    else:
+        motivo = "o AVA passou a mostrar prazo nesta atividade"
+    if p.get("fonte"):
+        motivo += f' · fonte: {esc(p["fonte"])}'
+    chips = f'<span class="status pend">{esc(momento)}</span>'
+    if p.get("conta_nota"):
+        chips += '<span class="status lock">vale nota</span>'
+    return (f'<li class="acao"><div class="acao-chips">{chips}</div>'
+            f'<div class="acao-txt">{esc(p.get("curso") or "")} · {nome}</div>'
+            f'<div class="acao-pe">{motivo}</div></li>')
+
+
+def secao_novidade(titulo, linhas_html):
+    """Um bloco da aba "Chegou novo", com o respiro que o separa do de cima."""
+    return (f'<p class="sub secao-novidade">{titulo}</p>'
+            f'<ul class="acoes">{linhas_html}</ul>')
+
+
+def render_prazos_novos(data):
+    prazos = data.get("prazos_novos") or []
+    if not prazos:
+        return ""
+    rotulo = "Prazo novo" if len(prazos) == 1 else "Prazos novos"
+    return secao_novidade(
+        f"{rotulo} desde a leitura anterior.",
+        "".join(render_prazo_novo(p) for p in prazos[:10]),
+    )
+
+
 def agrupar_itens_novos(data):
     """Atividades novas juntadas por disciplina e seção.
 
@@ -576,9 +640,8 @@ def render_itens_novos(data):
         )
     rotulo = ("Atividade nova no AVA" if len(grupos) == 1
               else "Atividades novas no AVA")
-    return (f'<p class="sub" style="margin:22px 0 10px;">{rotulo} '
-            'desde a leitura anterior.</p>'
-            f'<ul class="acoes">{"".join(linhas)}</ul>')
+    return secao_novidade(f"{rotulo} desde a leitura anterior.",
+                          "".join(linhas))
 
 
 def contar_novidades(data):
@@ -596,24 +659,23 @@ def contar_novidades(data):
     # vinte itens é uma novidade para ele, não vinte.
     return (novos + nao_lidas + mensagens
             + len(data.get("notas_novas") or [])
+            + len(data.get("prazos_novos") or [])
             + len(agrupar_itens_novos(data)))
 
 
 def render_novidades(data):
     hoje = date.today()
-    # Nota vem primeiro: é a única novidade aqui que muda o resultado dele, e
-    # até 10/08/2026 o guia mostrava a nota na aba "Como estou" sem nunca
-    # dizer que ela tinha acabado de sair.
+    # Nota é a novidade que muda o resultado dele, e até 10/08/2026 o guia
+    # mostrava a nota na aba "Como estou" sem nunca dizer que ela tinha
+    # acabado de sair.
     notas = data.get("notas_novas") or []
     notas_html = ""
     if notas:
         quantas = len(notas)
-        notas_html = (
-            '<p class="sub" style="margin:0 0 10px;">'
+        notas_html = secao_novidade(
             f'{"Saiu nota nova" if quantas == 1 else "Saíram notas novas"} '
-            'desde a leitura anterior.</p>'
-            f'<ul class="acoes">'
-            f'{"".join(render_nota_nova(n) for n in notas[:12])}</ul>'
+            "desde a leitura anterior.",
+            "".join(render_nota_nova(n) for n in notas[:12]),
         )
     # --- Fase 1: coletar candidatos (sem corte por disciplina para urgentes) ---
     linhas = []
@@ -660,22 +722,26 @@ def render_novidades(data):
             f'<a href="{esc(m["url"])}" target="_blank" rel="noopener">abrir no AVA</a>'
             f'</span></li>')
 
+    # Prazo vem antes de tudo: é o único aqui que pode vencer hoje.
+    prazos_html = render_prazos_novos(data)
     itens_html = render_itens_novos(data)
+    topo = f"{prazos_html}{notas_html}{itens_html}"
 
     if not avisos_html and not extras:
-        if notas_html or itens_html:
-            return f'<div class="bloco">{notas_html}{itens_html}</div>'
+        if topo:
+            return f'<div class="bloco">{topo}</div>'
         return ('<div class="bloco">'
-                '<p class="sub" style="margin:0;">Nenhuma nota, atividade, post, '
-                'notificação ou mensagem nova desde a última checagem.</p></div>')
+                '<p class="sub" style="margin:0;">Nenhum prazo, nota, atividade, '
+                'post, notificação ou mensagem nova desde a última checagem.'
+                '</p></div>')
 
     extras_html = f'<ul class="tasklist">{"".join(extras)}</ul>' if extras else ""
-    # Nota, atividade e fórum são assuntos diferentes: colados, o olho lê a
-    # lista de posts como se fosse continuação do bloco de cima.
-    respiro = "22px 0 10px" if (notas_html or itens_html) else "0 0 10px"
+    # Prazo, nota, atividade e fórum são assuntos diferentes: colados, o olho
+    # lê a lista de posts como se fosse continuação do bloco de cima. O respiro
+    # sai do CSS, que também tira a margem do primeiro bloco da aba.
     return ('<div class="bloco">'
-            f'{notas_html}{itens_html}'
-            f'<p class="sub" style="margin:{respiro};">Fóruns, notificações e mensagens que '
+            f'{topo}'
+            '<p class="sub secao-novidade">Fóruns, notificações e mensagens que '
             'apareceram desde a última leitura.</p>'
             f'<ul class="acoes">{avisos_html}</ul>{extras_html}</div>')
 
@@ -1249,7 +1315,12 @@ TEMPLATE = """<!doctype html>
   *{box-sizing:border-box;}
   body{margin:0;background:var(--bg);color:var(--ink);
        font-family:ui-sans-serif,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-       line-height:1.5;padding:18px 14px 60px;}
+       line-height:1.5;padding:18px 14px 60px;
+       /* Link de gravação de live vem como uma palavra de 90 caracteres e
+          empurrava a página inteira para o lado no celular: no aparelho dele
+          a aba "Chegou novo" abria com rolagem horizontal. A propriedade é
+          herdada, então uma linha aqui cobre todo o conteúdo do AVA. */
+       overflow-wrap:break-word;}
   h1,h2,h3{font-family:Georgia,"Times New Roman",ui-serif,serif;font-weight:700;
            text-wrap:balance;margin:0;}
   a{color:inherit;}
@@ -1258,6 +1329,9 @@ TEMPLATE = """<!doctype html>
            color:var(--brick);font-weight:700;margin-bottom:8px;}
   h1{font-size:24px;line-height:1.15;}
   .sub{color:var(--ink-soft);font-size:14px;margin-top:8px;}
+  /* Cada assunto da aba "Chegou novo" ganha respiro, menos o primeiro. */
+  .secao-novidade{margin:22px 0 10px;}
+  .secao-novidade:first-child{margin-top:0;}
   .semana-line{font-size:13px;font-weight:600;margin-top:6px;}
   .alertbar{background:var(--wait-bg);color:var(--wait);border-radius:12px;
             padding:12px 14px;font-size:13.5px;margin:16px 0;}

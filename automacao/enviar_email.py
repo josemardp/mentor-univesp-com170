@@ -29,6 +29,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DATA_PATH = ROOT / "docs" / "data.json"
 ULTIMO_ENVIO_PATH = ROOT / "automacao" / ".ultimo_email_enviado"
+ULTIMA_FALHA_PATH = ROOT / "automacao" / ".ultimo_aviso_falha"
 SITE = "https://esdraaline.github.io/mentor-univesp-com170/"
 BR_TZ = timezone(timedelta(hours=-3))
 
@@ -39,6 +40,12 @@ TITULOS = {
     "depois": "Mais pra frente",
     "sem_prazo": "Sem prazo definido",
 }
+
+
+# Prazo novo só interrompe o dia dele se for perto. Mais longe que isso cabe
+# no e-mail da manhã seguinte, e virar notificação de tudo é como o aviso
+# deixa de ser lido.
+HORIZONTE_ALERTA_HORAS = 48
 
 
 def plural(n, singular, plural_):
@@ -65,6 +72,81 @@ def curto(texto, limite=64):
     e-mail isso vira parede de texto e atrapalha achar o que importa."""
     t = (texto or "").split(" | ")[0].strip()
     return t if len(t) <= limite else t[:limite - 1].rstrip() + "…"
+
+
+def _quando(iso):
+    try:
+        return datetime.fromisoformat(iso)
+    except (TypeError, ValueError):
+        return None
+
+
+def linha_prazo_novo(p):
+    quando = _quando(p.get("prazo"))
+    momento = f"{quando:%d/%m às %H:%M}" if quando else str(p.get("prazo"))
+    extra = []
+    if p.get("conta_nota"):
+        extra.append("vale nota")
+    antes = _quando(p.get("de"))
+    if antes:
+        extra.append(f"antes era {antes:%d/%m às %H:%M}")
+    elif p.get("atividade_nova"):
+        extra.append("atividade nova no AVA")
+    if p.get("fonte"):
+        extra.append(str(p["fonte"]))
+    sufixo = f"  ({' · '.join(extra)})" if extra else ""
+    return f"- {momento}: {p.get('curso')} - {curto(p.get('label'), 46)}{sufixo}"
+
+
+def prazos_para_alertar(data, agora=None):
+    """Prazo novo e perto: o que justifica um e-mail fora da hora combinada.
+
+    Não é "o que está urgente hoje", que repetiria todo dia o mesmo aviso. É
+    o que o AVA passou a dizer desde a leitura anterior e vence dentro do
+    horizonte. Prazo que já venceu fica de fora: aí não há o que interromper.
+    """
+    agora = agora or datetime.now(BR_TZ)
+    limite = agora + timedelta(hours=HORIZONTE_ALERTA_HORAS)
+    perto = []
+    for p in data.get("prazos_novos") or []:
+        quando = _quando(p.get("prazo"))
+        if quando is None:
+            continue
+        if agora <= quando <= limite:
+            perto.append((quando, p))
+    perto.sort(key=lambda par: par[0])
+    return [p for _, p in perto]
+
+
+def montar_alerta(data, prazos):
+    hoje = datetime.now(BR_TZ)
+    linhas = [
+        f"Guia Univesp - aviso fora de hora - {hoje:%d/%m às %H:%M}",
+        "",
+        "O AVA passou a mostrar prazo que não estava no e-mail da manhã:",
+        "",
+    ]
+    linhas += [linha_prazo_novo(p) for p in prazos[:8]]
+    if len(prazos) > 8:
+        linhas.append(f"  ... e mais {len(prazos) - 8}, no site.")
+    linhas += [
+        "",
+        "O resto do dia continua valendo o e-mail da manhã. Lista completa:",
+        SITE,
+    ]
+    return "\n".join(linhas)
+
+
+def assunto_alerta(prazos):
+    hoje = datetime.now(BR_TZ)
+    primeiro = prazos[0]
+    quando = _quando(primeiro.get("prazo"))
+    momento = f"{quando:%d/%m %H:%M}" if quando else "sem hora"
+    if len(prazos) > 1:
+        return (f"[Univesp {hoje:%d/%m}] prazo novo em {len(prazos)} "
+                f"atividades, a primeira {momento}")
+    return (f"[Univesp {hoje:%d/%m}] prazo novo: {primeiro.get('curso')} "
+            f"{curto(primeiro.get('label'), 28)} até {momento}")
 
 
 def topo_decisorio(data, acoes):
@@ -153,6 +235,16 @@ def montar_texto(data):
 
     # Topo: a decisão. Embaixo: a lista inteira, pra não precisar abrir o site.
     linhas += topo_decisorio(data, acoes)
+
+    # Prazo que o AVA passou a dizer desde a leitura anterior. Fica no topo
+    # porque é o único item do e-mail que ele ainda não tinha visto ontem.
+    novos_prazos = data.get("prazos_novos") or []
+    if novos_prazos:
+        linhas.append(f"PRAZO NOVO DESDE A ÚLTIMA LEITURA ({len(novos_prazos)})")
+        linhas += [linha_prazo_novo(p) for p in novos_prazos[:6]]
+        if len(novos_prazos) > 6:
+            linhas.append(f"  ... e mais {len(novos_prazos) - 6}, no site.")
+        linhas.append("")
 
     # Nota que saiu não é tarefa, mas é a notícia que ele mais espera, e nao
     # aparecia em lugar nenhum do e-mail ate 10/08/2026.
@@ -284,7 +376,66 @@ def assunto(data):
     return f"[Univesp {hoje:%d/%m}] tudo em dia"
 
 
-def main():
+def montar_falha(passo, run_url, idade_txt):
+    """O e-mail que existe para o silêncio não parecer dia calmo.
+
+    Se a rodada morre antes do passo de e-mail (dependência que não instala,
+    Pages que não confirma, teste vermelho), nada chegava nele. E "nenhum
+    e-mail" é exatamente igual a "nada pendente" na caixa de entrada. A Action
+    ficava vermelha, mas isso só avisa quem lê notificação do GitHub.
+    """
+    hoje = datetime.now(BR_TZ)
+    linhas = [
+        f"Guia Univesp - o robô não conseguiu terminar - {hoje:%d/%m às %H:%M}",
+        "",
+        "Não confie na lista de hoje sem conferir no AVA.",
+        "",
+        f"Onde parou: {passo or 'não identificado'}.",
+    ]
+    if idade_txt:
+        linhas.append(f"O site continua no ar, mas com o retrato de {idade_txt}.")
+    linhas += [
+        "",
+        "O que fazer:",
+        "1. Abrir o log da rodada e ver o passo vermelho:",
+        f"   {run_url or 'https://github.com/esdraaline/mentor-univesp-com170/actions'}",
+        "2. Se disser que a sessão do AVA expirou, rodar "
+        "automacao/salvar_credenciais.bat.",
+        "3. Se o site estiver velho demais, conferir prazo direto no AVA.",
+        "",
+        SITE,
+    ]
+    return "\n".join(linhas)
+
+
+def idade_do_retrato():
+    """Há quanto tempo é o retrato que está publicado, em palavras."""
+    if not DATA_PATH.exists():
+        return ""
+    try:
+        data = json.loads(DATA_PATH.read_text(encoding="utf-8"))
+        quando = _quando(data.get("snapshot_at") or data.get("checked_at"))
+        if quando is None:
+            return ""
+        horas = (datetime.now(timezone.utc) - quando).total_seconds() / 3600
+    except Exception:
+        return ""
+    quando_br = quando.astimezone(BR_TZ)
+    return f"{quando_br:%d/%m às %H:%M}, cerca de {int(horas)}h atrás"
+
+
+def enviar(msg, host, porta, user, senha, para):
+    with smtplib.SMTP(host, int(porta), timeout=45) as servidor:
+        servidor.starttls(context=ssl.create_default_context())
+        servidor.login(user, senha)
+        servidor.send_message(msg)
+
+
+def main(argv=None):
+    argv = list(sys.argv[1:] if argv is None else argv)
+    # Rodada intermediária: só fala se o AVA passou a mostrar prazo perto.
+    modo_alerta = "--alerta" in argv
+    modo_falha = "--falha" in argv
     host = os.environ.get("SMTP_HOST")
     porta = os.environ.get("SMTP_PORT", "587")
     user = os.environ.get("SMTP_USER")
@@ -299,6 +450,35 @@ def main():
             return 0
         print(f"::error::{mensagem}")
         return 2
+    hoje_str = datetime.now(BR_TZ).strftime("%Y-%m-%d")
+    msg = EmailMessage()
+    msg["From"] = user
+    msg["To"] = para
+
+    if modo_falha:
+        # Este é o único modo que não depende do data.json: quando ele falta é
+        # exatamente quando o aviso mais importa. Uma vez por dia basta; cinco
+        # avisos iguais num dia ruim é o jeito de ele parar de ler o aviso.
+        if (ULTIMA_FALHA_PATH.exists()
+                and ULTIMA_FALHA_PATH.read_text(encoding="utf-8").strip() == hoje_str):
+            print(f"Já avisei da falha hoje ({hoje_str}). Não repito.")
+            return 0
+        msg["Subject"] = (f"[Univesp {datetime.now(BR_TZ):%d/%m}] o robô não "
+                          "conseguiu terminar")
+        msg.set_content(montar_falha(
+            os.environ.get("PASSO_FALHOU"),
+            os.environ.get("RUN_URL"),
+            idade_do_retrato(),
+        ))
+        try:
+            enviar(msg, host, porta, user, senha, para)
+            ULTIMA_FALHA_PATH.write_text(hoje_str, encoding="utf-8")
+            print(f"Aviso de falha enviado para {para}.")
+        except Exception as erro:
+            print(f"::error::Nao consegui enviar o aviso de falha: {erro}")
+            return 1
+        return 0
+
     if not DATA_PATH.exists():
         mensagem = "Sem data.json, nao ha o que enviar."
         if opcional:
@@ -307,30 +487,43 @@ def main():
         print(f"::error::{mensagem}")
         return 2
 
-    # O publication_id e um timestamp, muda a cada execucao: nao serve pra
-    # saber se ja mandei hoje. Reenvio (rerun manual, retry de job que falhou
-    # depois deste passo) sem essa trava foi o que gerou 8 alertas iguais no
-    # mesmo dia em 04/08/2026. A trava e por data de Brasilia, nao por conteudo:
-    # a intencao e sempre um e-mail por dia, mesmo que o guia mude ao longo dele.
-    hoje_str = datetime.now(BR_TZ).strftime("%Y-%m-%d")
-    if ULTIMO_ENVIO_PATH.exists() and ULTIMO_ENVIO_PATH.read_text(encoding="utf-8").strip() == hoje_str:
-        print(f"E-mail de hoje ({hoje_str}) ja foi enviado antes. Pulando para nao duplicar.")
-        return 0
-
     data = json.loads(DATA_PATH.read_text(encoding="utf-8"))
-    msg = EmailMessage()
-    msg["Subject"] = assunto(data)
-    msg["From"] = user
-    msg["To"] = para
-    msg.set_content(montar_texto(data))
+
+    if modo_alerta:
+        # A trava diária não vale aqui: este e-mail existe justamente para o
+        # que apareceu depois dela. Quem impede repetição é o registro de
+        # prazo já avisado, no estado do coletor, não a data do envio.
+        prazos = prazos_para_alertar(data)
+        if not prazos:
+            print("Nenhum prazo novo nas próximas "
+                  f"{HORIZONTE_ALERTA_HORAS}h. Sigo sem enviar.")
+            return 0
+        if data.get("status") in ("session_expired", "coleta_incompleta"):
+            print("Leitura não confiável nesta rodada; não alerto por e-mail "
+                  "com dado velho.")
+            return 0
+        msg["Subject"] = assunto_alerta(prazos)
+        msg.set_content(montar_alerta(data, prazos))
+    else:
+        # O publication_id e um timestamp, muda a cada execucao: nao serve pra
+        # saber se ja mandei hoje. Reenvio (rerun manual, retry de job que falhou
+        # depois deste passo) sem essa trava foi o que gerou 8 alertas iguais no
+        # mesmo dia em 04/08/2026. A trava e por data de Brasilia, nao por conteudo:
+        # a intencao e sempre um e-mail por dia, mesmo que o guia mude ao longo dele.
+        if (ULTIMO_ENVIO_PATH.exists()
+                and ULTIMO_ENVIO_PATH.read_text(encoding="utf-8").strip() == hoje_str):
+            print(f"E-mail de hoje ({hoje_str}) ja foi enviado antes. Pulando para nao duplicar.")
+            return 0
+        msg["Subject"] = assunto(data)
+        msg.set_content(montar_texto(data))
 
     try:
-        with smtplib.SMTP(host, int(porta), timeout=45) as s:
-            s.starttls(context=ssl.create_default_context())
-            s.login(user, senha)
-            s.send_message(msg)
-        ULTIMO_ENVIO_PATH.write_text(hoje_str, encoding="utf-8")
-        print(f"E-mail enviado para {para}.")
+        enviar(msg, host, porta, user, senha, para)
+        if not modo_alerta:
+            # Só o resumo diário carimba a data. Se o alerta carimbasse, um
+            # prazo publicado às 11h engoliria o e-mail da manhã seguinte.
+            ULTIMO_ENVIO_PATH.write_text(hoje_str, encoding="utf-8")
+        print(f"{'Alerta' if modo_alerta else 'E-mail'} enviado para {para}.")
     except Exception as e:
         # Antes devolvia 0 aqui "pra nao derrubar a Action". O efeito era pior:
         # o e-mail parava de chegar e nada avisava. Agora o passo fica vermelho.

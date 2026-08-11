@@ -950,8 +950,8 @@ checa("8,00" in com_nota and "SOC100" in com_nota,
 checa("saiu a nota" in com_nota and "bom trabalho" in com_nota,
       "e mostra a devolutiva do facilitador junto")
 vazia = R.render_novidades({})
-checa("Nenhuma nota" in vazia,
-      "sem novidade nenhuma, a aba diz isso incluindo as notas")
+checa("Nenhum prazo, nota, atividade" in vazia,
+      "sem novidade nenhuma, a aba diz isso nomeando tudo que ela cobre")
 
 checa(R.contar_novidades(
         {"notas_novas": [{"curso": "SOC100", "nota": "8,00"}]}) == 1,
@@ -1125,6 +1125,148 @@ legado = {"novidades": [
 checa(R.contar_novidades(legado) == 1
       and "Re: Fórum de dúvidas" not in R.render_novidades(legado),
       "post e item concluído do formato antigo não viram atividade nova")
+
+print("\n== Prazo que aparece à tarde não espera até amanhã (10/08/2026) ==")
+
+from dominio.acoes import prazos_novos  # noqa: E402
+
+AGORA_UTC = "2026-08-10T17:00:00+00:00"   # 14h de Brasília
+
+
+def com_prazo(prazo, cmid="1", rotulo="S3 - Atividade Avaliativa",
+              conta_nota=True):
+    item = {"cmid": cmid, "label": rotulo, "type": "quiz", "url": "#q",
+            "status": "Pendente", "conta_nota": conta_nota,
+            "prazo_fonte": "calendário do AVA"}
+    if prazo:
+        item["prazo"] = prazo
+    return {"courses": [{
+        "code": "COM100", "modelo": "regular",
+        "sections": [{"id": "s3", "title": "Semana 3", "fase": "regular",
+                      "locked": None, "items": [item]}]}]}
+
+
+HOJE_23H = "2026-08-10T23:59:00-03:00"
+DAQUI_5_DIAS = "2026-08-15T23:59:00-03:00"
+
+estado_p = {}
+apareceu = prazos_novos(com_prazo(None), com_prazo(HOJE_23H), estado_p, AGORA_UTC)
+checa(len(apareceu) == 1 and apareceu[0]["prazo"] == HOJE_23H,
+      "prazo que o AVA passou a mostrar vira aviso")
+checa(apareceu[0]["de"] is None and apareceu[0]["atividade_nova"] is False,
+      "atividade que já existia e ganhou prazo é dita como prazo novo, não como item novo")
+
+repetido = prazos_novos(com_prazo(HOJE_23H), com_prazo(HOJE_23H), estado_p,
+                        AGORA_UTC)
+checa(repetido == [], "prazo que já estava no retrato anterior não vira aviso")
+
+# Oscilação de fonte: prazo some numa leitura e volta na seguinte.
+sumiu = prazos_novos(com_prazo(HOJE_23H), com_prazo(None), estado_p, AGORA_UTC)
+voltou = prazos_novos(com_prazo(None), com_prazo(HOJE_23H), estado_p, AGORA_UTC)
+checa(sumiu == [] and voltou == [],
+      "prazo que some e volta não avisa de novo a cada ida e volta")
+
+mudou_p = prazos_novos(com_prazo(HOJE_23H), com_prazo(DAQUI_5_DIAS), {},
+                       AGORA_UTC)
+checa(len(mudou_p) == 1 and mudou_p[0]["de"] == HOJE_23H,
+      "prazo adiado ou antecipado é avisado com a data anterior")
+checa(prazos_novos(None, com_prazo(HOJE_23H), {}, AGORA_UTC) == [],
+      "primeira rodada, sem retrato anterior, não avisa prazo nenhum")
+
+# O filtro do e-mail: perto o bastante para interromper o dia.
+UMA_HORA_ANTES = datetime(2026, 8, 10, 14, 0, tzinfo=E.BR_TZ)
+perto = E.prazos_para_alertar({"prazos_novos": [
+    {"curso": "COM100", "label": "S3", "prazo": HOJE_23H}]}, UMA_HORA_ANTES)
+checa(len(perto) == 1, "prazo para hoje à noite entra no alerta")
+longe = E.prazos_para_alertar({"prazos_novos": [
+    {"curso": "COM100", "label": "S3", "prazo": "2026-08-20T23:59:00-03:00"}]},
+    UMA_HORA_ANTES)
+checa(longe == [], "prazo de daqui a dez dias cabe no e-mail da manhã")
+vencido = E.prazos_para_alertar({"prazos_novos": [
+    {"curso": "COM100", "label": "S3", "prazo": "2026-08-09T23:59:00-03:00"}]},
+    UMA_HORA_ANTES)
+checa(vencido == [], "prazo que já venceu não vira alerta de interrupção")
+
+alerta = E.montar_alerta({}, perto)
+checa("10/08 às 23:59" in alerta and "COM100" in alerta,
+      "o alerta diz a data, a hora e a disciplina")
+checa("e-mail da manhã" in alerta,
+      "e deixa claro que não substitui o resumo do dia")
+checa("prazo novo" in E.assunto_alerta(perto),
+      "o assunto do alerta diz que é prazo novo, não repete 'tudo em dia'")
+
+diario = E.montar_texto({"acoes": [], "prazos_novos": [
+    {"curso": "COM100", "label": "S3 - Atividade", "prazo": HOJE_23H,
+     "conta_nota": True}]})
+checa("PRAZO NOVO DESDE A ÚLTIMA LEITURA" in diario and "vale nota" in diario,
+      "o resumo da manhã também separa o que é prazo novo")
+
+site_prazo = R.render_novidades({"prazos_novos": [
+    {"curso": "COM100", "label": "S3 - Atividade Avaliativa", "url": "#q",
+     "prazo": HOJE_23H, "de": None, "conta_nota": True,
+     "fonte": "calendário do AVA", "atividade_nova": False}]})
+checa("10/08 às 23:59" in site_prazo and "vale nota" in site_prazo,
+      "a aba 'Chegou novo' também mostra o prazo que apareceu")
+checa("passou a mostrar prazo" in site_prazo,
+      "e diz por que aquilo está ali")
+checa(R.contar_novidades({"prazos_novos": [{"curso": "X", "prazo": HOJE_23H}]}) == 1,
+      "prazo novo entra no contador da aba")
+
+print("\n== Corte por teto de rodada deixou de ser segredo do log ==")
+
+corte = R.render_fontes_status({"status": "ok", "fontes_status": {
+    "itens": {"status": "live", "quantidade_atual": 45, "truncado": True,
+              "nao_conferidos": 7, "last_live_at": T0}}})
+checa("7 atividade(s) ficaram sem conferência" in corte,
+      "o site diz quantas atividades ficaram sem conferência")
+checa("continuam na lista" in corte,
+      "e explica que elas não sumiram, só não foram confirmadas")
+
+corte_forum = R.render_fontes_status({"status": "ok", "fontes_status": {
+    "foruns": {"status": "live", "quantidade_atual": 60, "truncado": True,
+               "last_live_at": T0}}})
+checa("mais posts do que eu guardo" in corte_forum,
+      "o corte dos fóruns continua com a explicação dele, que é outra")
+
+print("\n== A página inteira, renderizada de verdade ==")
+
+with tempfile.TemporaryDirectory() as tmp:
+    docs_antigo = R.DOCS
+    try:
+        R.DOCS = Path(tmp)
+        R.render_html({
+            "status": "ok", "checked_at": T0, "snapshot_at": T0,
+            "courses": [], "acoes": [],
+            "prazos_novos": [{"curso": "COM100", "label": "S3", "url": "#q",
+                              "prazo": HOJE_23H, "conta_nota": True}],
+            "notas_novas": [{"curso": "SOC100", "label": "S1", "nota": "8,00",
+                             "em": T0}],
+        })
+        pagina = (Path(tmp) / "index.html").read_text(encoding="utf-8")
+    finally:
+        R.DOCS = docs_antigo
+
+checa("overflow-wrap:break-word" in pagina,
+      "link de 90 caracteres não empurra a página para o lado no celular")
+checa(pagina.index("Prazo novo") < pagina.index("Saiu nota nova"),
+      "na aba, prazo vem antes de nota: é o único que pode vencer hoje")
+checa('<span class="tab-badge">2</span>' in pagina,
+      "o rótulo da aba soma prazo e nota da mesma leitura")
+
+print("\n== Silêncio do robô deixou de parecer dia calmo ==")
+
+falha_txt = E.montar_falha("atualizar (rodada 42)",
+                           "https://github.com/x/y/actions/runs/1",
+                           "10/08 às 06:49, cerca de 12h atrás")
+checa("não conseguiu terminar" in falha_txt.lower()
+      and "atualizar (rodada 42)" in falha_txt,
+      "o aviso de falha diz que o robô parou e onde parou")
+checa("actions/runs/1" in falha_txt,
+      "e leva direto para o log daquela rodada")
+checa("salvar_credenciais.bat" in falha_txt,
+      "com o passo a passo do caso mais comum, a sessão vencida")
+checa("cerca de 12h atrás" in falha_txt,
+      "e diz de quando é o retrato que ficou publicado")
 
 print("\n== Abertura não é prazo, e o calendário resolve o indefinido ==")
 

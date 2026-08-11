@@ -16,11 +16,18 @@ Prazos vêm de três fontes e a origem de cada data aparece no site: calendário
 
 Secrets no repo `esdraaline/mentor-univesp-com170`: `AVA_USUARIO`, `AVA_SENHA`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_PARA`. Nenhuma credencial versionada (o repositório é público).
 
-## Melhorias mapeadas em 10/08, ainda abertas
+## Quando o robô fala (mudou em 10/08/2026)
 
-- **Se o robô morrer, o silêncio parece dia calmo.** O passo "Publicar mudanças" falha se o Pages não confirmar em 3 minutos, e o e-mail vem depois dele: nesse caso não chega nada, e "nenhum e-mail" é indistinguível de "nada pendente". A Action fica vermelha, mas isso só avisa quem lê notificação do GitHub da conta `esdraaline`. **Depende do Josemar:** confirmar se essa notificação cai numa caixa que ele lê; se não, criar um aviso próprio.
-- **Um e-mail por dia, cinco leituras por dia.** Prazo que aparece às 14h só chega nele às 8h do dia seguinte. Decisão consciente (cinco e-mails viram ruído). Meio-termo possível: segundo e-mail só quando surgir prazo firme em menos de 48h que não estava no da manhã.
-- **Cortes silenciosos na conferência de itens.** Os tetos de 45 itens e 12 entregas por disciplina só avisam no log do CI. Hoje não estão batendo (23 de 45), então é preventivo.
+| Situação | Canal |
+|---|---|
+| Resumo do dia | e-mail às 8h, um por dia, travado por data de Brasília |
+| Prazo novo que vence em até 48h, achado numa rodada intermediária | e-mail curto na hora (11h, 14h, 17h ou 20h) |
+| Nota lançada ou corrigida | aba "Chegou novo" e bloco no e-mail da manhã |
+| Rodada que morreu antes de conseguir falar | e-mail "o robô não conseguiu terminar", uma vez por dia |
+
+O alerta de prazo só dispara com prazo **novo** (comparação entre dois retratos), nunca com "o que está urgente hoje", que repetiria todo dia. Prazo que some e volta entre leituras não avisa duas vezes: há registro de prazo já avisado, com validade de 7 dias, em `docs/estado.json`. O aviso de falha não carimba a data do resumo diário, senão engoliria o e-mail da manhã seguinte.
+
+**Residual conhecido:** isso cobre rodada que roda e falha. Não cobre rodada que *nunca dispara* (cron que não fira, workflow desabilitado). Para isso só um vigia fora deste repositório resolveria.
 
 ## Próximo passo
 
@@ -57,6 +64,8 @@ O **COM170 avançou para uma estrutura nova**: além das 4 Semanas do AIA, agora
 - **Seção bloqueada com prazo vira alerta**, senão o item mais urgente fica invisível justo por estar travado.
 - **A urgência sobe pela cadeia de módulos:** o que destrava a etapa com prazo herda o prazo dela.
 - **O site é público**, então mensagem privada entra só como metadado (sem conteúdo) e post de fórum entra truncado, com link pro original.
+- **Aviso extra só com fato novo.** O que autoriza o robô a falar fora da hora combinada é o AVA ter passado a dizer algo, não o relógio ter andado. "O que está urgente" repetido em toda rodada é como o aviso deixa de ser lido.
+- **Corte por teto é leitura incompleta e tem que aparecer no site.** Os tetos de 45 itens e 12 entregas por disciplina só saíam no log da Action, que ninguém lê, e o guia publicava a leitura como se fosse completa.
 - **Número agregado sai do tipo declarado, nunca da ordem das linhas.** "Pega a primeira que tenha média ou total no nome" funcionou em três disciplinas por acaso e publicou número errado na quarta. Mesma família do prazo que vinha do tipo do evento no calendário.
 - **Silêncio não é resposta.** Boletim vazio, leitura que falhou e "não entregou" levam a decisões diferentes e não podem sair com a mesma frase — nem sumir da tela, que foi o que o SOC100 fazia até 10/08.
 - **Nota nova se apoia no retrato anterior, nunca no cache.** Leitura de boletim que falha devolve nota do cache; comparar contra ela anunciaria como nova uma nota velha. Disciplina sem leitura boa na rodada anterior fica de fora até haver duas seguidas. A notícia vale por `NOVO_ATE_DIAS` (3), porque o robô roda 5 vezes ao dia e ele lê o guia uma.

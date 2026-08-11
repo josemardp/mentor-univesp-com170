@@ -359,6 +359,10 @@ def executar_coleta(estado, anterior=None):
         resultados_participacao = []
         diagnosticos_forum = []
         indefinidos = verificados = nao_entregues = 0
+        # O que o teto de conferência deixou de fora nesta leitura. Contar é o
+        # que permite dizer isso no site: antes só saía no log da Action, que
+        # ninguém lê, e o guia publicava a leitura como se fosse completa.
+        nao_conferidos = 0
         orcamento = MAX_DISCUSSOES_POR_RUN
         cache_cronogramas = cache_fontes.setdefault("cronogramas", {})
 
@@ -504,6 +508,11 @@ def executar_coleta(estado, anterior=None):
                     or item.get("conta_nota")
                 )
             ]
+            if len(pendentes) > MAX_ITENS_CONFERIDOS:
+                sobra = len(pendentes) - MAX_ITENS_CONFERIDOS
+                nao_conferidos += sobra
+                print(f"  aviso: {sobra} item(ns) de {codigo} ficaram sem "
+                      "conferência de abertura nesta leitura")
             for secao, item in pendentes[:MAX_ITENS_CONFERIDOS]:
                 if secao.get("fase") == "AIA":
                     item["aberto"] = False
@@ -570,9 +579,11 @@ def executar_coleta(estado, anterior=None):
                         "'Concluído' no AVA sem entrega registrada"
                     )
             if len(suspeitos) > MAX_ENTREGAS_CONFERIDAS:
+                sobra = len(suspeitos) - MAX_ENTREGAS_CONFERIDAS
+                nao_conferidos += sobra
                 print(
-                    f"  aviso: {len(suspeitos) - MAX_ENTREGAS_CONFERIDAS} "
-                    "entrega(s) suspeita(s) ficaram sem conferência"
+                    f"  aviso: {sobra} entrega(s) suspeita(s) de {codigo} "
+                    "ficaram sem conferência"
                 )
 
             cache_participacao = cache_fontes.setdefault("participacao", {})
@@ -688,20 +699,29 @@ def executar_coleta(estado, anterior=None):
             ),
         },
     )
+    problemas_itens = []
+    if indefinidos:
+        problemas_itens.append(f"{indefinidos} item(ns) com abertura indefinida")
+    if nao_conferidos:
+        problemas_itens.append(
+            f"{nao_conferidos} item(ns) ficaram sem conferência pelo teto da "
+            "rodada"
+        )
     resultado_itens = SourceResult(
         status="parcial" if indefinidos else "live",
         dados=None,
-        problemas=(
-            [f"{indefinidos} item(ns) com abertura indefinida"]
-            if indefinidos
-            else []
-        ),
+        problemas=problemas_itens,
         checked_at=checked_at,
+        from_cache=False,
+        # Teto atingido é leitura incompleta, e o site tem que dizer isso com
+        # a mesma clareza com que diz o corte dos fóruns.
+        truncado=bool(nao_conferidos),
         quantidade_atual=verificados,
         last_live_at=checked_at,
         detalhes={
             "indefinidos": indefinidos,
             "entregas_nao_confirmadas": nao_entregues,
+            "nao_conferidos": nao_conferidos,
         },
     )
     agregado_boletim = _status_agregado(

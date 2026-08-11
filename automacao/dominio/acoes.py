@@ -1048,3 +1048,77 @@ def notas_novas(anterior, dados, estado, agora, janela_dias=NOVO_ATE_DIAS):
         })
     saida.sort(key=lambda linha: (linha["em"], linha["curso"]), reverse=True)
     return saida
+
+
+def _prazos_por_item(pacote):
+    """``{(curso, cmid): prazo}`` de tudo que já tinha prazo no retrato."""
+    prazos, vistos = {}, set()
+    for curso in (pacote or {}).get("courses") or []:
+        codigo = curso.get("code")
+        for secao in curso.get("sections") or []:
+            for item in secao.get("items") or []:
+                if item.get("cmid") is None:
+                    continue
+                chave = f"{codigo}:{item['cmid']}"
+                vistos.add(chave)
+                if item.get("prazo"):
+                    prazos[chave] = item["prazo"]
+    return prazos, vistos
+
+
+def prazos_novos(anterior, dados, estado, agora, janela_dias=7):
+    """Prazo que apareceu ou mudou desde o retrato anterior.
+
+    O robô relê o AVA cinco vezes ao dia, mas o e-mail é um só, de manhã. Um
+    prazo publicado às 14h só chegava nele às 8h do dia seguinte, e quando o
+    prazo é para hoje isso é tarde. Esta lista é o que autoriza o guia a
+    mandar um segundo e-mail: não "o que está urgente" (isso repete todo dia),
+    e sim "o que o AVA passou a dizer agora".
+
+    O registro em ``estado`` existe contra oscilação de fonte: prazo que some
+    e volta entre duas leituras avisaria de novo a cada ida e volta. Mesmo
+    prazo, mesma atividade, uma vez por semana no máximo.
+    """
+    registro = (
+        estado.setdefault("_prazos_avisados", {}) if estado is not None else {}
+    )
+    antes, conhecidos = _prazos_por_item(anterior)
+    if not conhecidos:
+        return []  # sem retrato anterior, todo prazo pareceria novidade
+
+    corte = datetime.fromisoformat(agora) - timedelta(days=janela_dias)
+    for chave in list(registro):
+        try:
+            velho = datetime.fromisoformat(registro[chave].get("em")) < corte
+        except (AttributeError, TypeError, ValueError):
+            velho = True
+        if velho:
+            del registro[chave]
+
+    saida = []
+    for curso in dados.get("courses") or []:
+        codigo = curso.get("code")
+        for secao in curso.get("sections") or []:
+            for item in secao.get("items") or []:
+                if item.get("cmid") is None or not item.get("prazo"):
+                    continue
+                chave = f"{codigo}:{item['cmid']}"
+                prazo = item["prazo"]
+                if antes.get(chave) == prazo:
+                    continue  # o guia já dizia isso na leitura anterior
+                if (registro.get(chave) or {}).get("prazo") == prazo:
+                    continue  # já avisei este mesmo prazo faz pouco tempo
+                registro[chave] = {"prazo": prazo, "em": agora}
+                saida.append({
+                    "curso": codigo,
+                    "label": item.get("label"),
+                    "url": item.get("url"),
+                    "cmid": str(item["cmid"]),
+                    "prazo": prazo,
+                    "de": antes.get(chave),
+                    "fonte": item.get("prazo_fonte"),
+                    "conta_nota": bool(item.get("conta_nota")),
+                    "atividade_nova": chave not in conhecidos,
+                })
+    saida.sort(key=lambda linha: linha["prazo"])
+    return saida

@@ -12,6 +12,7 @@ from dominio.acoes import (
     montar_acoes,
     notas_novas,
     novidades,
+    prazos_novos,
     urgencia_de,
 )
 from dominio.datas import achar_datas, sem_acento
@@ -97,6 +98,7 @@ def main():
         "confirmar": confirmar,
         "novidades": novidades(anterior, dados),
         "notas_novas": notas_novas(anterior, dados, estado, agora),
+        "prazos_novos": prazos_novos(anterior, dados, estado, agora),
     }
     gravar_snapshot(saida, estado)
     print(
