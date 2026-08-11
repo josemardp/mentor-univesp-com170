@@ -6,7 +6,12 @@ from playwright.sync_api import Error as PlaywrightError
 
 from configuracao import AVA
 from dominio.datas import sem_acento
-from fontes.moodle import FalhaFonte, deslogado, navegar
+from fontes.moodle import (
+    FalhaFonte,
+    deslogado,
+    navegar,
+    navegar_insistindo,
+)
 
 JS_MEUS_CURSOS = """
 () => {
@@ -111,17 +116,43 @@ def descobrir(page):
 
 
 def ler_curso(page, curso):
+    """Lê a estrutura do curso, tratando página vazia como falha de leitura.
+
+    Achado em 10/08/2026, com o robô ao vivo: duas rodadas seguidas voltaram
+    com uma disciplina diferente "sem nenhuma seção" (SOC100 e COM170 numa,
+    COM100 na outra). Não era o AVA sem conteúdo, era a página que ainda não
+    tinha montado quando o robô leu. Como a leitura vazia voltava como
+    sucesso, a disciplina inteira ficava sem atividade, a validação recusava
+    a rodada e nada era publicado.
+
+    É o mesmo caso do boletim: zero linha não é "curso vazio", é "não li".
+    Agora insiste, como já se faz com os fóruns desde 09/08, e só então
+    desiste dizendo o que aconteceu.
+    """
     url = f"{AVA}/course/view.php?id={curso['id']}"
-    navegar(page, url, timeout=60000, espera_ms=1500)
-    if deslogado(page):
-        raise FalhaFonte(f"sessão expirou ao abrir {curso.get('nome')}")
-    try:
-        bruto = page.evaluate(JS_CURSO)
-    except PlaywrightError as erro:
+    nome = curso.get("nome")
+    bruto = {}
+    for tentativa in range(1, 4):
+        navegar_insistindo(page, url, timeout=60000, espera_ms=1500,
+                           rotulo=f"curso {nome}")
+        if deslogado(page):
+            raise FalhaFonte(f"sessão expirou ao abrir {nome}")
+        try:
+            bruto = page.evaluate(JS_CURSO)
+        except PlaywrightError as erro:
+            raise FalhaFonte(
+                f"não consegui interpretar {nome} ({type(erro).__name__})"
+            ) from erro
+        if bruto.get("secoes"):
+            if tentativa > 1:
+                print(f"    ok na {tentativa}ª tentativa: curso {nome}")
+            break
+        print(f"    {nome} voltou sem seção nenhuma; tentativa {tentativa}/3")
+        page.wait_for_timeout(2000)
+    else:
         raise FalhaFonte(
-            f"não consegui interpretar {curso.get('nome')} "
-            f"({type(erro).__name__})"
-        ) from erro
+            f"{nome} voltou sem nenhuma seção em 3 tentativas"
+        )
     secoes = bruto.get("secoes") or []
     for secao in secoes:
         secao["locked"] = limpar_bloqueio(secao.get("locked"))

@@ -1228,6 +1228,57 @@ corte_forum = R.render_fontes_status({"status": "ok", "fontes_status": {
 checa("mais posts do que eu guardo" in corte_forum,
       "o corte dos fóruns continua com a explicação dele, que é outra")
 
+print("\n== Curso que volta sem seção é 'não li', não 'curso vazio' ==")
+
+from fontes import disciplinas as D  # noqa: E402
+from fontes.moodle import FalhaFonte as FalhaDeFonte  # noqa: E402
+
+SECOES_BOAS = {"secoes": [{"id": "s1", "title": "Semana 1", "locked": None,
+                           "items": [{"cmid": "1", "label": "S1 - Videoaula",
+                                      "status": "Pendente"}]}],
+               "links": {}}
+
+
+class CursoFake:
+    """A página do curso monta só depois de ``vazias`` leituras."""
+
+    def __init__(self, vazias):
+        self.vazias, self.leituras, self.esperas = vazias, 0, 0
+        self.url = "https://ava.univesp.br/course/view.php?id=1"
+
+    def goto(self, url, **kwargs):
+        self.url = url
+
+    def wait_for_timeout(self, ms):
+        self.esperas += 1
+
+    def evaluate(self, script):
+        self.leituras += 1
+        if self.leituras <= self.vazias:
+            return {"secoes": [], "links": {}}
+        return copy.deepcopy(SECOES_BOAS)
+
+
+pagina_lenta = CursoFake(vazias=1)
+with contextlib.redirect_stdout(io.StringIO()):
+    secoes_lidas, _ = D.ler_curso(pagina_lenta, {"id": 1, "nome": "SOC100"})
+checa(len(secoes_lidas) == 1 and pagina_lenta.leituras == 2,
+      "página que ainda não montou é relida, e a segunda leitura salva o curso")
+
+pagina_vazia = CursoFake(vazias=9)
+saida_curso = io.StringIO()
+try:
+    with contextlib.redirect_stdout(saida_curso):
+        D.ler_curso(pagina_vazia, {"id": 1, "nome": "SOC100"})
+except FalhaDeFonte as erro:
+    recusou = "sem nenhuma seção" in str(erro)
+else:
+    recusou = False
+checa(recusou and pagina_vazia.leituras == 3,
+      "curso que insiste em voltar vazio vira falha declarada, não curso sem atividade")
+checa("SOC100" in saida_curso.getvalue(),
+      "e o log diz qual disciplina não montou, para achar no dia seguinte")
+
 print("\n== A página inteira, renderizada de verdade ==")
 
 with tempfile.TemporaryDirectory() as tmp:
