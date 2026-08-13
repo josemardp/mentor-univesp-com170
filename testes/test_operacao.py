@@ -877,6 +877,83 @@ sem_boletim = R.render_notas(
 checa(sem_boletim == "",
       "disciplina sem boletim nenhum continua fora, sem inventar bloco")
 
+print("\n== Os dez pontos contáveis da quinzena (COM170) ==")
+
+from dominio.avaliacao import pontos_da_quinzena  # noqa: E402
+
+# O aviso CRITÉRIOS DE AVALIAÇÃO (21/07/2026) lista dez itens de mesmo peso.
+# O painel oficial mostra cinco. Ver "4 de 5" sem os outros cinco dá a
+# impressão de que falta pouco quando falta quase metade.
+CRITERIOS_PAINEL = [
+    {"nome": "Módulo 1", "situacao": "Critério ainda não identificado",
+     "atendido": False},
+    {"nome": "Módulo 2", "situacao": "Critério atendido", "atendido": True},
+    {"nome": "Módulo 3", "situacao": "Critério atendido", "atendido": True},
+    {"nome": "Módulo 4", "situacao": "Critério atendido", "atendido": True},
+    {"nome": "Qualidade da participação", "situacao": "Critério atendido",
+     "atendido": True},
+]
+CURSO_Q2 = {
+    "code": "COM170",
+    "participacao": {"criterios": CRITERIOS_PAINEL},
+    "sections": [{"id": "s-q2m6", "title": "Q2 Módulo 6", "items": [
+        {"type": "workshop", "label": "Q2 M6 - Revisão entre pares "
+         "(colega)", "enviado": False,
+         "avaliacao_pendente": None}]},
+        {"id": "s-q2m7", "title": "Q2 Módulo 7", "items": [
+            {"type": "workshop", "label": "Q2 M7 - Revisão entre pares "
+             "(Portfólio em grupo)", "enviado": False,
+             "avaliacao_pendente": None}]}],
+}
+
+placar = pontos_da_quinzena(CURSO_Q2)
+checa(placar["total"] == 10, "o placar tem os dez pontos, não os cinco do painel")
+checa([p["nome"] for p in placar["pontos"]][:4]
+      == ["Módulo 1", "Módulo 2", "Módulo 3", "Módulo 4"],
+      "os quatro módulos vêm do painel oficial, em ordem")
+checa(placar["pontos"][-1]["nome"] == "Qualidade da participação",
+      "a qualidade da participação fecha a lista")
+checa(placar["atendidos"] == 4 and placar["pendentes"] == 3,
+      "estado real de 13/08: 4 contaram, 3 faltam")
+por_nome = {p["nome"]: p for p in placar["pontos"]}
+checa(por_nome["Entrega individual do portfólio"]["atendido"] is False
+      and por_nome["Entrega de grupo"]["atendido"] is False,
+      "as duas entregas viram ponto próprio, lidas do Laboratório")
+checa(por_nome["Participação em uma live"]["atendido"] is None,
+      "presença em live é None, nunca False: o guia não consegue conferir")
+checa("não consegue conferir" in por_nome["Participação em uma live"]["detalhe"],
+      "e o site diz por que não sabe")
+checa(por_nome["Feedback ao colega"]["atendido"] is None,
+      "feedback antes da fase de avaliação abrir é 'não sei', não 'falta'")
+
+entregue = json.loads(json.dumps(CURSO_Q2))
+entregue["sections"][0]["items"][0].update(
+    {"enviado": True, "avaliacao_pendente": False})
+depois = pontos_da_quinzena(entregue)
+checa({p["nome"]: p["atendido"] for p in depois["pontos"]}[
+          "Entrega individual do portfólio"] is True
+      and {p["nome"]: p["atendido"] for p in depois["pontos"]}[
+          "Feedback ao colega"] is True,
+      "entrega feita e feedback dado passam a contar")
+
+checa(pontos_da_quinzena({"code": "COM100", "participacao":
+                          {"criterios": CRITERIOS_PAINEL}}) is None,
+      "disciplina regular não tem placar de quinzena")
+checa(pontos_da_quinzena({"code": "COM170", "participacao": {}}) is None,
+      "sem os critérios do painel, o guia não inventa o placar")
+checa(pontos_da_quinzena(
+        {**CURSO_Q2, "sections": []})["pontos"][4]["detalhe"]
+      == "não achei a atividade",
+      "Laboratório ausente vira 'não achei', não 'não entregou'")
+
+html_pontos = R.render_pontos_da_quinzena({"courses": [CURSO_Q2]})
+checa("4 de 10 já contaram" in html_pontos,
+      "o site mostra a escala real, não só o 4 de 5 do painel")
+checa("não sei" in html_pontos and "falta" in html_pontos,
+      "o site separa o que falta do que ele não consegue conferir")
+checa(R.render_pontos_da_quinzena({"courses": [{"code": "COM100"}]}) == "",
+      "sem placar não sai bloco")
+
 print("\n== Entregou e o boletim lançou zero (M6 Q1, 13/08/2026) ==")
 
 # Estado real: entrega em 29/07, avaliação do colega no nível máximo, boletim

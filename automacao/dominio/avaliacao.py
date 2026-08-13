@@ -115,3 +115,118 @@ def lacuna_da_prova(curso):
         "acompanhado": False,
         "onde": SISTEMA_DE_PROVAS,
     }
+
+
+# ---------------------------------------------------------------------------
+# Os pontos contáveis da quinzena (COM170)
+#
+# O aviso CRITÉRIOS DE AVALIAÇÃO de 21/07/2026 lista dez itens de mesmo peso
+# por quinzena: os quatro módulos, a entrega individual, a entrega de grupo,
+# os dois feedbacks (ao colega e ao outro grupo), participação em uma live e
+# a qualidade da participação.
+#
+# O painel "Meu Progresso de Participação" só mostra cinco deles (módulos e
+# qualidade). Os outros cinco o guia já lia sem saber que eram ponto: o
+# estado dos dois Laboratórios responde por quatro, e a live é a única que
+# ele não tem como provar. Sem juntar isso num lugar, o painel dizia
+# "progresso avançado" com quatro de cinco e sobrava a impressão de que
+# faltava pouco, quando faltavam quatro pontos de dez.
+# ---------------------------------------------------------------------------
+
+MARCA_DE_GRUPO = "grupo"
+# A qualidade da participação fecha a lista: é o único critério do painel que
+# não é módulo, e sai no fim para os quatro módulos ficarem juntos.
+MARCA_DE_QUALIDADE = "qualidade"
+
+
+def _laboratorios_vivos(curso, encerradas):
+    """Os dois Laboratórios da quinzena que ainda está em curso."""
+    achados = []
+    for secao in curso.get("sections") or []:
+        if secao.get("id") in encerradas or secao.get("locked"):
+            continue
+        for item in secao.get("items") or []:
+            if item.get("type") == "workshop":
+                achados.append(item)
+    return achados
+
+
+def _ponto(nome, estado, detalhe=None):
+    return {"nome": nome, "atendido": estado, "detalhe": detalhe}
+
+
+def pontos_da_quinzena(curso, encerradas=()):
+    """Placar dos dez pontos contáveis, ou ``None`` fora da COM170.
+
+    ``atendido`` é ``True``, ``False`` ou ``None``. ``None`` é a resposta
+    honesta para o que o guia não consegue provar — hoje, só a live — e nunca
+    deve virar ``False``: cobrar presença numa live que ele pode ter assistido
+    é o mesmo erro de acusar entrega que existe.
+    """
+    if (curso.get("code") or "").upper() != "COM170":
+        return None
+    participacao = curso.get("participacao") or {}
+    criterios = participacao.get("criterios") or []
+    if not criterios:
+        return None
+
+    pontos = [
+        _ponto(criterio.get("nome"), criterio.get("atendido"))
+        for criterio in criterios
+        if MARCA_DE_QUALIDADE not in sem_acento(criterio.get("nome") or "")
+    ]
+
+    labs = _laboratorios_vivos(curso, encerradas)
+    individual = next(
+        (
+            lab
+            for lab in labs
+            if MARCA_DE_GRUPO not in sem_acento(lab.get("label") or "")
+        ),
+        None,
+    )
+    grupo = next(
+        (
+            lab
+            for lab in labs
+            if MARCA_DE_GRUPO in sem_acento(lab.get("label") or "")
+        ),
+        None,
+    )
+    for lab, rotulo, feedback in (
+        (individual, "Entrega individual do portfólio",
+         "Feedback ao colega"),
+        (grupo, "Entrega de grupo", "Feedback ao outro grupo"),
+    ):
+        if lab is None:
+            pontos.append(_ponto(rotulo, None, "não achei a atividade"))
+            pontos.append(_ponto(feedback, None, "não achei a atividade"))
+            continue
+        pontos.append(_ponto(rotulo, lab.get("enviado")))
+        pendente = lab.get("avaliacao_pendente")
+        pontos.append(
+            _ponto(feedback, None, "só dá para saber quando a fase de "
+                                   "avaliação abrir")
+            if pendente is None
+            else _ponto(feedback, not pendente)
+        )
+
+    pontos.append(
+        _ponto(
+            "Participação em uma live",
+            None,
+            "o guia não consegue conferir presença em live",
+        )
+    )
+    for criterio in criterios:
+        if MARCA_DE_QUALIDADE in sem_acento(criterio.get("nome") or ""):
+            pontos.append(
+                _ponto(criterio.get("nome"), criterio.get("atendido"))
+            )
+    return {
+        "pontos": pontos,
+        "atendidos": sum(1 for p in pontos if p["atendido"] is True),
+        "pendentes": sum(1 for p in pontos if p["atendido"] is False),
+        "desconhecidos": sum(1 for p in pontos if p["atendido"] is None),
+        "total": len(pontos),
+    }

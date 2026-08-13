@@ -13,6 +13,7 @@ import sys
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import parse_qs
+from urllib.request import urlopen
 
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "automacao"))
@@ -20,8 +21,15 @@ import sessao as S
 from playwright.sync_api import sync_playwright
 
 USUARIO_OK, SENHA_OK = "aluno123", "senha-de-mentira"
-PORTA = 8791
-BASE = f"http://127.0.0.1:{PORTA}"
+# Porta 0: o sistema escolhe uma livre e a gente lê qual foi, logo abaixo.
+#
+# Era 8791 fixa. Em 13/08/2026 outro processo local já estava nessa porta e o
+# Windows deixou os dois bindarem; quem respondeu foi o processo antigo, e as
+# oito asserções falharam dizendo que o login estava quebrado. O login estava
+# perfeito. Teste que erra o alvo por porta ocupada acusa o inocente, e num
+# repositório onde a regra é "não consigo ler" nunca virar "está errado",
+# isso é o mesmo defeito na bancada de teste.
+PORTA = 0
 
 PAGINA_LOGIN = """<!doctype html><html><head><title>Univesp AVA</title></head><body>
 <h1>Acesso ao AVA</h1>{erro}
@@ -143,7 +151,16 @@ def cenario(navegador, usuario, senha, rotulo):
 
 
 servidor = HTTPServer(("127.0.0.1", PORTA), Fake)
+BASE = f"http://127.0.0.1:{servidor.server_address[1]}"
 threading.Thread(target=servidor.serve_forever, daemon=True).start()
+
+# Confere que quem responde nessa porta é o Fake deste arquivo, e não algum
+# vizinho. Se não for, para aqui: melhor não rodar do que reprovar o login
+# por causa de outro processo.
+with urlopen(f"{BASE}/login/index.php", timeout=5) as _r:
+    if "Univesp" not in _r.read().decode("utf-8", "replace"):
+        sys.exit("O servidor de mentira nao respondeu; abortando sem julgar "
+                 "o login.")
 
 # aponta o modulo pro servidor de mentira
 S.LOGIN_URL = f"{BASE}/login/index.php"

@@ -904,6 +904,49 @@ def render_composicao(data):
             f'<ul class="acoes">{"".join(linhas)}</ul>')
 
 
+def render_pontos_da_quinzena(data):
+    """Os dez pontos contáveis da quinzena, e quais deles já contaram.
+
+    O painel oficial só mostra cinco. Ver "progresso avançado, 4 de 5" e não
+    ver que as duas entregas e os dois feedbacks também são ponto dá a
+    impressão de que falta pouco quando falta quase metade.
+    """
+    from dominio.acoes import quinzenas_encerradas
+    from dominio.avaliacao import pontos_da_quinzena
+
+    blocos = []
+    for c in data.get("courses", []):
+        placar = pontos_da_quinzena(c, quinzenas_encerradas(c))
+        if not placar:
+            continue
+        itens = "".join(
+            f'<li><span class="status {_classe_criterio(p)}">'
+            + ("já contou" if p["atendido"] is True
+               else "falta" if p["atendido"] is False else "não sei")
+            + f'</span><span class="tlabel">{esc(p.get("nome") or "")}'
+            + (f' <span class="muted">({esc(p["detalhe"])})</span>'
+               if p.get("detalhe") else "")
+            + "</span></li>"
+            for p in placar["pontos"]
+        )
+        resumo = (f'{placar["atendidos"]} de {placar["total"]} já contaram')
+        if placar["desconhecidos"]:
+            resumo += (f', {placar["desconhecidos"]} o guia não consegue '
+                       'conferir')
+        blocos.append(
+            f'<h3 class="grupo">Pontos da quinzena · '
+            f'{esc(c.get("code") or "")}</h3>'
+            f'<ul class="acoes"><li class="acao">'
+            f'<div class="acao-txt"><b>{esc(resumo)}</b></div>'
+            f'<ul class="tasklist">{itens}</ul>'
+            '<div class="acao-pe">Todos valem o mesmo peso, pelo aviso '
+            'CRITÉRIOS DE AVALIAÇÃO da disciplina. O painel oficial de '
+            'participação só mostra os módulos e a qualidade; os outros o '
+            'guia monta do que lê no AVA.</div></li></ul>'
+        )
+    return "".join(blocos)
+
+
 def _classe_criterio(criterio):
     """Verde só quando a ferramenta afirma que o critério contou.
 
@@ -1125,12 +1168,16 @@ def render_notas(data):
                       f'<ul class="acoes">{"".join(linhas)}</ul>')
     participacao_html = render_participacao(data)
     composicao_html = render_composicao(data)
-    if not (blocos or participacao_html or composicao_html):
+    pontos_html = render_pontos_da_quinzena(data)
+    if not (blocos or participacao_html or composicao_html or pontos_html):
         return ""
     return ('<p class="sub" style="margin:0 0 10px;">Lido do boletim de cada '
             'disciplina. Nota em branco numa atividade que vale nota quer '
             'dizer que o AVA ainda não registrou entrega ou correção.</p>'
             + composicao_html
+            # Antes da participação: o placar dos dez dá a escala em que os
+            # cinco critérios do painel oficial devem ser lidos.
+            + pontos_html
             + participacao_html
             + "".join(blocos))
 
