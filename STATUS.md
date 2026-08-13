@@ -41,7 +41,9 @@ Secrets no repo `esdraaline/mentor-univesp-com170`: `AVA_USUARIO`, `AVA_SENHA`, 
 
 O alerta de prazo só dispara com prazo **novo** (comparação entre dois retratos), nunca com "o que está urgente hoje", que repetiria todo dia. Prazo que some e volta entre leituras não avisa duas vezes: há registro de prazo já avisado, com validade de 7 dias, em `docs/estado.json`. O aviso de falha não carimba a data do resumo diário, senão engoliria o e-mail da manhã seguinte.
 
-**Residual coberto em 13/08:** existe um segundo workflow, [`vigia.yml`](.github/workflows/vigia.yml), com cron próprio (12h30 e 21h30), que não lê o AVA e não depende do robô. Ele pergunta ao site público qual é o `snapshot_at` servido e manda e-mail se o retrato passar de 16h — que é o caso da rodada que *nunca dispara*. Site que não responde também acorda o vigia: silêncio do próprio guia é falha, não sono. Limite honesto que fica: o vigia mora no mesmo repositório, então não sobrevive ao Actions da conta inteira fora do ar. Cobre o caso realista, não a queda total do GitHub.
+**Residual coberto em 13/08, em duas camadas.** Dentro deste repositório, [`vigia.yml`](.github/workflows/vigia.yml) roda às 12h30 e 21h30, não lê o AVA e não depende do robô: pergunta ao site público qual `snapshot_at` está sendo servido e manda e-mail se passar de 16h. Site que não responde também o acorda — silêncio do próprio guia é falha, não sono.
+
+Fora daqui, o alarme de verdade: **`josemardp/vigia-univesp`** (privado, outra conta), rodando 09h e 19h. Faz a mesma pergunta e avisa **falhando**, para o GitHub mandar a notificação nativa de workflow quebrado. Sem SMTP de propósito: alarme que depende de cinco segredos bem configurados tem cinco jeitos novos de quebrar em silêncio. Se o Actions desta conta parar por inteiro, o vigia interno para junto e o externo continua — que era exatamente o buraco anotado aqui desde 10/08.
 
 ## Próximo passo
 
