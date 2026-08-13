@@ -877,6 +877,207 @@ sem_boletim = R.render_notas(
 checa(sem_boletim == "",
       "disciplina sem boletim nenhum continua fora, sem inventar bloco")
 
+print("\n== Regra do curso não pode ser cortada pelo teto de avisos ==")
+
+from fontes.foruns import post_estruturante, priorizar_posts  # noqa: E402
+
+# Achado em 13/08/2026: o bloco "Como a nota é composta" não aparecia em
+# NENHUMA das quatro disciplinas. A funcionalidade estava pronta e testada; o
+# que faltava era o aviso chegar. O teto de 15 posts por disciplina é por
+# recência, e os CRITÉRIOS DE AVALIAÇÃO são publicados uma vez, no começo do
+# semestre — sempre os primeiros a cair.
+checa(post_estruturante(
+        {"autoridade": "institucional", "titulo": "CRITÉRIOS DE AVALIAÇÃO",
+         "texto": ""}),
+      "post de critérios de avaliação é regra do curso")
+checa(post_estruturante(
+        {"autoridade": "institucional", "titulo": "Pesos das Atividades",
+         "texto": ""}),
+      "post de pesos das atividades também")
+checa(post_estruturante(
+        {"autoridade": "institucional", "titulo": "Informações",
+         "texto": "sua nota é composta por 40% do AVA mais 60% da prova"}),
+      "e o que declara a composição no corpo, sem dizer no título")
+checa(not post_estruturante(
+        {"autoridade": "colega", "titulo": "CRITÉRIOS DE AVALIAÇÃO",
+         "texto": ""}),
+      "colega falando de critérios não vira regra do curso")
+checa(not post_estruturante(
+        {"autoridade": "institucional", "titulo": "LIVE COM FACILITADORES",
+         "texto": "quinta-feira às 18:30, para tirar dúvidas"}),
+      "aviso de live não é regra do curso")
+
+lotados = [
+    # Textos e ids distintos: posts iguais são deduplicados antes do teto, e
+    # aí o teste não estaria medindo o corte.
+    {"autor": "F", "id": str(1000 + i), "titulo": f"Aviso {i}",
+     "texto": f"lembrete numero {i}",
+     "data": f"2026-08-{10 + i % 3:02d}", "prazos": [{"quando": "x"}]}
+    for i in range(20)
+]
+antigo = {"autor": "F", "titulo": "Pesos das Atividades",
+          "texto": "sua nota é composta por 40% do AVA mais 60% da prova",
+          "data": "2026-07-21"}
+guardados, cortou, _ = priorizar_posts(lotados + [antigo], ["F"], 15)
+checa(any("Pesos" in (p.get("titulo") or "") for p in guardados),
+      "com 20 avisos recentes na frente, a regra do curso sobrevive ao teto")
+checa(cortou, "e o corte continua sendo sinalizado")
+
+print("\n== Data da prova presencial: procurar em vez de só declarar ==")
+
+from dominio.avaliacao import data_da_prova, lacuna_da_prova  # noqa: E402
+
+_HOJE = date(2026, 8, 13)
+PESOS = ("Sua nota é composta por 40% atividades avaliativas do AVA mais "
+         "60% da prova final.")
+
+
+def _curso_com(texto_extra):
+    return {"code": "LET110", "avisos": [
+        {"autoridade": "institucional", "autor": "colega", "url": "#a",
+         "texto": PESOS},
+        {"autoridade": "institucional", "autor": "colega", "url": "#b",
+         "texto": texto_extra}]}
+
+
+achou = data_da_prova(
+    _curso_com("A prova presencial será no dia 20/09/2026, no seu polo."),
+    _HOJE)
+checa(achou and achou["quando"].startswith("2026-09-20"),
+      "data de prova dita em aviso oficial é encontrada")
+checa(achou and "polo" in achou["frase"],
+      "e vem com a frase original, para ele conferir a fonte")
+
+# "prova" sozinho aparece em frase sobre atividade do AVA. Uma data errada
+# aqui é pior que data nenhuma, que foi o erro original do guia.
+checa(data_da_prova(
+        _curso_com("A prova de conhecimentos do AVA vence em 19/08/2026."),
+        _HOJE) is None,
+      "'prova' sem marca de presencial não vira data de prova presencial")
+checa(data_da_prova(
+        _curso_com("A prova presencial acontece no polo, aguardem a data."),
+        _HOJE) is None,
+      "frase sobre prova presencial sem data nenhuma não inventa data")
+checa(data_da_prova({"code": "LET110", "avisos": [
+        {"autoridade": "colega", "autor": "X", "texto":
+         "ouvi dizer que a prova presencial é 20/09/2026 no polo"}]},
+        _HOJE) is None,
+      "boato de colega não vira data de prova")
+
+lac = lacuna_da_prova(_curso_com("Prova presencial: 20/09/2026, no polo."),
+                      _HOJE)
+checa(lac["ava"] == 40 and lac["prova"] == 60,
+      "a composição continua saindo do aviso, como antes")
+checa(lac["data_achada"] is not None,
+      "e agora a lacuna carrega a data quando ela existe")
+html_prova = R.render_composicao({"courses": [
+    _curso_com("Prova presencial: 20/09/2026, no polo.")]})
+checa("20/09" in html_prova and "Sistema de Provas" in html_prova,
+      "o site mostra a data achada e ainda manda confirmar na fonte oficial")
+sem_data = R.render_composicao({"courses": [_curso_com("Bons estudos.")]})
+checa("se um facilitador disser a data, ela aparece aqui" in sem_data,
+      "sem data, o guia diz que está procurando, não só que não sabe")
+
+print("\n== Recado da mentora: escrita e envelhecimento ==")
+
+import recado as REC  # noqa: E402
+
+_BR = timezone(timedelta(hours=-3))
+_ESCRITA = datetime(2026, 8, 13, 18, 0, tzinfo=_BR)
+
+r_novo = REC.escrever("Foco de hoje é o portfólio.", agora=_ESCRITA)
+checa(r_novo["valid_until"].startswith("2026-08-20"),
+      "recado sem validade explícita vale uma semana, não para sempre")
+checa(r_novo["written_at"].startswith("2026-08-13T18:00"),
+      "guarda quando foi escrito, no fuso de Brasília")
+checa(REC.escrever("x", ate="2026-08-15", agora=_ESCRITA)["valid_until"]
+      == "2026-08-15T23:59:00-03:00",
+      "--ate sem hora vira fim do dia, que é como os prazos do AVA funcionam")
+checa(REC.escrever("x", enquanto_pendente=[215609], agora=_ESCRITA)
+      ["requires_pending_cmids"] == ["215609"],
+      "o gatilho de pendência é gravado como texto, igual ao resto do guia")
+
+# O recado de 25/07 ficou 18 dias no ar como uma aba que só anunciava o
+# próprio vencimento. Passada a carência, ele some junto com a aba.
+_agora_13 = datetime(2026, 8, 13, 18, 0, tzinfo=_BR)
+checa(R._recado_vencido_ha_muito(
+        {"valid_until": "2026-07-26T23:59:00-03:00"}, _agora_13),
+      "recado vencido há 18 dias é velho demais até para dizer que venceu")
+checa(not R._recado_vencido_ha_muito(
+        {"valid_until": "2026-08-12T23:59:00-03:00"}, _agora_13),
+      "recado que venceu ontem ainda vale como aviso de que venceu")
+checa(not R._recado_vencido_ha_muito({}, _agora_13),
+      "recado sem data nenhuma continua à vista: sem idade, não se descarta")
+
+print("\n== Vigia: rodada que nunca dispara ==")
+
+import re as _re  # noqa: E402
+
+import vigia as V  # noqa: E402
+
+_AGORA = datetime(2026, 8, 13, 21, 0, tzinfo=timezone.utc)
+
+
+def _com_publicado(retorno):
+    original = V.ler_publicado
+    V.ler_publicado = lambda **k: retorno
+    try:
+        return V.diagnostico(agora=_AGORA)
+    finally:
+        V.ler_publicado = original
+
+
+recente = datetime(2026, 8, 13, 18, 0, tzinfo=timezone.utc)
+congelado, texto = _com_publicado((3.0, recente, None))
+checa(congelado is False, "retrato de 3h atrás não acorda o vigia")
+
+velho = datetime(2026, 8, 11, 21, 0, tzinfo=timezone.utc)
+congelado, texto = _com_publicado((48.0, velho, None))
+checa(congelado is True and "48h" in texto,
+      "retrato de dois dias é o caso que o vigia existe para pegar")
+
+# Site fora do ar conta como congelado. É a mesma regra do resto do robô ao
+# contrário: aqui o silêncio é do próprio guia, e silêncio do guia é falha.
+congelado, texto = _com_publicado((None, None, "o site não respondeu (URLError)"))
+checa(congelado is True and "não respondeu" in texto,
+      "site que não responde acorda o vigia, não o deixa dormir")
+congelado, texto = _com_publicado(
+    (None, None, "o data.json publicado não diz quando foi lido"))
+checa(congelado is True, "data.json sem carimbo também é motivo de aviso")
+
+_limite_antigo = os.environ.get("LIMITE_HORAS")
+os.environ["LIMITE_HORAS"] = "16"
+congelado, _ = _com_publicado((15.0, velho, None))
+checa(congelado is False, "15h com limite de 16h ainda é sono normal")
+congelado, _ = _com_publicado((17.0, velho, None))
+checa(congelado is True, "17h com limite de 16h desperta")
+if _limite_antigo is None:
+    os.environ.pop("LIMITE_HORAS", None)
+else:
+    os.environ["LIMITE_HORAS"] = _limite_antigo
+
+vigia_yml = (ROOT / ".github" / "workflows" / "vigia.yml").read_text(
+    encoding="utf-8")
+principal = (ROOT / ".github" / "workflows" / "guia-diario.yml").read_text(
+    encoding="utf-8")
+crons_vigia = _re.findall(r'- cron: "([^"]+)"', vigia_yml)
+crons_robo = _re.findall(r'- cron: "([^"]+)"', principal)
+checa(crons_vigia and not set(crons_vigia) & set(crons_robo),
+      "o vigia tem horário próprio, separado do robô")
+checa("EMAIL_PARA" in vigia_yml and "--avisar" in vigia_yml,
+      "o vigia sabe mandar e-mail quando acha o guia parado")
+checa("AVA_USUARIO" not in vigia_yml and "AVA_SENHA" not in vigia_yml,
+      "o vigia não recebe credencial do AVA: ele só olha o site público")
+
+# O Secret da sessão salva saiu: o log de 13/08 mostrou a sessão sendo
+# restaurada, vencendo e o robô logando por credencial do mesmo jeito.
+# O alvo é o consumo do Secret, não a palavra: o comentário que explica por
+# que ele saiu tem que poder continuar ali.
+checa("secrets.AVA_STORAGE_STATE" not in principal,
+      "o workflow não carrega mais a sessão salva")
+checa("AVA_USUARIO" in principal and "AVA_SENHA" in principal,
+      "e continua logando com as credenciais, que é o caminho que funciona")
+
 print("\n== Os dez pontos contáveis da quinzena (COM170) ==")
 
 from dominio.avaliacao import pontos_da_quinzena  # noqa: E402
@@ -1829,7 +2030,6 @@ checa("publication_id" in workflow, "deploy é conferido pelo ID do artefato ser
 # A espera de 3 minutos falhou em 13/08 com um deploy de 187s, e ao desistir
 # o passo seguinte empurrava outro commit, cancelando o deploy que estava
 # quase pronto. A margem tem que ficar acima do pior caso já visto.
-import re as _re  # noqa: E402
 _espera = _re.search(r"for TENTATIVA in \$\(seq 1 (\d+)\)", workflow)
 checa(_espera and int(_espera.group(1)) * 5 >= 420,
       "a espera do Pages cobre pelo menos 7 minutos")

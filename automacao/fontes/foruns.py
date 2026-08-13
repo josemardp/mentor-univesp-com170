@@ -148,6 +148,25 @@ def deduplicar_posts(posts):
     return [unicos[chave] for chave in ordem]
 
 
+# Post que declara como a disciplina funciona, e não o que acontece hoje:
+# a divisão da nota, os pesos por semana, os critérios de participação. Vale
+# o semestre inteiro e é publicado uma vez, no começo — exatamente o perfil
+# que um teto por recência descarta primeiro.
+ASSUNTO_ESTRUTURANTE = re.compile(
+    r"crit[eé]rios? de avalia|pesos? das? atividades?|"
+    r"composi[cç][ãa]o da nota|nota\s.{0,30}?[ée]\scomposta",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def post_estruturante(post):
+    """Declara a regra do curso? Só vale vindo de fonte institucional."""
+    if post.get("autoridade") != "institucional":
+        return False
+    alvo = f"{post.get('titulo') or ''} {post.get('texto') or ''}"
+    return bool(ASSUNTO_ESTRUTURANTE.search(alvo))
+
+
 def priorizar_posts(posts, autores_institucionais, limite=MAX_POSTS_POR_DISCUSSAO):
     """Desduplica, classifica autoridade, ordena e só então aplica o teto."""
     autores = {sem_acento(autor) for autor in autores_institucionais if autor}
@@ -166,6 +185,13 @@ def priorizar_posts(posts, autores_institucionais, limite=MAX_POSTS_POR_DISCUSSA
     unicos.sort(key=lambda post: post.get("data") or "", reverse=True)
     unicos.sort(
         key=lambda post: (
+            # Regra do curso na frente de tudo. Ela vale o semestre inteiro e
+            # são dois ou três posts por disciplina; aviso de live vale um
+            # dia e chega toda semana. Com o teto de 15, os avisos recentes
+            # empurravam os CRITÉRIOS DE AVALIAÇÃO para fora e o bloco "Como
+            # a nota é composta" nunca aparecia — funcionalidade pronta,
+            # testada, e morta em produção desde que foi escrita.
+            0 if post_estruturante(post) else 1,
             0 if post.get("autoridade") == "institucional" else 1,
             0 if post.get("prazos") else 1,
         )

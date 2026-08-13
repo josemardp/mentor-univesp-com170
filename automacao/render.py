@@ -113,6 +113,30 @@ def _cmids_pendentes(data):
     }
 
 
+# Quantos dias o aviso de "aquele recado venceu" continua valendo a pena.
+DIAS_DE_RECADO_ARQUIVADO = 3
+
+
+def _recado_vencido_ha_muito(recado, agora=None):
+    """O recado é velho demais até para anunciar que venceu?
+
+    Conta a partir da validade quando ela existe; sem validade, da escrita.
+    Sem nenhuma das duas datas, responde ``False``: sem saber a idade, o
+    caminho seguro é continuar mostrando.
+    """
+    agora = agora or datetime.now(BR_TZ)
+    for campo in ("valid_until", "written_at"):
+        bruto = recado.get(campo)
+        if not bruto:
+            continue
+        try:
+            quando = datetime.fromisoformat(bruto).astimezone(BR_TZ)
+        except Exception:
+            continue
+        return (agora - quando).days > DIAS_DE_RECADO_ARQUIVADO
+    return False
+
+
 def render_recado(data):
     if not RECADO_PATH.exists():
         return ""
@@ -134,6 +158,12 @@ def render_recado(data):
         except Exception:
             motivos.append("a validade do recado não pôde ser verificada")
     if motivos:
+        # Dizer "o recado de ontem não vale mais" é útil por alguns dias;
+        # depois disso é uma aba que não informa nada. A de 25/07 ficou no ar
+        # 18 dias anunciando o próprio vencimento. Passada a carência, o
+        # recado some junto com a aba, e a fila fala por si.
+        if _recado_vencido_ha_muito(r):
+            return ""
         return (
             '<div class="bloco recado-antigo">'
             '<p class="recado-antigo-tag">Recado anterior arquivado automaticamente</p>'
@@ -886,17 +916,35 @@ def render_composicao(data):
         if lacuna.get("url"):
             origem = (f'<a href="{esc(lacuna["url"])}" target="_blank" '
                       f'rel="noopener">{origem}</a>')
+        # A data não vem do Sistema de Provas (login à parte), mas costuma
+        # circular em aviso de facilitador antes disso. Quando circula, o guia
+        # mostra — com a frase original e o link, como faz com todo prazo.
+        achada = lacuna.get("data_achada")
+        if achada:
+            corpo = (
+                '<div class="trava">📌 Um aviso oficial já falou em data de '
+                f'prova: <b>{esc(fmt_dm(achada["quando"]))}</b>. Confirme no '
+                f'<a href="{esc(lacuna["onde"])}" target="_blank" '
+                'rel="noopener">Sistema de Provas</a>, que é a fonte que vale.'
+                f'<br><span class="muted">"{esc(achada["frase"])}"</span>'
+                '</div>'
+            )
+        else:
+            corpo = (
+                '<div class="acao-pe">Este guia acompanha só a parte do AVA. '
+                'A prova presencial não é lida por ele: a data e o local saem '
+                f'no <a href="{esc(lacuna["onde"])}" target="_blank" '
+                'rel="noopener">Sistema de Provas</a>, que tem login '
+                'separado. O guia fica de olho nos avisos: se um facilitador '
+                'disser a data, ela aparece aqui.</div>'
+            )
         linhas.append(
             f'<li class="acao"><div class="acao-chips">'
             f'<span class="status lock">{esc(c.get("code") or "")}</span>'
             f'<span class="status ok">{lacuna["ava"]}% AVA</span>'
             f'<span class="status pend">{lacuna["prova"]}% prova presencial'
             '</span></div>'
-            '<div class="acao-pe">Este guia acompanha só a parte do AVA. A '
-            'prova presencial não é lida por ele: a data e o local saem no '
-            f'<a href="{esc(lacuna["onde"])}" target="_blank" '
-            'rel="noopener">Sistema de Provas</a>, que tem login separado.'
-            f'</div><div class="acao-pe">{origem}</div></li>'
+            f'{corpo}<div class="acao-pe">{origem}</div></li>'
         )
     if not linhas:
         return ""

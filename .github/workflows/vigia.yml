@@ -1,0 +1,54 @@
+name: Vigia do guia
+
+# O robô já avisa quando uma rodada roda e falha. O que ele nunca cobriu é a
+# rodada que NÃO ACONTECE: cron que o GitHub não dispara, workflow desativado
+# por inatividade do repositório, Action que morre antes de qualquer passo. Em
+# todos esses o site simplesmente congela, e um site congelado é indistinguível
+# de um dia sem novidade — foi o residual anotado no STATUS.
+#
+# Este vigia não lê o AVA nem depende do robô: ele só pergunta ao site público
+# há quanto tempo é o retrato que está no ar. Se estiver velho, manda e-mail.
+#
+# Limite honesto: mora no mesmo repositório, então não sobrevive ao caso em
+# que o Actions da conta inteira está fora do ar. Cobre o caso realista (o
+# workflow principal parou e o resto continua), não a queda total do GitHub.
+# Por isso o cron é diferente do principal: se um horário específico falhar, o
+# outro workflow não falha junto.
+
+on:
+  schedule:
+    # 12h30 e 21h30 de Brasília. Fora dos horários do robô de propósito.
+    - cron: "30 15,0 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  conferir:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # A idade tolerada é maior que o maior intervalo entre rodadas (das 20h
+      # às 8h são 12h) com folga para runner atrasado. Abaixo disso o vigia
+      # gritaria por um atraso normal de madrugada e viraria ruído.
+      - name: Conferir a idade do retrato publicado
+        id: idade
+        env:
+          LIMITE_HORAS: "16"
+        run: python automacao/vigia.py
+
+      - name: Avisar que o guia congelou
+        if: failure() && steps.idade.outcome == 'failure'
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          EMAIL_PARA: ${{ secrets.EMAIL_PARA }}
+        run: python automacao/vigia.py --avisar

@@ -16,6 +16,7 @@ A data da prova continua fora do alcance: ela sai no Sistema de Provas
 não houver coletor para lá, o guia declara essa ausência em vez de omiti-la.
 """
 import re
+from datetime import date
 
 from dominio.datas import sem_acento
 
@@ -105,15 +106,65 @@ def composicao_da_nota(curso):
     return None
 
 
-def lacuna_da_prova(curso):
+# A data da prova mora no Sistema de Provas, que autentica por conta
+# Microsoft e não é alcançável por aqui. Mas ela costuma circular antes disso,
+# em aviso de facilitador — foi assim com todo prazo que o guia aprendeu a
+# ler. Então em vez de só declarar a lacuna, ele procura: quando um aviso
+# institucional disser a data, o guia passa a mostrá-la, com a fonte à vista.
+FALA_DE_PROVA = re.compile(
+    r"prova(?!\s+de\s+conceito)|avalia[cç][ãa]o presencial", re.IGNORECASE
+)
+FALA_DE_PRESENCIAL = re.compile(r"presencia|polo", re.IGNORECASE)
+
+
+def data_da_prova(curso, hoje=None):
+    """Data da prova presencial, se algum aviso oficial já a disse.
+
+    Exige as duas marcas na mesma frase (prova **e** presencial/polo) porque
+    "prova" sozinho aparece em frase sobre atividade avaliativa do AVA, e uma
+    data errada aqui é pior que data nenhuma — foi o erro original do guia.
+    """
+    from dominio.datas import achar_datas
+
+    for aviso in curso.get("avisos") or []:
+        if aviso.get("autoridade") != "institucional":
+            continue
+        texto = aviso.get("texto") or ""
+        for frase in re.split(r"(?<=[.!?])\s+|\n", texto):
+            if not (FALA_DE_PROVA.search(frase)
+                    and FALA_DE_PRESENCIAL.search(frase)):
+                continue
+            datas = achar_datas(frase, hoje or date.today())
+            if not datas:
+                continue
+            quando, trecho, hora_certa = datas[0][0], datas[0][1], datas[0][2]
+            return {
+                "quando": quando.isoformat(),
+                "trecho": trecho,
+                "hora_certa": hora_certa,
+                "frase": " ".join(frase.split())[:220],
+                "autor": aviso.get("autor"),
+                "url": aviso.get("url"),
+            }
+    return None
+
+
+def lacuna_da_prova(curso, hoje=None):
     """O que o guia sabe e o que ele não acompanha sobre a prova presencial."""
     composicao = composicao_da_nota(curso)
     if not composicao:
         return None
+    try:
+        achada = data_da_prova(curso, hoje)
+    except Exception:
+        # Procurar a data nunca pode derrubar o bloco que declara a lacuna:
+        # a declaração é o mínimo garantido, a data é o bônus.
+        achada = None
     return {
         **composicao,
         "acompanhado": False,
         "onde": SISTEMA_DE_PROVAS,
+        "data_achada": achada,
     }
 
 

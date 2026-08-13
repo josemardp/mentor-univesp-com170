@@ -41,11 +41,13 @@ Secrets no repo `esdraaline/mentor-univesp-com170`: `AVA_USUARIO`, `AVA_SENHA`, 
 
 O alerta de prazo só dispara com prazo **novo** (comparação entre dois retratos), nunca com "o que está urgente hoje", que repetiria todo dia. Prazo que some e volta entre leituras não avisa duas vezes: há registro de prazo já avisado, com validade de 7 dias, em `docs/estado.json`. O aviso de falha não carimba a data do resumo diário, senão engoliria o e-mail da manhã seguinte.
 
-**Residual conhecido:** isso cobre rodada que roda e falha. Não cobre rodada que *nunca dispara* (cron que não fira, workflow desabilitado). Para isso só um vigia fora deste repositório resolveria.
+**Residual coberto em 13/08:** existe um segundo workflow, [`vigia.yml`](.github/workflows/vigia.yml), com cron próprio (12h30 e 21h30), que não lê o AVA e não depende do robô. Ele pergunta ao site público qual é o `snapshot_at` servido e manda e-mail se o retrato passar de 16h — que é o caso da rodada que *nunca dispara*. Site que não responde também acorda o vigia: silêncio do próprio guia é falha, não sono. Limite honesto que fica: o vigia mora no mesmo repositório, então não sobrevive ao Actions da conta inteira fora do ar. Cobre o caso realista, não a queda total do GitHub.
 
 ## Próximo passo
 
-**Data da prova presencial** — única lacuna funcional aberta. Fica em `acesso.univesp.br`, com autenticação própria. Depende de uma decisão do Josemar: onde guardar mais uma credencial. Enquanto isso, o guia declara a ausência em vez de omiti-la ("40% AVA · 60% prova presencial", com aviso de que o guia só acompanha a parte do AVA).
+**Pesos das semanas.** O aviso "Pesos das Atividades" diz que as avaliativas não valem igual: S1 8%, S2 12%, S3 a S6 17% cada, S7 12%. O guia trata todas como iguais, então a S3 (17%) aparece com o mesmo peso visual da S1 (8%). O aviso já chega ao robô desde a correção de 13/08; falta usar o número no cartão da atividade.
+
+**Data da prova presencial** — segue sem fonte alcançável, mas não por falta de tentativa. Levantado em 13/08: o `acesso.univesp.br` autentica por conta Microsoft (`msal-browser.js`), fluxo diferente do SSO do AVA e provavelmente com MFA; a data não aparece em nenhum aviso, evento de calendário ou página de instrução coletada; o cronograma público não a traz; e o `cronograma.ics` que a própria Univesp linka responde **404**. O que passou a existir: o guia **procura** a data nos avisos oficiais e a mostra assim que um facilitador disser, exigindo "prova" e "presencial/polo" na mesma frase para não confundir com atividade avaliativa do AVA. Automatizar o login Microsoft continua fora de escopo por conta própria — é decisão do Josemar, e mexer com conta institucional pode disparar bloqueio de segurança.
 
 ## Auditoria ao vivo (13/08/2026)
 
@@ -75,8 +77,12 @@ O **COM170 avançou para uma estrutura nova**: além das 4 Semanas do AIA, agora
 - **Responder S3 de COM100, LET110 e SOC100 até 16/08 23:59** e **S4 das três até 23/08 23:59**. Nenhuma das seis tem tentativa registrada (conferido no AVA, não no selo).
 - **Perguntar ao facilitador do COM170** por que a Quinzena 1 está com 0,00 nos dois envios, e ao SOC100 por que o boletim não lista nenhum item.
 - Regularizar o **S1 - Formulário de conhecimentos prévios do COM170** (segue pendente, mesmo caso desde julho: falar com SAE ou orientador de polo).
-- Apagar o Secret `AVA_STORAGE_STATE`, obsoleto desde 25/07.
-- Revisão semanal da mentora, ainda manual: escrever `docs/revisao.json` e rodar `python automacao/gerar_guia.py --render-only`.
+- ~~Apagar o Secret `AVA_STORAGE_STATE`~~ feito em 13/08, com prova antes de destruir: o log da rodada mostrava a sessão sendo restaurada, vencendo, e o robô logando por credencial do mesmo jeito. O passo saiu do workflow e o Secret foi removido. Ficaram órfãos três scripts que só serviam para alimentá-lo (`capturar_sessao.py`, `renovar_sessao.py`, `publicar_sessao_no_github.py` e o `.bat`); dá para apagar quando quiser.
+- Revisão semanal da mentora: agora tem comando próprio, sem editar JSON na mão.
+  ```bash
+  python automacao/recado.py "Josemar, o foco de hoje é..." --ate 2026-08-20 --enquanto-pendente 215609
+  ```
+  Depois `python automacao/gerar_guia.py --render-only`. Sem `--ate` vale 7 dias. `--ver` mostra o que está no ar, `--limpar` apaga. Recado vencido some sozinho do site depois de 3 dias, em vez de virar uma aba que só anuncia o próprio vencimento (a de 25/07 ficou 18 dias assim).
 
 > Senha exposta no histórico do repositório: **Josemar decidiu não tratar** (04/08/2026). Registro, não pendência — não deve voltar como cobrança.
 
@@ -103,6 +109,7 @@ O **COM170 avançou para uma estrutura nova**: além das 4 Semanas do AIA, agora
 - **Quando a tela mostra dois cartões para a mesma coisa, escolher o que afirma algo.** Não o primeiro nem o último. "Ainda não iniciada" ao lado de "Progresso avançado" é a ferramenta mostrando o placar e o rodapé juntos, e o guia tem que publicar o placar.
 - **Fórum vazio é informação, e só se enxerga por fora do fórum.** Tudo o que o guia sabia sobre fórum vinha de post, então o espaço de grupo sem nenhum tópico simplesmente não existia para ele — justamente o caso em que o silêncio é a notícia. Vale a mesma regra do boletim: "não consegui ler" nunca vira "está vazio".
 - **Zero em atividade entregue é diferente de zero em atividade não feita**, e diferente ainda de zero que é o normal da disciplina (os SCORM do COM170). Três estados, três frases.
+- **Funcionalidade pronta e testada pode estar morta em produção.** O bloco "Como a nota é composta" não aparecia em nenhuma das quatro disciplinas, e a suíte passava: o código estava certo, o aviso é que nunca chegava. O teto de 15 posts por disciplina ordena por recência, e os CRITÉRIOS DE AVALIAÇÃO são publicados uma vez, no começo do semestre — sempre os primeiros a cair. Regra do curso agora tem prioridade máxima na fila, na frente até de aviso com prazo. Conferir "aparece no site?" é diferente de conferir "os testes passam?".
 - **Placar oficial incompleto engana pela escala, não pelo número.** O painel de participação dizia a verdade sobre os cinco critérios que ele mede, e mesmo assim "4 de 5" levava à conclusão errada, porque a régua real tem dez. Quando o guia mostra o número de outra ferramenta, precisa mostrar de quanto é o todo.
 - **Teste com porta fixa acusa o inocente.** O `test_login.py` reprovou o login por 8 asserções por causa de outro processo na porta 8791. Bancada de teste também precisa saber a diferença entre "está errado" e "não consegui medir": porta 0 e uma conferência de que quem responde é o próprio Fake.
 - **Prazo de módulo trancado não aparece na página do módulo, aparece na página de instruções da quinzena/semana.** Auditoria de 08/08 checou a atividade do Módulo 1 e concluiu "sem prazo visível", mas o prazo do Módulo 4 estava na página "Instruções da Quinzena" (id=215566), não na atividade em si. Conferir sempre a página de instruções/calendário da unidade inteira, não só os itens travados.

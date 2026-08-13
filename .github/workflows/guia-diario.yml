@@ -46,27 +46,19 @@ jobs:
           python testes/test_login.py
           python testes/test_operacao.py
 
-      # A sessão salva é só o atalho. Se não existir ou estiver vencida, o
-      # robô loga sozinho com AVA_USUARIO/AVA_SENHA no passo seguinte.
-      - name: Restaurar sessão salva (se houver)
-        env:
-          AVA_STORAGE_STATE: ${{ secrets.AVA_STORAGE_STATE }}
-        run: |
-          if [ -n "$AVA_STORAGE_STATE" ]; then
-            echo "$AVA_STORAGE_STATE" > automacao/storage_state.json
-            echo "Sessão salva restaurada."
-          else
-            echo "Sem sessão salva: o robô vai logar com as credenciais."
-          fi
-
-      # Se a sessão salva tiver vencido, o robô loga sozinho com estas
-      # credenciais (guardadas no cofre de Secrets, nunca no repositório).
+      # A sessão salva (Secret AVA_STORAGE_STATE) saiu em 13/08/2026. Ela era
+      # um atalho para pular o login, e o log da rodada mostrou que o atalho
+      # não atalhava nada: a sessão era restaurada, vencia, e o robô logava
+      # com AVA_USUARIO/AVA_SENHA de qualquer jeito. Manter significava
+      # carregar um cofre a mais e três scripts de manutenção para renová-la.
       - name: Gerar guia
         env:
           AVA_USUARIO: ${{ secrets.AVA_USUARIO }}
           AVA_SENHA: ${{ secrets.AVA_SENHA }}
         run: python automacao/gerar_guia.py
 
+      # O login salva a sessão em disco durante a execução. Ela nunca sai do
+      # runner, mas apagar é barato e fecha a porta.
       - name: Limpar sessão do runner
         if: always()
         run: rm -f automacao/storage_state.json
