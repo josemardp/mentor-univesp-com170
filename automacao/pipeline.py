@@ -480,6 +480,7 @@ def executar_coleta(estado, anterior=None):
                 f"(orçamento {orcamento})"
             )
             diagnostico_forum = {}
+            espacos_de_grupo = []
             avisos, orcamento = foruns.varrer_foruns(
                 page,
                 lista_foruns,
@@ -488,6 +489,7 @@ def executar_coleta(estado, anterior=None):
                 hoje,
                 diagnostico_forum,
                 curso_id=descoberto["id"],
+                espacos_de_grupo=espacos_de_grupo,
             )
             diagnosticos_forum.append(diagnostico_forum)
             autores = (
@@ -616,6 +618,7 @@ def executar_coleta(estado, anterior=None):
                     "links": links,
                     "cronograma": cronograma_curso,
                     "avisos": avisos,
+                    "espacos_de_grupo": espacos_de_grupo,
                     "paginas_instrucao": paginas_instrucao,
                     "boletim": {
                         "status": resultado_boletim.status,

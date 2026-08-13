@@ -23,13 +23,57 @@ from dominio.datas import sem_acento
 from modelos import SourceResult
 
 ROTULO_ITEM = re.compile(r"progresso de participacao")
-ESTADOS_CRITERIO = ("atendido", "nao atendido", "parcialmente atendido", "parcial")
+# A ferramenta escreve a situação de duas formas. Em 04/08/2026 era só o
+# estado ("atendido"); em 13/08/2026 passou a vir com o substantivo na frente
+# ("Critério atendido", "Critério ainda não identificado"). Casar só a forma
+# antiga fazia a lista de critérios sair vazia, e foi o que aconteceu: o site
+# publicou o bloco de participação sem nenhum critério por vários dias.
+ESTADOS_CRITERIO = (
+    "atendido",
+    "nao atendido",
+    "parcialmente atendido",
+    "parcial",
+    "ainda nao identificado",
+    "nao identificado",
+)
+# Estados que não afirmam nada. Servem para dois descartes: escolher entre
+# blocos concorrentes de "Quinzena atual" e desempatar o panorama.
+SEM_INFORMACAO = ("ainda nao iniciada", "nao identificado", "nao iniciada")
 
 RE_ATUALIZADO = re.compile(
     r"[Úu]ltima atualiza[çc][ãa]o:\s*([\d/]{8,10}\s*(?:às|as)\s*[\d:]{4,5})"
 )
 RE_PANORAMA = re.compile(r"^Q(\d)$")
 RE_RESUMO = re.compile(r"^(\d+)$")
+
+
+def _situacao_de_criterio(linha):
+    """Devolve o estado do critério, ou ``None`` se a linha não for um."""
+    texto = sem_acento(linha or "").strip()
+    nucleo = texto[9:].strip() if texto.startswith("criterio ") else texto
+    return nucleo if nucleo in ESTADOS_CRITERIO else None
+
+
+def _atendido(situacao):
+    """``True``/``False``/``None`` a partir do texto da situação.
+
+    ``None`` é para o parcial, que não é um nem outro. "Ainda não
+    identificado" é ``False`` de propósito: do ponto de vista dele, critério
+    que a ferramenta não enxergou é ponto que não está contando.
+    """
+    nucleo = _situacao_de_criterio(situacao)
+    if nucleo is None:
+        return None
+    if nucleo == "atendido":
+        return True
+    if nucleo.startswith("parcial"):
+        return None
+    return False
+
+
+def _sem_informacao(texto):
+    junto = sem_acento(texto or "")
+    return any(marca in junto for marca in SEM_INFORMACAO)
 
 
 def item_de_participacao(secoes):
@@ -67,36 +111,94 @@ def _linhas(pagina):
     return [linha.strip() for linha in bruto.split("\n") if linha.strip()]
 
 
+def _escolher_quinzena_atual(blocos):
+    """Entre blocos concorrentes, o que afirma alguma coisa.
+
+    Achado em 13/08/2026: a ferramenta desenha **dois** cartões "Quinzena
+    atual" para a mesma quinzena, um com o resultado provisório de verdade
+    ("Q2 - Indicador provisório · Progresso avançado") e outro sem nada
+    ("Q2 - Ainda não iniciada"). Ficar com o último, que era o que o parser
+    fazia, publicava "esta quinzena ainda não foi iniciada" no dia em que a
+    própria ferramenta dizia progresso avançado, com quatro dos cinco
+    critérios atendidos. Mesma família do defeito do boletim: o número certo
+    estava na tela, e o guia escolheu a linha errada.
+    """
+    informativos = [
+        bloco
+        for bloco in blocos
+        if not _sem_informacao(
+            " ".join(
+                filter(
+                    None,
+                    (
+                        bloco.get("rotulo"),
+                        bloco.get("progresso"),
+                        bloco.get("detalhe"),
+                    ),
+                )
+            )
+        )
+    ]
+    escolhidos = informativos or blocos
+    return escolhidos[0] if escolhidos else None
+
+
+def _acrescentar_ao_panorama(panorama, quinzena, estado):
+    """Uma linha por quinzena, ficando com o estado que diz alguma coisa."""
+    for registro in panorama:
+        if registro["quinzena"] != quinzena:
+            continue
+        if _sem_informacao(registro["estado"]) and not _sem_informacao(estado):
+            registro["estado"] = estado
+        return
+    panorama.append({"quinzena": quinzena, "estado": estado})
+
+
 def _visao_geral(linhas):
     texto = "\n".join(linhas)
     dados = {"quinzenas": [], "criterios": []}
     achado = RE_ATUALIZADO.search(texto)
     if achado:
         dados["atualizado_em"] = achado.group(1)
+    blocos_atuais = []
     for indice, linha in enumerate(linhas):
         if linha == "Quinzena atual" and indice + 3 < len(linhas):
-            dados["quinzena_atual"] = {
+            blocos_atuais.append({
                 "rotulo": linhas[indice + 1],
                 "progresso": linhas[indice + 2],
                 "detalhe": linhas[indice + 3],
-            }
+            })
         # No panorama, o rótulo da quinzena vem numa linha e o estado na
         # seguinte: "Q1" / "Final", "Q2" / "Ainda não iniciada".
         if RE_PANORAMA.match(linha) and indice + 1 < len(linhas):
             estado = linhas[indice + 1]
             if not RE_PANORAMA.match(estado):
-                dados["quinzenas"].append(
-                    {"quinzena": linha, "estado": estado}
-                )
+                _acrescentar_ao_panorama(dados["quinzenas"], linha, estado)
         if linha == "Perfil temporal" and indice + 1 < len(linhas):
             dados["perfil_temporal"] = linhas[indice + 1]
-        if sem_acento(linha) in ESTADOS_CRITERIO and indice > 0:
+        situacao = _situacao_de_criterio(linha)
+        if situacao is not None and indice > 0:
             nome = linhas[indice - 1]
-            if 3 < len(nome) <= 60 and sem_acento(nome) not in ESTADOS_CRITERIO:
-                dados["criterios"].append(
-                    {"nome": nome, "situacao": linha}
-                )
+            if 3 < len(nome) <= 60 and _situacao_de_criterio(nome) is None:
+                dados["criterios"].append({
+                    "nome": nome,
+                    "situacao": linha,
+                    "atendido": _atendido(linha),
+                })
+    atual = _escolher_quinzena_atual(blocos_atuais)
+    if atual:
+        dados["quinzena_atual"] = atual
     return dados
+
+
+def _clicar(pagina, rotulo, espera_ms=1500):
+    """Clique tolerante: devolve ``True`` se abriu, ``False`` se não achou."""
+    try:
+        pagina.get_by_text(rotulo, exact=True).first.click(timeout=8000)
+    except PlaywrightError:
+        return False
+    pagina.wait_for_timeout(espera_ms)
+    return True
 
 
 def ler(page, secoes):
@@ -106,19 +208,23 @@ def ler(page, secoes):
     pagina = _abrir(page, item["url"])
     try:
         dados = _visao_geral(_linhas(pagina))
-        # A aba "Quinzenas" traz os critérios um a um. Se o clique falhar, a
-        # visão geral já é útil sozinha, então a falha não derruba a leitura.
-        try:
-            pagina.get_by_text("Quinzenas", exact=True).first.click(
-                timeout=8000
-            )
-            pagina.wait_for_timeout(2000)
+        # São dois cliques, não um. "Quinzenas" abre a quinzena corrente, mas
+        # os critérios um a um vivem na aba "Critérios" dentro dela — sem o
+        # segundo clique a lista nunca aparece, que era o estado até 13/08.
+        # Cada etapa é opcional: o que já foi lido continua valendo se o
+        # clique seguinte falhar.
+        if _clicar(pagina, "Quinzenas", espera_ms=2000):
             detalhe = _visao_geral(_linhas(pagina))
+            dados.setdefault("perfil_temporal", detalhe.get("perfil_temporal"))
+            if _clicar(pagina, "Critérios"):
+                detalhe = _visao_geral(_linhas(pagina))
             if detalhe.get("criterios"):
                 dados["criterios"] = detalhe["criterios"]
-            dados.setdefault("perfil_temporal", detalhe.get("perfil_temporal"))
-        except PlaywrightError:
-            pass
+        dados["criterios_pendentes"] = [
+            criterio["nome"]
+            for criterio in dados.get("criterios") or []
+            if criterio.get("atendido") is False
+        ]
         dados["fonte"] = pagina.url
         return dados
     finally:

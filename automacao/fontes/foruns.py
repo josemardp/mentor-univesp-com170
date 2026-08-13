@@ -256,8 +256,15 @@ def varrer_foruns(
     hoje,
     diagnostico=None,
     curso_id=None,
+    espacos_de_grupo=None,
 ):
-    """Lê avisos/grupo primeiro e acumula autores oficiais por disciplina."""
+    """Lê avisos/grupo primeiro e acumula autores oficiais por disciplina.
+
+    ``espacos_de_grupo``, quando passado, recebe um registro por fórum de
+    grupo **lido ao vivo nesta rodada**, dizendo se ele tem algum tópico.
+    Fórum que falhou ou ficou fora do orçamento não entra: "não consegui ler"
+    não pode virar "está vazio", que é a mesma regra do boletim.
+    """
     coletados = []
     listas_live = falhas = pulados_orcamento = cache_em_falha = 0
     truncado = False
@@ -365,6 +372,18 @@ def varrer_foruns(
         except PlaywrightError:
             discussoes = []
             falhas += 1
+
+        # O espaço do grupo é o único fórum onde o silêncio é a notícia. Em
+        # 13/08/2026 o "Q2 M7 - Grupo: Ponto de encontro" do G4 estava sem
+        # nenhum tópico a dois dias da entrega em grupo, e o guia não tinha
+        # como dizer isso: fórum sem post não gera post, então sumia.
+        if espacos_de_grupo is not None and forum_do_grupo(forum):
+            espacos_de_grupo.append({
+                "label": forum.get("label"),
+                "url": forum.get("url"),
+                "cmid": forum.get("cmid"),
+                "tem_topico": bool(aqui or discussoes),
+            })
 
         if aqui and not discussoes:
             atualizar_autores(forum, aqui)

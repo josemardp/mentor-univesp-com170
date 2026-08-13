@@ -877,6 +877,85 @@ sem_boletim = R.render_notas(
 checa(sem_boletim == "",
       "disciplina sem boletim nenhum continua fora, sem inventar bloco")
 
+print("\n== Entregou e o boletim lançou zero (M6 Q1, 13/08/2026) ==")
+
+# Estado real: entrega em 29/07, avaliação do colega no nível máximo, boletim
+# com 0,00 no envio. Sem isto à vista, "entreguei e zerei" tem a mesma cara
+# de "não fiz".
+M6_ZERADO = {"label": "M6 - Revisão entre pares (colega)",
+             "type": "workshop", "conta_nota": True, "enviado": True,
+             "nota_txt": "0,00", "nota": 0.0, "tem_nota": True,
+             "url": "https://ava.univesp.br/mod/workshop/view.php?id=173854"}
+SCORM_ZERADO = {"label": "Q2 M1 - Atividade: tokenizador interativo",
+                "type": "scorm", "conta_nota": True, "nota_txt": "0,00",
+                "nota": 0.0, "tem_nota": True}
+
+checa(R._entregou_e_zerou(M6_ZERADO),
+      "entrega confirmada com nota zero é sinalizada")
+checa(not R._entregou_e_zerou(SCORM_ZERADO),
+      "zero sem prova de envio não vira alerta (SCORM do COM170 é 0,00 normal)")
+checa(not R._entregou_e_zerou({**M6_ZERADO, "nota": 1.0}),
+      "entrega com nota não vira alerta")
+checa(not R._entregou_e_zerou({**M6_ZERADO, "enviado": None}),
+      "sem leitura de envio, o guia não acusa nada")
+
+html_zero = R.render_notas({"courses": [{"code": "COM170",
+    "boletim": {"status": "live", "media": {"rotulo": "Média AVA",
+                                            "nota": "0,29"}},
+    "sections": [{"title": "Módulo 6", "items": [M6_ZERADO, SCORM_ZERADO]}]}]})
+checa("lançou <b>zero</b>" in html_zero,
+      "a aba 'Como estou' avisa que a entrega existiu e a nota veio zero")
+checa(html_zero.count("lançou <b>zero</b>") == 1,
+      "e avisa só no item entregue, não em todo zero do boletim")
+
+print("\n== Espaço do grupo parado (G4, 13/08/2026) ==")
+
+from dominio.acoes import avisos_de_grupo_parado, montar_acoes  # noqa: E402
+
+# Cenário real: a dois dias da entrega, o "Q2 M7 - Grupo: Ponto de encontro"
+# do G4 não tinha um único tópico. Fórum vazio não gera post, então nada disso
+# chegava ao guia.
+ENTREGA_G4 = {
+    "curso": "COM170", "secao": "Q2 Módulo 7", "tipo": "workshop",
+    "o_que": "Q2 M7 - Revisão entre pares (Portfólio em grupo)",
+    "url": "https://ava.univesp.br/mod/workshop/view.php?id=215612",
+    "prazo": "2026-08-15T23:59:00-03:00", "prazo_txt": "vence 15/08 às 23:59",
+    "prazo_fonte": "calendário do AVA", "urgencia": "semana",
+    "conta_nota": True, "hora_certa": True,
+}
+ESPACO_VAZIO = {"label": "Q2 M7 - Grupo: Ponto de encontro",
+                "url": "https://ava.univesp.br/mod/forum/view.php?id=215611",
+                "cmid": "215611", "tem_topico": False}
+
+def _com_grupo(espacos, acoes):
+    return avisos_de_grupo_parado(
+        {"courses": [{"code": "COM170", "espacos_de_grupo": espacos}]}, acoes
+    )
+
+avisos_grupo = _com_grupo([ESPACO_VAZIO], [ENTREGA_G4])
+checa(len(avisos_grupo) == 1, "grupo sem tópico com entrega em aberto vira aviso")
+checa(avisos_grupo[0]["prazo"] == ENTREGA_G4["prazo"]
+      and avisos_grupo[0]["urgencia"] == "semana",
+      "o aviso herda o prazo e a urgência da entrega em grupo")
+checa(avisos_grupo[0]["url"] == ESPACO_VAZIO["url"],
+      "o link leva ao espaço do grupo, que é onde a ação acontece")
+checa(_com_grupo([{**ESPACO_VAZIO, "tem_topico": True}], [ENTREGA_G4]) == [],
+      "grupo que já tem conversa não gera aviso")
+checa(_com_grupo([ESPACO_VAZIO], []) == [],
+      "sem entrega em grupo em aberto, espaço vazio não é problema")
+# "Não consegui ler" nunca pode virar "está vazio": é a mesma regra que o
+# boletim do SOC100 forçou em 10/08.
+checa(_com_grupo([{**ESPACO_VAZIO, "tem_topico": None}], [ENTREGA_G4]) == [],
+      "fórum não lido nesta rodada não é tratado como fórum vazio")
+checa(_com_grupo([], [ENTREGA_G4]) == [],
+      "disciplina sem espaço de grupo lido não gera aviso")
+
+html_grupo = R.render_acao(avisos_grupo[0])
+checa("Ponto de encontro" in html_grupo and "vence 15/08" in html_grupo,
+      "o cartão mostra o espaço do grupo com o prazo da entrega")
+checa("começar sozinho já vale" in html_grupo,
+      "e diz o que fazer quando ninguém do grupo apareceu")
+
 print("\n== Nota que sai é notícia (10/08/2026) ==")
 
 from dominio.acoes import notas_novas  # noqa: E402
@@ -1548,6 +1627,78 @@ checa("Cobertura de conteúdos" in html_p,
       "e mostra os critérios um a um")
 checa(R.render_participacao({"courses": [{"code": "X"}]}) == "",
       "disciplina sem a ferramenta não gera bloco")
+
+# Texto real da ferramenta em 13/08/2026, copiado da página. Ela mudou duas
+# coisas desde 04/08: desenha DOIS cartões "Quinzena atual" para a mesma
+# quinzena (um com o resultado, outro vazio) e escreve "Critério atendido" no
+# lugar de "atendido". As duas mudanças passaram pela suíte antiga e
+# publicaram estado errado no site por dias.
+VISAO_13_08 = ["Ir para o conteúdo principal", "Visão geral",
+ "Meu progresso de participação",
+ "Olá, Aluno. Acompanhe sua participação ao longo da disciplina.",
+ "Última atualização: 12/08/2026 às 23:25",
+ "Quinzena atual", "Q2 - Indicador provisório", "Progresso avançado",
+ "Parte dos critérios previstos para esta quinzena foi identificada.",
+ "Ver detalhes da Quinzena 2",
+ "Quinzena atual", "Q2 - Ainda não iniciada",
+ "Progresso ainda não identificado",
+ "Esta quinzena ainda não foi iniciada.", "Ver detalhes da Quinzena 2",
+ "Panorama das sete quinzenas",
+ "Q2", "Provisório", "Q2", "Ainda não iniciada", "Q3", "Ainda não iniciada",
+ "Q4", "Ainda não iniciada", "Q5", "Ainda não iniciada",
+ "Q6", "Ainda não iniciada", "Q7", "Ainda não iniciada",
+ "Resumo da trajetória", "0", "quinzenas concluídas",
+ "1", "quinzena em andamento"]
+CRITERIOS_13_08 = ["Resumo", "Critérios", "Perfil de participação",
+ "Critérios detalhados",
+ "Módulo 1", "Critério ainda não identificado",
+ "Este critério ainda não foi identificado para esta quinzena.",
+ "Módulo 2", "Critério atendido",
+ "Foram identificadas interações acadêmicas relacionadas aos conteúdos e "
+ "atividades do Módulo 2 durante a quinzena.",
+ "Módulo 3", "Critério atendido",
+ "Foram identificadas interações acadêmicas relacionadas aos conteúdos e "
+ "atividades do Módulo 3 durante a quinzena.",
+ "Módulo 4", "Critério atendido",
+ "Foram identificadas interações acadêmicas relacionadas aos conteúdos e "
+ "atividades do Módulo 4 durante a quinzena.",
+ "Qualidade da participação", "Critério atendido",
+ "Foram identificadas interações com os conteúdos previstos e uma "
+ "distribuição das interações ao longo da quinzena."]
+
+novo = PA._visao_geral(VISAO_13_08)
+checa(novo["quinzena_atual"]["progresso"] == "Progresso avançado",
+      "entre dois cartões 'Quinzena atual', fica com o que afirma algo")
+checa("Ainda não iniciada" not in novo["quinzena_atual"]["rotulo"],
+      "não publica 'ainda não iniciada' na quinzena que já está em curso")
+checa([q["quinzena"] for q in novo["quinzenas"]]
+      == ["Q2", "Q3", "Q4", "Q5", "Q6", "Q7"]
+      and novo["quinzenas"][0]["estado"] == "Provisório",
+      "o panorama não repete a quinzena nem perde o estado informativo")
+
+crit = PA._visao_geral(CRITERIOS_13_08)
+checa([c["nome"] for c in crit["criterios"]]
+      == ["Módulo 1", "Módulo 2", "Módulo 3", "Módulo 4",
+          "Qualidade da participação"],
+      "lê os cinco critérios no formato 'Critério <estado>'")
+checa([c["atendido"] for c in crit["criterios"]]
+      == [False, True, True, True, True],
+      "distingue critério atendido de critério ainda não identificado")
+checa(PA._atendido("atendido") is True
+      and PA._atendido("Critério atendido") is True,
+      "o formato antigo continua sendo lido")
+checa(PA._atendido("Critério parcialmente atendido") is None,
+      "parcial não é atendido nem pendente")
+
+pendentes = [c["nome"] for c in crit["criterios"] if c["atendido"] is False]
+html_novo = R.render_participacao({"courses": [{"code": "COM170",
+    "participacao": {**novo, **crit, "criterios_pendentes": pendentes}}]})
+checa("Progresso avançado" in html_novo,
+      "o site publica o progresso real, não o cartão vazio")
+checa("Critério atendido" in html_novo and 'class="status ok"' in html_novo,
+      "critério atendido sai marcado como atendido, não como pendente")
+checa("Ainda não contaram" in html_novo and "Módulo 1" in html_novo,
+      "o site nomeia o critério que ainda não contou")
 
 print("\n== Vencimento não é carência ==")
 

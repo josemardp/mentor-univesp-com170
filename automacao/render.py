@@ -337,6 +337,10 @@ def render_acao(a):
     if a.get("bloqueio"):
         trava = (f'<div class="trava">🔒 Ainda não abriu: {esc(a["bloqueio"])}. '
                  'Corra os módulos anteriores pra destravar a tempo.</div>')
+    if a.get("explicacao"):
+        # Aviso que não nasce de um item do AVA e por isso precisa dizer, no
+        # próprio cartão, por que está ali.
+        trava += f'<div class="trava">👥 {esc(a["explicacao"])}</div>'
     if a.get("entrega_nao_confirmada"):
         # O selo verde do AVA aqui é de "visualizou", não de "entregou". Se o
         # guia repetisse o selo, você só descobriria pela nota que faltou.
@@ -900,6 +904,22 @@ def render_composicao(data):
             f'<ul class="acoes">{"".join(linhas)}</ul>')
 
 
+def _classe_criterio(criterio):
+    """Verde só quando a ferramenta afirma que o critério contou.
+
+    Antes isto era `situacao.startswith("atendido")`, o que passou a errar
+    quando a ferramenta trocou "atendido" por "Critério atendido": tudo caía
+    em pendente. Quem responde agora é o campo booleano que a leitura já
+    resolveu, e "parcialmente atendido" (nem um nem outro) fica neutro.
+    """
+    atendido = criterio.get("atendido")
+    if atendido is True:
+        return "ok"
+    if atendido is False:
+        return "pend"
+    return "neutral"
+
+
 def render_participacao(data):
     """Placar oficial de participação da COM170, lido fora do Moodle.
 
@@ -931,14 +951,23 @@ def render_participacao(data):
                 'entregou.</div>'
             )
         criterios = "".join(
-            f'<li><span class="status '
-            f'{"ok" if _sem_acento(cr.get("situacao", "")).startswith("atendido") else "pend"}">'
+            f'<li><span class="status {_classe_criterio(cr)}">'
             f'{esc(cr.get("situacao") or "")}</span>'
             f'<span class="tlabel">{esc(cr.get("nome") or "")}</span></li>'
             for cr in (p.get("criterios") or [])
         )
         if criterios:
             linhas.append(f'<ul class="tasklist">{criterios}</ul>')
+        # Critério que ainda não contou é a única parte acionável deste bloco:
+        # é ponto de participação em aberto, e a quinzena tem data para fechar.
+        pendentes = p.get("criterios_pendentes") or []
+        if pendentes:
+            linhas.append(
+                '<div class="acao-pe">Ainda não contaram: '
+                f'<b>{esc(", ".join(pendentes))}</b>. Vale conferir se todos '
+                'os itens desse ponto ficaram mesmo concluídos, porque '
+                'atividade fechada antes da tela final não registra.</div>'
+            )
         panorama = " · ".join(
             f'{esc(q.get("quinzena") or "")}: {esc(q.get("estado") or "")}'
             for q in (p.get("quinzenas") or [])[:7]
@@ -992,6 +1021,21 @@ def _boletim_vazio(curso, boletim):
     return f'<li class="acao"><div class="acao-txt">{texto}</div></li>'
 
 
+def _entregou_e_zerou(item):
+    """Entrega confirmada pela própria atividade e nota lançada zero.
+
+    Só vale com prova de envio lida na página (``enviado``), nunca com o selo
+    de conclusão. E só onde zero é anormal: no COM170 as atividades SCORM
+    valem 0,00 por desenho — lá o que conta é o módulo concluído, não a nota,
+    e alertar em todas elas seria ruído em cima de estado normal.
+    """
+    return (
+        item.get("enviado") is True
+        and item.get("tem_nota")
+        and item.get("nota") == 0
+    )
+
+
 def render_notas(data):
     """Aba "Como estou": nota por atividade e devolutiva do facilitador.
 
@@ -1035,6 +1079,21 @@ def render_notas(data):
             elif not item.get("tem_nota") and item.get("conta_nota"):
                 faltou = ('<div class="acao-pe">sem nota lançada até agora'
                           '</div>')
+            elif _entregou_e_zerou(item):
+                # Achado em 13/08/2026, conferido no AVA: o M6 da Quinzena 1
+                # foi entregue em 29/07, o colega marcou o nível máximo em
+                # todos os critérios ("Nota: 1 de 1") e mesmo assim o boletim
+                # registra 0,00 no envio. Zero em atividade entregue não é o
+                # mesmo que zero em atividade não feita, e o guia mostrava os
+                # dois com a mesma cara.
+                classe = "pend"
+                faltou = ('<div class="trava">⚠️ O AVA registra a sua entrega '
+                          'nesta atividade e mesmo assim lançou <b>zero</b>. '
+                          'Em Laboratório de Avaliação a nota do envio só '
+                          'fecha depois que o facilitador roda a fase de '
+                          'encerramento. Abra o seu envio, veja a avaliação '
+                          'que os colegas deixaram e, se ela não bate com o '
+                          'zero, pergunte ao facilitador.</div>')
             linhas.append(
                 f'<li class="acao"><div class="acao-chips">'
                 f'<span class="status {classe}">{esc(nota)}</span></div>'

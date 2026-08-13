@@ -570,6 +570,74 @@ def tarefas_do_calendario(dados, hoje, ja_na_fila):
     return novos
 
 
+def _entrega_de_grupo_em_aberto(acoes, curso_code):
+    """A entrega em grupo desta disciplina que ainda está na fila, se houver.
+
+    É ela que dá prazo e urgência ao aviso de grupo parado: sem entrega em
+    aberto, espaço de grupo vazio não é problema nenhum.
+    """
+    candidatas = [
+        acao
+        for acao in acoes
+        if acao["curso"] == curso_code
+        and acao.get("tipo") == "workshop"
+        and acao.get("prazo")
+        and "grupo" in sem_acento(acao.get("o_que") or "")
+    ]
+    return min(candidatas, key=lambda acao: acao["prazo"], default=None)
+
+
+def avisos_de_grupo_parado(dados, acoes):
+    """Espaço do grupo sem nenhum tópico, com entrega em grupo por vir.
+
+    Achado em 13/08/2026: o "Q2 M7 - Grupo: Ponto de encontro" do G4 estava
+    sem um único tópico a dois dias do prazo, ninguém tinha combinado
+    representante, e o guia não dizia nada — fórum vazio não produz post, e
+    tudo o que o guia sabia dizer sobre fórum vinha de post. A entrega em
+    grupo depende de alguém começar, então o silêncio ali é a informação
+    mais acionável do dia, não a ausência dela.
+
+    O aviso herda o prazo da entrega em grupo: é a mesma obrigação vista um
+    passo antes. Grupo que já tem conversa não gera nada.
+    """
+    novos = []
+    for curso in dados["courses"]:
+        entrega = _entrega_de_grupo_em_aberto(acoes, curso["code"])
+        if entrega is None:
+            continue
+        for espaco in curso.get("espacos_de_grupo") or []:
+            if espaco.get("tem_topico") is not False:
+                continue
+            novos.append({
+                "curso": curso["code"],
+                "secao": espaco.get("label") or "Espaço do grupo",
+                "fase": "regular",
+                "verbo": "Comece",
+                "coisa": "a conversa do grupo",
+                "o_que": (
+                    f"{espaco.get('label') or 'Espaço do grupo'}: "
+                    "ninguém escreveu nada ainda"
+                ),
+                "tipo": "grupo_parado",
+                "url": espaco.get("url"),
+                "conta_nota": True,
+                "prazo": entrega["prazo"],
+                "prazo_txt": entrega.get("prazo_txt"),
+                "prazo_fonte": entrega.get("prazo_fonte"),
+                "fonte_url": entrega.get("url"),
+                "carencia": None,
+                "hora_certa": entrega.get("hora_certa", True),
+                "urgencia": entrega["urgencia"],
+                "explicacao": (
+                    "Ninguém do grupo abriu tópico neste espaço, e a entrega "
+                    "em grupo depende de alguém puxar a conversa. Se ninguém "
+                    "aparecer, começar sozinho já vale: quem chega depois "
+                    "encontra um ponto de partida em vez de página em branco."
+                ),
+            })
+    return novos
+
+
 def montar_acoes(dados, hoje, agora=None):
     """``agora`` só é exigido para tirar da fila encontro que já começou."""
     acoes, encerrados, confirmar, higiene = [], [], [], []
@@ -855,6 +923,9 @@ def montar_acoes(dados, hoje, agora=None):
             dados, hoje, ja_na_fila | {c for c in resolvidos if c}
         )
     )
+    # Depois das tarefas do calendário: o aviso herda o prazo da entrega em
+    # grupo, então a entrega precisa já estar na fila para ser encontrada.
+    acoes.extend(avisos_de_grupo_parado(dados, acoes))
     acoes = _agrupar_compromissos(acoes)
     acoes = _suprimir_avisos_redundantes(acoes)
 
