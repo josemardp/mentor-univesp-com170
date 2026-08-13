@@ -79,7 +79,7 @@ O **COM170 avançou para uma estrutura nova**: além das 4 Semanas do AIA, agora
 - **Responder S3 de COM100, LET110 e SOC100 até 16/08 23:59** e **S4 das três até 23/08 23:59**. Nenhuma das seis tem tentativa registrada (conferido no AVA, não no selo).
 - **Perguntar ao facilitador do COM170** por que a Quinzena 1 está com 0,00 nos dois envios, e ao SOC100 por que o boletim não lista nenhum item.
 - Regularizar o **S1 - Formulário de conhecimentos prévios do COM170** (segue pendente, mesmo caso desde julho: falar com SAE ou orientador de polo).
-- ~~Apagar o Secret `AVA_STORAGE_STATE`~~ feito em 13/08, com prova antes de destruir: o log da rodada mostrava a sessão sendo restaurada, vencendo, e o robô logando por credencial do mesmo jeito. O passo saiu do workflow e o Secret foi removido. Ficaram órfãos três scripts que só serviam para alimentá-lo (`capturar_sessao.py`, `renovar_sessao.py`, `publicar_sessao_no_github.py` e o `.bat`); dá para apagar quando quiser.
+- ~~Apagar o Secret `AVA_STORAGE_STATE`~~ feito em 13/08, com prova antes de destruir: o log da rodada mostrava a sessão sendo restaurada, vencendo, e o robô logando por credencial do mesmo jeito. Saíram o passo do workflow, o Secret, e os quatro scripts que só existiam para alimentá-lo (`capturar_sessao.py`, `renovar_sessao.py`, `publicar_sessao_no_github.py`, `renovar_sessao.bat`). **O que renova a sessão hoje é o próprio login**, com `AVA_USUARIO`/`AVA_SENHA` — não há mais nada para renovar à mão. `salvar_credenciais.py` fica: é ele que grava essas duas no cofre.
 - Revisão semanal da mentora: agora tem comando próprio, sem editar JSON na mão.
   ```bash
   python automacao/recado.py "Josemar, o foco de hoje é..." --ate 2026-08-20 --enquanto-pendente 215609

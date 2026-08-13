@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Ponto de entrada do guia. Mantido com o mesmo nome de sempre pra nao quebrar
-o renovar_sessao.bat nem a GitHub Action.
+a GitHub Action.
 
   python automacao/gerar_guia.py                 entra no AVA e regera o site
   python automacao/gerar_guia.py --render-only    so regera o site (sem AVA)
@@ -9,6 +9,10 @@ o renovar_sessao.bat nem a GitHub Action.
 O trabalho de verdade esta em:
   coletar.py  le o AVA (paginas, calendario, foruns, notificacoes, mensagens)
   render.py   monta o docs/index.html
+
+Fora daqui, dois utilitarios de mao:
+  salvar_credenciais.py  guarda AVA_USUARIO/AVA_SENHA no cofre do GitHub
+  recado.py              escreve o recado da mentora em docs/revisao.json
 """
 import sys
 
