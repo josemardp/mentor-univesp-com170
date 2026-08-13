@@ -570,12 +570,30 @@ def tarefas_do_calendario(dados, hoje, ja_na_fila):
     return novos
 
 
-def _entrega_de_grupo_em_aberto(acoes, curso_code):
-    """A entrega em grupo desta disciplina que ainda está na fila, se houver.
+def unidade_do_rotulo(rotulo):
+    """Prefixo de unidade do item: "Q2 M7 - Grupo: ..." vira ``"q2 m7"``.
+
+    É o que amarra o espaço do grupo à entrega daquela mesma quinzena. Sem
+    isso, qualquer fórum de grupo do curso casava com qualquer entrega em
+    aberto: na rodada de 13/08 os fóruns "S2/S3/S4 - Fórum do Grupo", da
+    ambientação já encerrada, herdaram o prazo do Q2 M7 e viraram três
+    cobranças que não existem. Rótulo sem o prefixo devolve ``None`` e não
+    casa com nada, que é o lado seguro de errar.
+    """
+    texto = (rotulo or "").split(" - ")[0].strip()
+    if not texto or texto == (rotulo or "").strip():
+        return None
+    return sem_acento(texto)
+
+
+def _entrega_de_grupo_em_aberto(acoes, curso_code, unidade):
+    """A entrega em grupo da mesma unidade que ainda está na fila.
 
     É ela que dá prazo e urgência ao aviso de grupo parado: sem entrega em
     aberto, espaço de grupo vazio não é problema nenhum.
     """
+    if not unidade:
+        return None
     candidatas = [
         acao
         for acao in acoes
@@ -583,6 +601,7 @@ def _entrega_de_grupo_em_aberto(acoes, curso_code):
         and acao.get("tipo") == "workshop"
         and acao.get("prazo")
         and "grupo" in sem_acento(acao.get("o_que") or "")
+        and unidade_do_rotulo(acao.get("o_que")) == unidade
     ]
     return min(candidatas, key=lambda acao: acao["prazo"], default=None)
 
@@ -602,11 +621,13 @@ def avisos_de_grupo_parado(dados, acoes):
     """
     novos = []
     for curso in dados["courses"]:
-        entrega = _entrega_de_grupo_em_aberto(acoes, curso["code"])
-        if entrega is None:
-            continue
         for espaco in curso.get("espacos_de_grupo") or []:
             if espaco.get("tem_topico") is not False:
+                continue
+            entrega = _entrega_de_grupo_em_aberto(
+                acoes, curso["code"], unidade_do_rotulo(espaco.get("label"))
+            )
+            if entrega is None:
                 continue
             novos.append({
                 "curso": curso["code"],

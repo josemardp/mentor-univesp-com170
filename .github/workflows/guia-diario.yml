@@ -89,8 +89,17 @@ jobs:
 
           # Push não é deploy. Só libero o e-mail quando o mesmo artefato já
           # estiver sendo servido pelo Pages.
+          #
+          # A espera era de 3 minutos e falhou em 13/08/2026 com o deploy
+          # levando 187s — 7 segundos além do limite. Os deploys daquele dia
+          # variaram de 40s a 187s, então 3 minutos não era margem, era o
+          # próprio tempo do caso ruim. Pior: ao desistir, o passo seguinte
+          # empurrava outro commit e o Pages cancelava o deploy que estava
+          # quase pronto. Oito minutos cobrem o pior caso observado com folga,
+          # e esperar mais custa só tempo de runner — desistir cedo custa o
+          # e-mail da manhã.
           PUBLICADO=""
-          for TENTATIVA in $(seq 1 36); do
+          for TENTATIVA in $(seq 1 96); do
             REMOTO=$(curl -fsS -H "Cache-Control: no-cache" \
               "https://esdraaline.github.io/mentor-univesp-com170/data.json?run=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${TENTATIVA}" \
               | python -c "import json,sys; print(json.load(sys.stdin).get('publication_id',''))" \
@@ -103,7 +112,7 @@ jobs:
             sleep 5
           done
           if [ -z "$PUBLICADO" ]; then
-            echo "::error::O push terminou, mas o Pages não confirmou o artefato $PUBLICATION_ID em 3 minutos."
+            echo "::error::O push terminou, mas o Pages não confirmou o artefato $PUBLICATION_ID em 8 minutos."
             exit 1
           fi
 

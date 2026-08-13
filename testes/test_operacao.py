@@ -910,6 +910,7 @@ checa(html_zero.count("lançou <b>zero</b>") == 1,
 
 print("\n== Espaço do grupo parado (G4, 13/08/2026) ==")
 
+import dominio.acoes as D_ACOES  # noqa: E402
 from dominio.acoes import avisos_de_grupo_parado, montar_acoes  # noqa: E402
 
 # Cenário real: a dois dias da entrega, o "Q2 M7 - Grupo: Ponto de encontro"
@@ -949,6 +950,24 @@ checa(_com_grupo([{**ESPACO_VAZIO, "tem_topico": None}], [ENTREGA_G4]) == [],
       "fórum não lido nesta rodada não é tratado como fórum vazio")
 checa(_com_grupo([], [ENTREGA_G4]) == [],
       "disciplina sem espaço de grupo lido não gera aviso")
+
+# Rodada real de 13/08: o COM170 tem cinco fóruns de grupo, três deles da
+# ambientação já encerrada. Todos vazios, todos herdaram o prazo do Q2 M7 e
+# viraram cobranças que não existem. O espaço tem que casar com a entrega da
+# mesma unidade.
+ANTIGOS = [{"label": f"S{n} - Fórum do Grupo",
+            "url": f"https://ava.univesp.br/mod/forum/view.php?id=15{n}",
+            "cmid": None, "tem_topico": False} for n in (2, 3, 4)]
+checa(_com_grupo(ANTIGOS, [ENTREGA_G4]) == [],
+      "fórum de grupo de outra unidade não herda o prazo da entrega atual")
+checa(len(_com_grupo(ANTIGOS + [ESPACO_VAZIO], [ENTREGA_G4])) == 1,
+      "no meio dos antigos, só o espaço da unidade da entrega vira aviso")
+checa(D_ACOES.unidade_do_rotulo("Q2 M7 - Grupo: Ponto de encontro")
+      == D_ACOES.unidade_do_rotulo(
+          "Q2 M7 - Revisão entre pares (Portfólio em grupo)") == "q2 m7",
+      "espaço e entrega da mesma unidade têm o mesmo prefixo")
+checa(D_ACOES.unidade_do_rotulo("Fórum do Grupo") is None,
+      "rótulo sem prefixo de unidade não casa com nada")
 
 html_grupo = R.render_acao(avisos_grupo[0])
 checa("Ponto de encontro" in html_grupo and "vence 15/08" in html_grupo,
@@ -1730,6 +1749,13 @@ pos_email = workflow.index("- name: Enviar resumo por e-mail")
 checa(pos_publicar < pos_confirmar < pos_email,
       "e-mail só vem depois da confirmação pública do artefato")
 checa("publication_id" in workflow, "deploy é conferido pelo ID do artefato servido")
+# A espera de 3 minutos falhou em 13/08 com um deploy de 187s, e ao desistir
+# o passo seguinte empurrava outro commit, cancelando o deploy que estava
+# quase pronto. A margem tem que ficar acima do pior caso já visto.
+import re as _re  # noqa: E402
+_espera = _re.search(r"for TENTATIVA in \$\(seq 1 (\d+)\)", workflow)
+checa(_espera and int(_espera.group(1)) * 5 >= 420,
+      "a espera do Pages cobre pelo menos 7 minutos")
 
 
 print("\n" + "=" * 66)
