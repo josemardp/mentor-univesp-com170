@@ -51,6 +51,15 @@ Fora daqui, o alarme de verdade: **`josemardp/vigia-univesp`** (privado, outra c
 
 **Data da prova presencial** — segue sem fonte alcançável, mas não por falta de tentativa. Levantado em 13/08: o `acesso.univesp.br` autentica por conta Microsoft (`msal-browser.js`), fluxo diferente do SSO do AVA e provavelmente com MFA; a data não aparece em nenhum aviso, evento de calendário ou página de instrução coletada; o cronograma público não a traz; e o `cronograma.ics` que a própria Univesp linka responde **404**. O que passou a existir: o guia **procura** a data nos avisos oficiais e a mostra assim que um facilitador disser, exigindo "prova" e "presencial/polo" na mesma frase para não confundir com atividade avaliativa do AVA. Automatizar o login Microsoft continua fora de escopo por conta própria — é decisão do Josemar, e mexer com conta institucional pode disparar bloqueio de segurança.
 
+## Auditoria ao vivo (14/08/2026, 18:10)
+
+Conferência pontual pedida pelo Josemar, entrando nas páginas com a sessão dele. O que mudou desde 13/08:
+
+- **Q2 M6 (individual) entregue** em 13/08 às 20:04. A auditoria de 13/08 pegou o estado anterior ao envio.
+- **Q2 M7 (grupo) sem envio na conta dele**, com o colega tendo assumido a representação em 14/08 às 14:08. Estado esperado, mas não é prova de que o grupo entregou: o laboratório mostra o envio de cada aluno, então da conta do Josemar não dá para ver o do representante.
+- **Ponto de encontro do G4 deixou de estar vazio.** Um tópico, aberto pelo facilitador em 13/08 às 17:42, com resposta do Josemar (13/08, 20:25) e do colega (14/08, 14:08).
+- **As seis avaliativas S3/S4 continuam sem tentativa.** S3 fecha 16/08 23:59, S4 fecha 23/08 23:59 no AVA.
+
 ## Auditoria ao vivo (13/08/2026)
 
 Conferido item por item nas quatro disciplinas, entrando em cada atividade em vez de confiar no rótulo do Moodle. O que apareceu:
@@ -74,9 +83,11 @@ O **COM170 avançou para uma estrutura nova**: além das 4 Semanas do AIA, agora
 
 - ~~Responder a S2 - Atividade Avaliativa do COM100~~ feito em 08/08, nota 10,00/10,00 (confirmado ao vivo).
 - ~~COM170, Quinzena 2: concluir o Módulo 4 até 09/08~~ feito. Os módulos M1 a M4 estão concluídos com nota lançada no boletim (prova de entrega, não só selo do Moodle).
-- **COM170, Quinzena 2: enviar os dois portfólios até 15/08 23:59.** Confirmado ao vivo em 13/08 que nenhum dos dois foi enviado. A avaliação entre pares vai de 16 a 18/08 23:59 e vale ponto separado. Antes disso ainda estão abertos o "Q2 M5 - Caso B" e o tutorial do M6. Os templates estão no "Q2 M5 - Templates".
-- **Escrever no ponto de encontro do G4.** Em 13/08 às 17:42 o facilitador formador postou lá: *"não esqueçam de comunicar aqui no ponto de encontro quais alunos estão participando da atividade em grupo. Essa informação vai ser utilizada para compor a nota de participação."* Até aquela hora o espaço estava vazio e ninguém tinha combinado representante. Pelas instruções da quinzena o grupo funciona com dois ou com cinco, e quem chega primeiro deve começar assim mesmo.
-- **Responder S3 de COM100, LET110 e SOC100 até 16/08 23:59** e **S4 das três até 23/08 23:59**. Nenhuma das seis tem tentativa registrada (conferido no AVA, não no selo).
+- ~~COM170, Quinzena 2: enviar o portfólio individual~~ **feito**: "Portfólio - Josemar de Paula - Quinzena 2" consta no Q2 M6 (id=215609) como enviado em **13/08 às 20:04** (conferido ao vivo em 14/08 às 18:10, na própria página do laboratório).
+- **COM170, Q2 M7 (portfólio em grupo): confirmar com o colega que o envio saiu, até 15/08 23:59.** A conta do Josemar diz "Você não enviou seu trabalho ainda", o que é o estado esperado de quem não é representante nesta quinzena — o laboratório registra envio por aluno, não por grupo. Em 14/08 às 14:08 o colega postou o template completo no ponto de encontro e escreveu "já vou até publicar", assumindo o papel. **Ninguém confirmou no fórum que o envio aconteceu.** Se até a noite de 15/08 não houver confirmação, o Josemar envia, porque envio atrasado não é aceito (a distribuição para a revisão é automática e simultânea).
+- ~~Escrever no ponto de encontro do G4~~ **feito** em 13/08 às 20:25: ele listou os participantes (colega, colega, colega e ele), abriu a partilha com o caso B e perguntou quem pegaria a representação desta quinzena. O colega respondeu em 14/08. colega e colega não escreveram no fórum, mas constam como integrantes no template do grupo.
+- **Avaliação entre pares do M6 e do M7, de 16 a 18/08 23:59.** Vale ponto separado da entrega e é a única etapa que segue depois do fim da quinzena.
+- **Responder S3 de COM100, LET110 e SOC100 até 16/08 23:59** e **S4 das três até 23/08 23:59** (esta é a data de fechamento no AVA; o cronograma oficial diz 19/08). Conferido ao vivo em 14/08: **nenhuma das seis tem uma única tentativa** — as seis páginas mostram só o botão de iniciar, sem tabela de tentativas.
 - **Perguntar ao facilitador do COM170** por que a Quinzena 1 está com 0,00 nos dois envios, e ao SOC100 por que o boletim não lista nenhum item.
 - Regularizar o **S1 - Formulário de conhecimentos prévios do COM170** (segue pendente, mesmo caso desde julho: falar com SAE ou orientador de polo).
 - ~~Apagar o Secret `AVA_STORAGE_STATE`~~ feito em 13/08, com prova antes de destruir: o log da rodada mostrava a sessão sendo restaurada, vencendo, e o robô logando por credencial do mesmo jeito. Saíram o passo do workflow, o Secret, e os quatro scripts que só existiam para alimentá-lo (`capturar_sessao.py`, `renovar_sessao.py`, `publicar_sessao_no_github.py`, `renovar_sessao.bat`). **O que renova a sessão hoje é o próprio login**, com `AVA_USUARIO`/`AVA_SENHA` — não há mais nada para renovar à mão. `salvar_credenciais.py` fica: é ele que grava essas duas no cofre.
