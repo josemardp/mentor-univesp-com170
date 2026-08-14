@@ -59,6 +59,8 @@ Conferência pontual pedida pelo Josemar, entrando nas páginas com a sessão de
 - **Q2 M7 (grupo) sem envio na conta dele**, com o colega tendo assumido a representação em 14/08 às 14:08. Estado esperado, mas não é prova de que o grupo entregou: o laboratório mostra o envio de cada aluno, então da conta do Josemar não dá para ver o do representante.
 - **Ponto de encontro do G4 deixou de estar vazio.** Um tópico, aberto pelo facilitador em 13/08 às 17:42, com resposta do Josemar (13/08, 20:25) e do colega (14/08, 14:08).
 - **As seis avaliativas S3/S4 continuam sem tentativa.** S3 fecha 16/08 23:59, S4 fecha 23/08 23:59 no AVA.
+- **Quatro fóruns temáticos parados foram respondidos em 14/08**, entre 18:29 e 18:34, com texto aprovado por ele antes do envio: SOC100 S3 e S4, LET110 S3 e S4. Confirmado na página de publicações dele em cada curso, não pelo selo do Moodle.
+- **COM100 S3 e S4 continuam parados e não dá para destravar por texto.** Os dois fóruns exigem o link de um projeto do próprio aluno no Scratch (S3 animação com repetição, S4 condicional mais variável mais entrada do usuário). Sem o desafio feito, não há o que postar.
 
 ## Auditoria ao vivo (13/08/2026)
 
@@ -88,6 +90,7 @@ O **COM170 avançou para uma estrutura nova**: além das 4 Semanas do AIA, agora
 - ~~Escrever no ponto de encontro do G4~~ **feito** em 13/08 às 20:25: ele listou os participantes (colega, colega, colega e ele), abriu a partilha com o caso B e perguntou quem pegaria a representação desta quinzena. O colega respondeu em 14/08. colega e colega não escreveram no fórum, mas constam como integrantes no template do grupo.
 - **Avaliação entre pares do M6 e do M7, de 16 a 18/08 23:59.** Vale ponto separado da entrega e é a única etapa que segue depois do fim da quinzena.
 - **Responder S3 de COM100, LET110 e SOC100 até 16/08 23:59** e **S4 das três até 23/08 23:59** (esta é a data de fechamento no AVA; o cronograma oficial diz 19/08). Conferido ao vivo em 14/08: **nenhuma das seis tem uma única tentativa** — as seis páginas mostram só o botão de iniciar, sem tabela de tentativas.
+- **Fazer os dois desafios do Scratch do COM100** e postar o link nos fóruns temáticos S3 e S4. É o único jeito de destravar esses dois: o fórum pede o projeto do próprio aluno, não opinião. Os outros quatro fóruns temáticos parados (SOC100 S3/S4 e LET110 S3/S4) foram respondidos em 14/08.
 - **Perguntar ao facilitador do COM170** por que a Quinzena 1 está com 0,00 nos dois envios, e ao SOC100 por que o boletim não lista nenhum item.
 - Regularizar o **S1 - Formulário de conhecimentos prévios do COM170** (segue pendente, mesmo caso desde julho: falar com SAE ou orientador de polo).
 - ~~Apagar o Secret `AVA_STORAGE_STATE`~~ feito em 13/08, com prova antes de destruir: o log da rodada mostrava a sessão sendo restaurada, vencendo, e o robô logando por credencial do mesmo jeito. Saíram o passo do workflow, o Secret, e os quatro scripts que só existiam para alimentá-lo (`capturar_sessao.py`, `renovar_sessao.py`, `publicar_sessao_no_github.py`, `renovar_sessao.bat`). **O que renova a sessão hoje é o próprio login**, com `AVA_USUARIO`/`AVA_SENHA` — não há mais nada para renovar à mão. `salvar_credenciais.py` fica: é ele que grava essas duas no cofre.
