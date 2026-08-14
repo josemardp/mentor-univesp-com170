@@ -367,6 +367,14 @@ def render_acao(a):
     if a.get("bloqueio"):
         trava = (f'<div class="trava">🔒 Ainda não abriu: {esc(a["bloqueio"])}. '
                  'Corra os módulos anteriores pra destravar a tempo.</div>')
+    if a.get("abre_em"):
+        # Fase que o AVA ainda vai abrir. Aparece antes da hora de propósito:
+        # a revisão entre pares costuma abrir e fechar dentro da mesma semana,
+        # e quem só descobre no dia da abertura perde o tempo de se organizar.
+        trava += ('<div class="trava">🗓️ Ainda não abriu. A fase começa '
+                  f'<b>{esc(fmt_dmhm(a["abre_em"]))}</b> e você tem até o prazo '
+                  'acima. Nada a fazer até lá, é só para você já contar com '
+                  'ela.</div>')
     if a.get("explicacao"):
         # Aviso que não nasce de um item do AVA e por isso precisa dizer, no
         # próprio cartão, por que está ali.

@@ -570,6 +570,89 @@ def tarefas_do_calendario(dados, hoje, ja_na_fila):
     return novos
 
 
+def _nome_da_atividade(evento):
+    """Nome do Laboratório sem o sufixo de fase que o calendário acrescenta."""
+    nome = evento.get("atividade") or evento.get("nome") or ""
+    for sufixo in (" - inicio para", " - início para", " - prazo limite"):
+        corte = sem_acento(nome).find(sem_acento(sufixo))
+        if corte > 0:
+            return nome[:corte].strip()
+    return nome.strip()
+
+
+def revisoes_entre_pares(dados, hoje, ja_avaliando):
+    """A fase de revisão do Laboratório, anunciada desde antes de abrir.
+
+    A obrigação de avaliar o colega já era coberta, mas só depois que o Moodle
+    abria a fase: quem descobre isso pela página do Laboratório precisa que o
+    contador "Avaliar colegas" exista, e ele só existe com a fase aberta. Para
+    a Quinzena 2 isso significava saber no domingo 00:00 de uma tarefa que
+    fecha na terça, sem o sábado para se organizar.
+
+    O calendário sabe antes, e sabe com papel declarado: ``openassessment`` diz
+    quando abre e ``closeassessment`` quando fecha. Enquanto o fechamento
+    estiver no futuro, a revisão aparece com o prazo real e, se ainda não
+    abriu, com a data de abertura no cartão.
+
+    Também é rede de segurança depois de aberta: some só quando a leitura da
+    página já colocou a mesma atividade na fila com o verbo "Avalie", nunca
+    porque a fase começou. Se o contador mudar de texto um dia, a tarefa
+    continua visível em vez de sumir em silêncio.
+    """
+    por_curso = {
+        str(curso.get("id") or ""): curso.get("code")
+        for curso in dados.get("courses", [])
+    }
+    abre, fecha, exemplo = {}, {}, {}
+    for evento in dados.get("eventos") or []:
+        cmid = str(evento.get("cmid") or "")
+        quando = evento.get("quando")
+        if not (cmid and quando):
+            continue
+        if evento.get("tipo") == "openassessment":
+            abre[cmid] = min(quando, abre.get(cmid, quando))
+        elif evento.get("tipo") == "closeassessment":
+            fecha[cmid] = max(quando, fecha.get(cmid, quando))
+            exemplo[cmid] = evento
+    novos = []
+    for cmid, prazo in sorted(fecha.items()):
+        if cmid in ja_avaliando:
+            continue
+        urgencia, texto = urgencia_de(prazo, hoje)
+        if urgencia in ("vencido", "sem_prazo"):
+            continue
+        evento = exemplo[cmid]
+        registro = {
+            "curso": por_curso.get(str(evento.get("curso_id") or ""))
+            or evento.get("curso")
+            or "",
+            "secao": "Calendário do AVA",
+            "fase": "regular",
+            "verbo": "Avalie",
+            "coisa": "o trabalho do colega",
+            "o_que": _nome_da_atividade(evento) or "revisão entre pares",
+            "tipo": "workshop",
+            "url": evento.get("url"),
+            "conta_nota": True,
+            "prazo": prazo,
+            "prazo_txt": texto,
+            "prazo_fonte": "calendário do AVA",
+            "fonte_url": None,
+            "autoridade": "institucional",
+            "carencia": None,
+            "hora_certa": True,
+            "urgencia": urgencia,
+        }
+        # Comparação por dia, não por instante: a fase que abre hoje às 00:00
+        # já está aberta, e não deve alternar entre "abre" e "aberta" conforme
+        # a hora da rodada.
+        abertura = abre.get(cmid)
+        if abertura and abertura[:10] > hoje.isoformat():
+            registro["abre_em"] = abertura
+        novos.append(registro)
+    return novos
+
+
 def unidade_do_rotulo(rotulo):
     """Prefixo de unidade do item: "Q2 M7 - Grupo: ..." vira ``"q2 m7"``.
 
@@ -942,6 +1025,22 @@ def montar_acoes(dados, hoje, agora=None):
     acoes.extend(
         tarefas_do_calendario(
             dados, hoje, ja_na_fila | {c for c in resolvidos if c}
+        )
+    )
+    # A revisão entre pares é a segunda obrigação do mesmo Laboratório, com
+    # prazo próprio. Entra depois das tarefas do calendário para saber quais
+    # atividades a leitura da página já colocou na fila com o verbo "Avalie".
+    acoes.extend(
+        revisoes_entre_pares(
+            dados,
+            hoje,
+            {
+                cmid
+                for acao in acoes
+                if (acao.get("verbo") or "").startswith("Avalie")
+                for cmid in [_cmid_da_url(acao.get("url"))]
+                if cmid
+            },
         )
     )
     # Depois das tarefas do calendário: o aviso herda o prazo da entrega em
