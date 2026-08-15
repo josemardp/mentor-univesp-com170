@@ -58,6 +58,38 @@ Oferecidas em vários horários (manhã/tarde/noite).
 ## Calendário e provas
 - Calendário Acadêmico e Calendário de Provas: acompanhar as datas importantes; há
   também um Glossário de provas para entender os termos usados.
+- **A data da prova de cada aluno não está no calendário geral.** O calendário publica
+  todos os dias possíveis de cada disciplina; o dia dele sai no **Sistema de Provas**,
+  dentro do portal (ver `09-portal-do-aluno.md`).
+
+## Faltar à prova, e o que não vale como justificativa
+> Consolidado em 15/08/2026 a partir da Instrução Normativa das atividades presenciais e
+> do guia estático que existia em `[repositorio-anterior]/guia-univesp-com170-let110`, hoje
+> encerrado.
+
+- **Agenda profissional, escala de trabalho ou disponibilidade só no fim de semana não
+  são justificativa aceita.** Isso vale dizer com todas as letras para o Josemar, que é
+  Capitão da PM e passou a fazer o CAO em São Paulo: o caminho dele não é justificar
+  falta, é **pedir autorização antes**, com base no Artigo 2º da Instrução Normativa
+  (prova fora do polo, autorizada excepcionalmente pela Diretoria Acadêmica).
+- **Segunda chamada só por motivo de saúde**, com atestado, protocolado em **até 48 horas
+  depois** da prova, por requerimento na Secretaria On-line do portal. É vedado ao
+  Orientador de Polo receber atestado.
+- Sem justificativa aceita, a nota da prova é 0. Como a prova vale 60%, a média máxima
+  possível passa a ser 4,0, sempre abaixo de 5,0: vai direto para o exame final.
+
+## Exame final e a conta que importa
+- Média do bimestre = (média das atividades no AVA × 40%) + (prova presencial × 60%).
+- Aprovação direta com média **≥ 5,0**.
+- Abaixo disso, exame final: **média final = (média do bimestre + nota do exame) ÷ 2**.
+- **Cuidado com a conta errada que circula**: "perder os 40% do AVA inviabiliza a
+  aprovação mesmo tirando 10 na prova" é falso — 0×0,4 + 10×0,6 = 6,0, que aprova. O que
+  se perde é toda a margem: passa a depender de nota quase perfeita na prova.
+
+## Regra dos 10 dias sem acessar o AVA
+Consta nas Normas Acadêmicas vinculadas ao Manual como motivo de **cancelamento de
+matrícula de ingressante**. Não é sobre nota, é sobre vínculo. Vale lembrar em qualquer
+período de afastamento longo.
 
 ## Matrícula
 - Disciplinas da trilha estruturante: cursadas em sequência, uma por semestre — não pode
