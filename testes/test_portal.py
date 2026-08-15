@@ -12,6 +12,7 @@ teste.
 
 Rodar:  python testes/test_portal.py
 """
+import os
 import sys
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -20,6 +21,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "automacao"))
 
 from dominio.acoes import disciplinas_so_no_portal, provas_do_portal  # noqa: E402
+from fontes import portal  # noqa: E402
 from fontes.portal import RE_ATIVIDADE, RE_TITULO_PROVA, _iso  # noqa: E402
 
 falhas = []
@@ -150,6 +152,33 @@ checa(disciplinas_so_no_portal({"courses": [], "portal": DADOS["portal"]}) == []
 
 checa(disciplinas_so_no_portal({"courses": [{"code": "COM100"}]}) == [],
       "sem leitura do portal também não acusa nada")
+
+
+print("\n== qual usuário o portal quer ==")
+
+# A tela do SEI tem dois caminhos: "E-mail institucional" quer o endereço
+# inteiro e cai no SSO da Microsoft; "Usuário" quer só o registro acadêmico. O
+# gerenciador de senhas dele guarda as duas entradas separadas, e é a segunda
+# que a automação usa.
+for chave in ("PORTAL_USUARIO", "AVA_USUARIO"):
+    os.environ.pop(chave, None)
+
+os.environ["AVA_USUARIO"] = "90011122@aluno.univesp.br"
+checa(portal._identidades() == ["90011122", "90011122@aluno.univesp.br"],
+      "o registro acadêmico sai do e-mail e é tentado primeiro")
+
+os.environ["AVA_USUARIO"] = "90011122"
+checa(portal._identidades() == ["90011122"],
+      "usuário já sem @ não vira duas tentativas iguais")
+
+os.environ["PORTAL_USUARIO"] = "outro"
+checa(portal._identidades()[0] == "outro",
+      "PORTAL_USUARIO, quando existe, tem a palavra final")
+
+for chave in ("PORTAL_USUARIO", "AVA_USUARIO"):
+    os.environ.pop(chave, None)
+checa(portal._identidades() == [],
+      "sem nada configurado não há tentativa nenhuma")
 
 
 print("\n" + ("FALHOU: " + str(len(falhas)) if falhas else "TUDO OK"))

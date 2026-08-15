@@ -99,19 +99,36 @@ def _logado(page):
 
 
 def _identidades():
-    """Quem tentar como usuário, na ordem.
+    """Quem tentar como usuário, na ordem, com a mesma senha.
 
-    O AVA e o portal aceitam identificadores diferentes: o AVA loga com o que
-    estiver em ``AVA_USUARIO`` e o campo "Usuário" do portal costuma querer o
-    registro acadêmico. ``PORTAL_USUARIO`` existe para esse caso e é opcional;
-    sem ele, tenta o mesmo do AVA, que é o cenário mais provável.
+    A tela de acesso do SEI tem dois caminhos e eles querem coisas
+    diferentes. O campo "E-mail institucional" quer o endereço inteiro
+    (``90011122@aluno.univesp.br``) e leva ao SSO da Microsoft. O campo
+    "Usuário", que é o que dá para automatizar, quer só o **registro
+    acadêmico** (``90011122``), como mostra o gerenciador de senhas dele, que
+    guarda essa entrada separada para ``sei.univesp.br``.
+
+    Como o registro acadêmico é justamente a parte do e-mail antes do ``@``,
+    ele é derivado aqui em vez de virar mais um segredo para manter em dia. A
+    parte local vem primeiro porque é o que o campo espera; o valor inteiro
+    fica como segunda tentativa para o caso de o formato do e-mail mudar.
+
+    ``PORTAL_USUARIO`` continua existindo para quando nada disso servir, e
+    tem prioridade sobre as duas.
     """
     vistos, ordem = set(), []
-    for chave in ("PORTAL_USUARIO", "AVA_USUARIO"):
-        valor = (os.environ.get(chave) or "").strip()
+
+    def juntar(valor):
+        valor = (valor or "").strip()
         if valor and valor not in vistos:
             vistos.add(valor)
             ordem.append(valor)
+
+    juntar(os.environ.get("PORTAL_USUARIO"))
+    do_ava = (os.environ.get("AVA_USUARIO") or "").strip()
+    if "@" in do_ava:
+        juntar(do_ava.split("@", 1)[0])
+    juntar(do_ava)
     return ordem
 
 
