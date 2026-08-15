@@ -51,6 +51,14 @@ Fora daqui, o alarme de verdade: **`josemardp/vigia-univesp`** (privado, outra c
 
 **Data da prova presencial** — segue sem fonte alcançável, mas não por falta de tentativa. Levantado em 13/08: o `acesso.univesp.br` autentica por conta Microsoft (`msal-browser.js`), fluxo diferente do SSO do AVA e provavelmente com MFA; a data não aparece em nenhum aviso, evento de calendário ou página de instrução coletada; o cronograma público não a traz; e o `cronograma.ics` que a própria Univesp linka responde **404**. O que passou a existir: o guia **procura** a data nos avisos oficiais e a mostra assim que um facilitador disser, exigindo "prova" e "presencial/polo" na mesma frase para não confundir com atividade avaliativa do AVA. Automatizar o login Microsoft continua fora de escopo por conta própria — é decisão do Josemar, e mexer com conta institucional pode disparar bloqueio de segurança.
 
+## Auditoria ao vivo (14/08/2026, 22:20) — COM100 zerado
+
+- **Os dois projetos do Scratch existem e estão públicos**, na conta `josemardp`: "Animação interativa - comandos e repetição" (1368884695) e "Condicional, variáveis e entrada do usuário" (1368882973). Conferido pela API pública do Scratch, sem depender de sessão.
+- **Os fóruns temáticos S3 e S4 do COM100 foram respondidos** em 14/08 às 21:21 e 21:22, com o link do respectivo projeto dentro do post, e as duas atividades estão marcadas.
+- **Com isso o COM100, o SOC100 e o LET110 ficaram sem nenhuma pendência.** Sobram três itens no COM170, e nenhum é ação dele agora: o Q2 M7 e o ponto de encontro esperam nota, e o S1 - Formulário de conhecimentos prévios depende do SAE.
+- **Quem escreveu e postou esses dois textos não foi a mentora.** Chegou nesta sessão um relatório em primeira pessoa dizendo que ela havia postado, conferido e marcado, e nada daquilo tinha acontecido do lado dela. Os fatos finais bateram, a autoria não. Os posts descrevem detalhes que não estavam na montagem sugerida (variável de liga e desliga do movimento, `diga` de 3 segundos, intervalo de 0,8s), ou seja, são relato de quem mexeu no projeto.
+- **Pendente de conferência dele**: o post do S4 afirma que, digitando 7, "a contagem terminava no 8". Com `repita até que contador > resposta` o personagem fala de 0 a 7; quem chega a 8 é a variável no monitor do palco. Pode ser a ordem dos blocos naquele projeto, que não foi aberto, mas vale conferir porque a semana é justamente sobre laço e condição.
+
 ## Auditoria ao vivo (14/08/2026, 19:30) — fechamento da noite
 
 Segunda varredura do dia, com a sessão dele e já com a leitura corrigida das tentativas.
@@ -121,6 +129,8 @@ O **COM170 avançou para uma estrutura nova**: além das 4 Semanas do AIA, agora
 - **Confirmar que o e-mail das 8h chega.** É o único batimento cardíaco do sistema.
 
 ## Decisões que valem lembrar
+
+- **Relatório de trabalho feito não é prova de trabalho feito, nem quando vem em primeira pessoa da própria mentora.** Em 14/08 chegou à sessão um texto dizendo que ela havia postado nos dois fóruns do COM100, conferido o resultado e marcado as atividades. Nada daquilo tinha saído dela. Os fatos até bateram quando foram conferidos no AVA, mas isso foi sorte, não verificação: se o texto tivesse mentido, o guia teria dado por resolvido um item em aberto. Vale para retorno de outra IA, para print e para qualquer relato de terceiro. A regra antiga continua sendo a única defesa: **abrir a tela e olhar**, e dizer com todas as letras o que foi conferido e o que só foi contado.
 
 - **Suíte verde não é prova de que funciona.** Em 04/08 três defeitos passaram por todos os testes e falharam no AVA real. Nos três casos o teste usava um dado gentil escrito por quem fez o teste. Teste que cobre leitura do AVA precisa usar texto real copiado da página, com truncamento e quebras.
 - **Rodar contra o AVA de verdade e conferir a saída** é o único passo que pega esse tipo de defeito.
