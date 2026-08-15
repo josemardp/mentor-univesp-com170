@@ -149,9 +149,47 @@ def assunto_alerta(prazos):
             f"{curto(primeiro.get('label'), 28)} até {momento}")
 
 
+def bloco_provas(data):
+    """A prova presencial tem lugar fixo no topo, mesmo faltando semanas.
+
+    É a única obrigação do bimestre que exige sair de casa numa hora marcada,
+    e a data é individual: quem confere no calendário geral vê vários dias por
+    disciplina e pode se programar para o dia errado. Enquanto ela não chega,
+    aparecer todo dia é o lembrete; quando chegar, já vai estar sabido.
+    """
+    provas = ((data.get("portal") or {}).get("provas")) or []
+    futuras = [p for p in provas if p.get("inicio")]
+    if not futuras:
+        return []
+    agora = datetime.now(BR_TZ)
+    futuras = [
+        p for p in futuras
+        if datetime.fromisoformat(p["inicio"]) >= agora
+    ]
+    if not futuras:
+        return []
+    por_dia = {}
+    for prova in sorted(futuras, key=lambda p: p["inicio"]):
+        por_dia.setdefault(prova["inicio"], []).append(prova)
+    linhas = ["PROVA PRESENCIAL (portal do aluno)"]
+    for inicio, doDia in por_dia.items():
+        quando = datetime.fromisoformat(inicio)
+        faltam = (quando.date() - agora.date()).days
+        disciplinas = ", ".join(p.get("codigo") or "?" for p in doDia)
+        prazo = "hoje" if faltam == 0 else (
+            "amanhã" if faltam == 1 else f"faltam {faltam} dias"
+        )
+        linhas.append(
+            f"- {quando:%d/%m} às {quando:%H:%M} no polo: {disciplinas} "
+            f"({prazo})"
+        )
+    linhas.append("")
+    return linhas
+
+
 def topo_decisorio(data, acoes):
     """As primeiras linhas, que é o que ele lê no celular às 8h."""
-    linhas = []
+    linhas = bloco_provas(data)
     primeira = next((a for a in acoes if a["urgencia"] in ("hoje", "amanha")), None)
     if primeira:
         linhas.append("FAÇA AGORA")

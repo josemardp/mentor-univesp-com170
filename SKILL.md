@@ -73,6 +73,18 @@ para o agente.
   curso (https://ava.univesp.br/calendar/view.php?view=month&course=18922) em vez de
   afirmar a data às cegas.
 
+- **"Quando é a MINHA prova presencial?"** → `references/09-portal-do-aluno.md`. Esta é
+  outra pergunta, com outra fonte. Prazo de entrega e live estão no AVA; prova presencial
+  não está em lugar nenhum do AVA. Ela sai do **Sistema de Provas**, dentro do portal do
+  aluno, e a data é **individual**: o calendário geral da Univesp lista vários dias por
+  disciplina, e o dia dele é um só. Nunca responda com a janela do ciclo ("14 a 25 de
+  setembro") como se fosse a data dele.
+
+- **"Em quantas disciplinas eu estou?"** → a resposta é do portal, não do AVA. Em
+  15/08/2026 o portal listava seis matrículas e o AVA mostrava quatro turmas. Disciplina
+  sem turma aberta no Moodle não aparece no AVA e mesmo assim conta carga horária. O guia
+  diário compara as duas listas sozinho e mostra a diferença na aba "Secretaria".
+
 - **"Como sou avaliado / minha nota / preciso de exame final?"** →
   `references/04-avaliacao.md` para o que se sabe da fase AIA (participação por
   atividade, sem prova ainda) e `references/08-manual-ingressante-resumo.md` para a regra
@@ -116,3 +128,4 @@ para o agente.
 | `references/06-contatos.md` | Facilitadores/formadores, colegas de grupo, canais de suporte, fóruns |
 | `references/07-links.md` | Lista completa de URLs categorizadas por assunto |
 | `references/08-manual-ingressante-resumo.md` | Resumo do Manual do Ingressante 2026 (regras gerais da Univesp) |
+| `references/09-portal-do-aluno.md` | Portal do aluno (SEI): login próprio, mapa das telas, Sistema de Provas, notas oficiais, recados. **A prova presencial e a lista real de matrículas estão aqui, não no AVA.** |

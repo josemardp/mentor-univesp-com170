@@ -42,7 +42,10 @@ def resumo_fontes(dados):
 # prova), nunca menos — o oposto de uma fonte de prazo, cuja ausência esconde
 # obrigação. Em 04/08/2026 o boletim de uma disciplina não renderizou e a
 # rodada inteira virou "coleta_incompleta", segurando um retrato bom.
-FONTES_QUE_NAO_BLOQUEIAM = ("boletim", "participacao", "meus_posts")
+# O portal do aluno entra na mesma lista, por outro motivo: ele é um sistema
+# separado, com login e sessão próprios, e o guia funcionou meses sem ele.
+# Portal fora do ar não pode apagar a leitura boa do AVA.
+FONTES_QUE_NAO_BLOQUEIAM = ("boletim", "participacao", "meus_posts", "portal")
 
 
 def validar_cobertura(dados, anterior):

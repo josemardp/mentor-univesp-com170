@@ -1251,6 +1251,93 @@ def render_encerrados(data):
             'fale com o facilitador pelo fórum de dúvidas.</p>')
 
 
+def render_portal(data):
+    """Aba "Secretaria": o que só existe no portal do aluno.
+
+    O guia nasceu olhando só o AVA, e o AVA não sabe da prova presencial, não
+    sabe em quantas disciplinas ele está matriculado e não recebe recado da
+    secretaria. Estas três coisas moram no SEI, com login separado, e é por
+    isso que elas ficaram invisíveis até 15/08/2026.
+
+    A aba some quando o portal não foi lido. Portal que falhou nunca vira
+    "não tem prova marcada", que seria a pior frase possível aqui.
+    """
+    portal = data.get("portal") or {}
+    if not portal:
+        return ""
+    blocos = []
+
+    provas = portal.get("provas") or []
+    if provas:
+        linhas = []
+        for prova in provas:
+            quando = fmt_dmhm(prova.get("inicio")) if prova.get("inicio") else ""
+            ate = ""
+            if prova.get("fim"):
+                ate = f' até {esc(fmt_dmhm(prova["fim"]).split(" ")[-1])}'
+            modalidade = esc(prova.get("modalidade") or "")
+            linhas.append(
+                f'<li class="acao"><div class="acao-chips">'
+                f'<span class="status brick">{esc(quando)}{ate}</span>'
+                f'<span class="status ok">{modalidade}</span></div>'
+                f'<div class="acao-frase">{esc(prova.get("titulo") or "")}</div></li>'
+            )
+        blocos.append(
+            '<p class="sub secao-novidade">Provas deste bimestre, no seu dia. '
+            'O calendário geral lista vários dias por disciplina; estes são os '
+            'seus.</p>'
+            f'<ul class="acoes">{"".join(linhas)}</ul>'
+        )
+
+    fora = portal.get("_so_no_portal") or []
+    if fora:
+        itens = "".join(
+            f'<li class="acao"><div class="acao-frase"><b>{esc(d["codigo"])}</b> '
+            f'{esc(d.get("nome") or "")}</div></li>'
+            for d in fora
+        )
+        blocos.append(
+            '<p class="sub secao-novidade">Matrícula que a secretaria registra e '
+            'o AVA ainda não mostra. Não há o que fazer enquanto a turma não '
+            'abrir, mas conta carga horária e pode ter prova.</p>'
+            f'<ul class="acoes">{itens}</ul>'
+        )
+
+    nao_lidos = portal.get("recados_nao_lidos")
+    if nao_lidos:
+        blocos.append(
+            '<p class="sub secao-novidade">'
+            f'{plural(nao_lidos, "recado não lido", "recados não lidos")} '
+            'na secretaria. O robô não abre a caixa de propósito: abrir marca '
+            'como lido e apagaria o aviso antes de você ver. '
+            '<a href="https://sei.univesp.br/visaoAluno/recadoAluno.xhtml" '
+            'target="_blank" rel="noopener">Abrir o portal</a>.</p>'
+        )
+
+    notas = [n for n in portal.get("notas") or [] if any(n.get("parcelas", {}).values())]
+    if notas:
+        linhas = "".join(
+            f'<li class="acao"><div class="acao-frase"><b>{esc(n["codigo"])}</b> '
+            + ", ".join(
+                f'{esc(rotulo.lower())} {esc(valor)}'
+                for rotulo, valor in n["parcelas"].items() if valor
+            )
+            + "</div></li>"
+            for n in notas
+        )
+        blocos.append(
+            '<p class="sub secao-novidade">Boletim da secretaria, que é outro '
+            'boletim: aqui a nota da prova presencial e a média do bimestre '
+            'aparecem, e no AVA não.</p>'
+            f'<ul class="acoes">{linhas}</ul>'
+        )
+
+    if not blocos:
+        return ""
+    return ('<div class="bloco"><h2>Secretaria (portal do aluno)</h2>'
+            + "".join(blocos) + "</div>")
+
+
 # ---------------------------------------------------------------------------
 # Abas
 # ---------------------------------------------------------------------------
@@ -1296,6 +1383,11 @@ def render_tabs(data):
             if item.get("tem_nota")
         )
         abas.append(("notas", "Como estou", com_nota or None, notas_html))
+
+    portal_html = render_portal(data)
+    if portal_html:
+        provas = len((data.get("portal") or {}).get("provas") or [])
+        abas.append(("portal", "Secretaria", provas or None, portal_html))
 
     abas.append(("mapa", "Mapa das disciplinas", None, render_cards(data)))
 

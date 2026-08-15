@@ -45,6 +45,41 @@ O alerta de prazo só dispara com prazo **novo** (comparação entre dois retrat
 
 Fora daqui, o alarme de verdade: **`josemardp/vigia-univesp`** (privado, outra conta), rodando 09h e 19h. Faz a mesma pergunta e avisa **falhando**, para o GitHub mandar a notificação nativa de workflow quebrado. Sem SMTP de propósito: alarme que depende de cinco segredos bem configurados tem cinco jeitos novos de quebrar em silêncio. Se o Actions desta conta parar por inteiro, o vigia interno para junto e o externo continua — que era exatamente o buraco anotado aqui desde 10/08.
 
+## O portal do aluno entrou no guia (15/08/2026)
+
+O guia nasceu olhando só o AVA. O AVA é onde a aula acontece, mas não é onde a Univesp trata matrícula, prova e secretaria: isso mora no **portal do aluno** (`sei.univesp.br`), que é outro sistema, com login próprio. Enquanto o guia não olhava para lá, três coisas grandes ficavam invisíveis.
+
+**A data da prova presencial.** Este documento registrou por semanas que ela "segue sem fonte alcançável". Estava publicada: Portal do Aluno → Links Úteis → Sistema de Provas → Calendário de Atividades. E não é a data do calendário geral, é **a data dele**: o calendário geral lista vários dias por disciplina, e o Sistema de Provas diz em qual desses dias cada aluno faz. Lido em 15/08: **05/11, das 19:40 às 23:50, presencial no polo, três provas no mesmo dia** (COM100, LET110 e SOC100). COM170 não aparece ali, e isso é pergunta em aberto, já que a disciplina anuncia 60% da nota em prova presencial.
+
+**Em quantas disciplinas ele está matriculado.** O portal lista **seis**; o AVA mostra quatro. Faltavam **MMB002 (Matemática Básica, 80h)** e **INT100 (Projetos e métodos para a produção do conhecimento, 40h)**, as duas com situação "Cursando" e sem turma aberta no Moodle. Não há o que fazer nelas hoje, mas elas contam carga horária, podem ter prova, e um guia que só lê o AVA não tem como sequer saber que existem. É a mesma família do fórum vazio: o silêncio parecia ausência.
+
+**Os recados da secretaria.** Chegam prazo de matrícula em disciplina optativa, aviso de ciclo de provas, requerimento. Nenhum passa por fórum. O recado "Matrículas abertas - Disciplina Paulista de Acessibilidade e Inclusão" venceu em 10/08 sem nunca aparecer em lugar nenhum que ele lesse.
+
+### O que foi construído
+
+[`fontes/portal.py`](automacao/fontes/portal.py), com login próprio (as mesmas credenciais do AVA, no formulário local do SEI, não no botão de e-mail institucional que cai no SSO da Microsoft). Ela lê tela inicial, notas, disciplinas e o calendário de provas, e alimenta:
+
+- **A fila**: prova vira compromisso com dia, hora e origem à mostra, e sai sozinha quando passa, pela mesma regra da live.
+- **O e-mail das 8h**: bloco fixo no topo com a prova e a contagem de dias.
+- **A aba "Secretaria"** no site: provas, matrícula que só a secretaria conhece, recados esperando e o boletim oficial (que tem a nota da prova e a média do bimestre, coisas que o boletim do Moodle não tem).
+
+### Duas regras que essa fonte carrega
+
+**Ela nunca escreve.** Medido em 15/08: abrir `recadoAluno.xhtml` marca sozinho o recado mais recente como lido, e o contador caiu de 9 para 7 durante a exploração. Por isso o robô não entra na caixa. Ele lê o contador de não lidos na tela inicial e manda o Josemar abrir. Aviso consumido pelo robô antes de o dono ver é pior do que aviso nenhum.
+
+**Ela nunca derruba o robô.** Entrou em `FONTES_QUE_NAO_BLOQUEIAM` junto com boletim e participação. Portal fora do ar, senha trocada ou layout mudado devolvem `falhou`, o guia publica o AVA normalmente e a aba Secretaria some. O que não pode acontecer é "não consegui ler o portal" virar "você não tem prova marcada".
+
+### O caminho até o Sistema de Provas, que não é uma URL
+
+Não adianta chamar `/MestreGRSV` direto: responde 404. O botão da tela inicial dispara um `RichFaces.ajax` que prepara um token na sessão; só depois `/MestreGRSV` devolve um formulário que se posta sozinho em `prova.univesp.br/ws/sso/` e abre o `runner.php`. Por isso a leitura clica no botão e acompanha a aba que nasce. Dentro do runner, a navegação é por `ptp` em base64 (`src=99992` é o calendário, `tp=HOJE;src=99992` são as atividades liberadas agora).
+
+### O que ainda não foi feito aqui
+
+- **Nota de prova e média do bimestre** ainda estão todas em branco no portal, então o parser das quatro parcelas (ATIVIDADE AVA, PROVA, MÉDIA PARCIAL, EXAME) foi escrito, mas nunca viu número de verdade. Primeira nota que sair é a hora de conferir se ele lê certo.
+- **Sessão do portal expira em 44 minutos** e o robô loga do zero a cada rodada. Está certo assim enquanto for uma leitura por rodada; se virar mais, vale guardar a sessão como se faz com o AVA.
+- **Requerimentos da Secretaria On-line** (revisão de prova, tempo estendido, guarda religiosa) foram mapeados e não são lidos. Só valem quando ele precisar abrir um, e aí é ação dele, não do robô.
+- **Atividade complementar** está zerada e o curso vai exigir horas. Não tem prazo agora, então ficou fora da fila de propósito.
+
 ## Próximo passo
 
 **Pesos das semanas.** O aviso "Pesos das Atividades" diz que as avaliativas não valem igual: S1 8%, S2 12%, S3 a S6 17% cada, S7 12%. O guia trata todas como iguais, então a S3 (17%) aparece com o mesmo peso visual da S1 (8%). O aviso já chega ao robô desde a correção de 13/08; falta usar o número no cartão da atividade.

@@ -593,6 +593,94 @@ def tarefas_do_calendario(dados, hoje, ja_na_fila):
     return novos
 
 
+def provas_do_portal(dados, hoje, agora=None):
+    """Prova presencial, com dia e hora, vinda do Sistema de Provas.
+
+    Esta é a obrigação de maior peso do bimestre e a única que o AVA não
+    publica em lugar nenhum. Até 15/08/2026 o guia registrava, em texto, que a
+    data "segue sem fonte alcançável"; ela estava no portal do aluno, no
+    Calendário de Atividades, e é individual: o calendário geral da Univesp
+    lista todos os dias possíveis de cada disciplina, e o dia dele é um só.
+
+    Trata como compromisso, não como entrega: prova acontece numa hora, não
+    vence às 23:59. E sai da fila quando a hora passa, pela mesma regra da
+    live.
+    """
+    novas = []
+    portal = dados.get("portal") or {}
+    for prova in portal.get("provas") or []:
+        quando = prova.get("inicio")
+        if not quando:
+            continue
+        urgencia, texto = urgencia_de(
+            quando, hoje, hora_certa=True, evento=True, agora=agora
+        )
+        if urgencia == "vencido":
+            continue
+        # Prova longe ainda sai como "acontece 05/11", sem hora, e para prova
+        # a hora é a informação que decide o dia dele: 19:40 no polo não é a
+        # mesma coisa que "algum momento do dia 22".
+        if urgencia == "depois":
+            texto = f"{texto} às {datetime.fromisoformat(quando):%H:%M}"
+        presencial = (prova.get("modalidade") or "").lower() == "presencial"
+        novas.append(
+            {
+                "curso": prova.get("codigo") or "",
+                "secao": "Sistema de Provas",
+                "fase": "regular",
+                "verbo": "Compareça" if presencial else "Faça",
+                "coisa": "à prova no polo" if presencial else "a prova on-line",
+                "o_que": prova.get("titulo") or "prova do bimestre",
+                "tipo": "prova",
+                "url": None,
+                "conta_nota": True,
+                "prazo": quando,
+                "prazo_txt": texto,
+                "prazo_fonte": "Sistema de Provas (portal do aluno)",
+                "fonte_url": None,
+                "autoridade": "institucional",
+                "carencia": None,
+                "hora_certa": True,
+                "urgencia": urgencia,
+                "termina": prova.get("fim"),
+                "modalidade": prova.get("modalidade"),
+            }
+        )
+    return novas
+
+
+def disciplinas_so_no_portal(dados):
+    """Disciplina que a secretaria diz que ele cursa e o AVA não mostra.
+
+    O portal listou seis matrículas em 15/08/2026 e o AVA, quatro. As duas que
+    faltavam têm carga horária, entram na integralização e podem ter prova. Um
+    guia que só lê o AVA não tem como saber que elas existem, e o silêncio aqui
+    se parece com "não tem nada", que é o erro que este projeto persegue.
+
+    Não vira cobrança: não há o que fazer numa disciplina sem turma aberta. Sai
+    como aviso, para ele perguntar quando estranhar.
+    """
+    portal = dados.get("portal") or {}
+    no_portal = portal.get("disciplinas") or []
+    if not no_portal:
+        return []
+    no_ava = {
+        sem_acento(curso.get("code") or "").upper()
+        for curso in dados.get("courses") or []
+    }
+    if not no_ava:
+        return []
+    return [
+        {
+            "codigo": disciplina["codigo"],
+            "nome": disciplina.get("nome") or "",
+            "situacao": disciplina.get("situacao") or "",
+        }
+        for disciplina in no_portal
+        if sem_acento(disciplina["codigo"]).upper() not in no_ava
+    ]
+
+
 def _nome_da_atividade(evento):
     """Nome do Laboratório sem o sufixo de fase que o calendário acrescenta."""
     nome = evento.get("atividade") or evento.get("nome") or ""
@@ -1098,6 +1186,9 @@ def montar_acoes(dados, hoje, agora=None):
     # Depois das tarefas do calendário: o aviso herda o prazo da entrega em
     # grupo, então a entrega precisa já estar na fila para ser encontrada.
     acoes.extend(avisos_de_grupo_parado(dados, acoes))
+    # A prova presencial não tem cmid nem passa pelo Moodle, então não disputa
+    # com nada que já esteja na fila.
+    acoes.extend(provas_do_portal(dados, hoje, agora))
     acoes = _agrupar_compromissos(acoes)
     acoes = _suprimir_avisos_redundantes(acoes)
 

@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 import persistencia as _persistencia
 from configuracao import BR_TZ, DATA_PATH, ESTADO_PATH
 from dominio.acoes import (
+    disciplinas_so_no_portal,
     entrega_provada,
     identidade_item,
     montar_acoes,
@@ -85,7 +86,13 @@ def main():
     acoes, encerrados, higiene, confirmar = montar_acoes(
         dados, hoje, agora=momento
     )
+    # O confronto entre as duas listas de matrícula é feito aqui, com o AVA já
+    # lido: portal sem AVA não é comparação, é metade dela.
+    portal = dict(dados.get("portal") or {})
+    if portal:
+        portal["_so_no_portal"] = disciplinas_so_no_portal(dados)
     saida = {
+        "portal": portal,
         "status": "coleta_degradada" if degradada else "ok",
         "checked_at": agora, "snapshot_at": agora, "attempted_at": agora,
         "publication_id": agora, "fontes": fontes,

@@ -28,6 +28,7 @@ from fontes import (
     meus_posts,
     notificacoes,
     participacao,
+    portal,
 )
 from fontes.moodle import FalhaFonte
 from fontes.moodle import user_id
@@ -666,6 +667,15 @@ def executar_coleta(estado, anterior=None):
                 }
             )
 
+        # O portal é o último passo de propósito: ele loga noutro sistema, e
+        # se essa etapa quebrar o guia já tem o AVA inteiro lido na mão.
+        resultado_portal = portal.resultado(
+            contexto, checked_at, cache=cache_fontes.get("portal")
+        )
+        if resultado_portal.status in ("live", "parcial"):
+            cache_fontes["portal"] = resultado_portal.dados
+        dados_portal = resultado_portal.dados or {}
+
         navegador.close()
 
     if erros_estrutura:
@@ -773,6 +783,7 @@ def executar_coleta(estado, anterior=None):
     )
 
     resultados_finais = {
+        "portal": resultado_portal,
         "disciplinas": descoberta,
         "calendario": resultado_calendario,
         "cronograma": agregado_cronograma,
@@ -800,13 +811,14 @@ def executar_coleta(estado, anterior=None):
         nome
         for nome, resultado in resultados_finais.items()
         if resultado.status in ("falhou", "degradado")
-        and nome not in ("boletim", "participacao", "meus_posts")
+        and nome not in ("boletim", "participacao", "meus_posts", "portal")
     ]
     return {
         "courses": cursos,
         "notificacoes": sinais.get("notificacoes", []),
         "mensagens": sinais.get("mensagens", []),
         "eventos": eventos,
+        "portal": dados_portal,
         "fontes_status": status_fontes,
         "_fonte_obrigatoria_falhou": descoberta.status == "falhou",
         "_fontes_degradadas": degradadas,
