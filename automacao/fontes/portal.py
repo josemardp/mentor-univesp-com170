@@ -54,6 +54,21 @@ DISCIPLINAS_URL = f"{PORTAL}/visaoAluno/minhasDisciplinasAluno.xhtml"
 # mesmas credenciais do AVA, e é a única que dá para automatizar sem MFA.
 CAMPO_USUARIO = "#form\\:usuario"
 CAMPO_SENHA = "#form\\:senha"
+# "Entrar" é um <a> que chama RichFaces.ajax, não um submit. Apertar Enter no
+# campo da senha não envia nada, e foi assim que a primeira rodada na nuvem
+# falhou: as credenciais estavam certas e o formulário nunca saiu.
+BOTAO_ENTRAR = "#form\\:loginBtn\\:loginBtn"
+
+ERROS_LOGIN = (
+    "usuario ou senha",
+    "usuário ou senha",
+    "senha inválida",
+    "senha invalida",
+    "não cadastrado",
+    "nao cadastrado",
+    "inválidos",
+    "invalidos",
+)
 
 RE_RA = re.compile(r"Registro Acad[êe]mico:\s*(\d+)")
 RE_DISCIPLINA = re.compile(
@@ -70,7 +85,10 @@ RE_ATIVIDADE = re.compile(
 
 
 def _tem_credenciais():
-    return bool(os.environ.get("AVA_USUARIO") and os.environ.get("AVA_SENHA"))
+    return bool(
+        (os.environ.get("AVA_USUARIO") or os.environ.get("PORTAL_USUARIO"))
+        and os.environ.get("AVA_SENHA")
+    )
 
 
 def _logado(page):
@@ -80,28 +98,82 @@ def _logado(page):
         return False
 
 
-def _logar(page):
-    """Entra no portal com as credenciais do AVA. Devolve (ok, motivo)."""
-    usuario = os.environ.get("AVA_USUARIO")
-    senha = os.environ.get("AVA_SENHA")
-    if not (usuario and senha):
-        return False, "sem AVA_USUARIO/AVA_SENHA para entrar no portal"
+def _identidades():
+    """Quem tentar como usuário, na ordem.
+
+    O AVA e o portal aceitam identificadores diferentes: o AVA loga com o que
+    estiver em ``AVA_USUARIO`` e o campo "Usuário" do portal costuma querer o
+    registro acadêmico. ``PORTAL_USUARIO`` existe para esse caso e é opcional;
+    sem ele, tenta o mesmo do AVA, que é o cenário mais provável.
+    """
+    vistos, ordem = set(), []
+    for chave in ("PORTAL_USUARIO", "AVA_USUARIO"):
+        valor = (os.environ.get(chave) or "").strip()
+        if valor and valor not in vistos:
+            vistos.add(valor)
+            ordem.append(valor)
+    return ordem
+
+
+def _erro_visivel(page):
+    """A recusa que a tela mostra, para o log dizer o que houve.
+
+    Sem isto, "não abriu a tela do aluno" cobre dois casos muito diferentes:
+    credencial recusada e formulário que nem chegou a ser enviado. O texto sai
+    truncado e nunca inclui o que foi digitado.
+    """
+    try:
+        corpo = page.locator("body").inner_text()[:1500].lower()
+    except PlaywrightError:
+        return ""
+    for marca in ERROS_LOGIN:
+        if marca in corpo:
+            return "o portal recusou usuário ou senha"
+    return ""
+
+
+def _tentar_login(page, usuario, senha):
+    """Uma tentativa completa. Devolve (ok, motivo)."""
     try:
         page.goto(LOGIN_URL, wait_until="domcontentloaded", timeout=45000)
-        page.wait_for_timeout(800)
+        page.wait_for_timeout(1000)
         campo = page.locator(CAMPO_USUARIO).first
         if not campo.count():
             return False, "a tela de login do portal mudou de formato"
         campo.fill(usuario)
         page.locator(CAMPO_SENHA).first.fill(senha)  # o valor não vai pra log
-        page.locator(CAMPO_SENHA).first.press("Enter")
-        page.wait_for_timeout(3500)
+        botao = page.locator(BOTAO_ENTRAR).first
+        if not botao.count():
+            return False, 'não achei o botão "Entrar" na tela de login do portal'
+        botao.click()
+        page.wait_for_timeout(4000)
         page.wait_for_load_state("domcontentloaded", timeout=30000)
     except PlaywrightError as erro:
         return False, f"falhei ao entrar no portal ({type(erro).__name__})"
     if _logado(page):
         return True, "entrei no portal"
-    return False, "o portal não abriu a tela do aluno depois do login"
+    return False, (
+        _erro_visivel(page)
+        or "o portal não abriu a tela do aluno depois do login"
+    )
+
+
+def _logar(page):
+    """Entra no portal. Devolve (ok, motivo)."""
+    senha = os.environ.get("AVA_SENHA")
+    identidades = _identidades()
+    if not (identidades and senha):
+        return False, "sem credenciais para entrar no portal"
+    motivo = ""
+    for usuario in identidades:
+        ok, motivo = _tentar_login(page, usuario, senha)
+        if ok:
+            return True, motivo
+        # Só vale insistir com outra identidade quando a recusa foi de
+        # credencial. Tela mudada ou erro de navegação se repetiria igual.
+        if "recusou" not in motivo:
+            break
+    return False, motivo
 
 
 def _texto(page, url):
