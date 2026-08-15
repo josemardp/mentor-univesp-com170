@@ -65,6 +65,38 @@ O cartão sai sem prazo, porque o AVA não publica prazo para isso e aqui prazo 
 
 Conferido contra o AVA ao vivo em 15/08: os 12 fóruns temáticos das três disciplinas regulares casaram com os posts reais dele, incluindo os títulos longos do SOC100 e a variação de caixa ("Fórum Temático" contra "Fórum temático"). Nenhuma cobrança falsa.
 
+## Auditoria ao vivo (15/08/2026, 09:20) — varredura completa pedida pelo Josemar
+
+Ele estranhou a fila curta ("poucas pendências") e pediu para vasculhar o AVA canto a canto. Vasculhado com a sessão dele: painel, calendário de 120 dias, as quatro disciplinas item a item, os quatro boletins, as oito avaliativas com tentativas, os 15 fóruns, a página de mensagens dele em cada disciplina, o painel de participação, notificações e mensagens privadas.
+
+**A fila curta é verdade, e tem explicação.** Ele fechou tudo o que estava aberto na maratona de 14/08 e as Semanas 5 só abrem em 17/08. Sobra o que já estava publicado: revisão por pares do M6 e do M7 (16 a 18/08), vídeo-base da S4 do SOC100 (19/08), Live 3 do LET110 (18/08). Nenhuma atividade avaliativa em aberto, nenhum fórum temático sem post dele, nenhuma disciplina extra matriculada.
+
+O que apareceu que a fila não mostrava:
+
+- **O formulário de conhecimentos prévios está fechado desde 25/06/2026**, e é por isso que ele nunca saiu de "Pendente". A página diz "Fechado: quinta-feira, 25 jun. 2026, 23:59". Ele vinha sendo carregado como pendência desde julho, com a ideia de "regularizar com o SAE". Não há o que regularizar do lado dele: ou o SAE reabre, ou fica assim. Deixa de ser tarefa e vira pergunta.
+- **A única nota abaixo de 10 é a S2 do LET110, com 7,50.** O questionário permitia três tentativas e ele usou uma, mas fechou em 09/08. Não dá mais para melhorar. Vale como aprendizado para as S5 a S7, que abrem 17/08 e fecham 30/08: sobrar tentativa é ponto que fica na mesa.
+- **O boletim do SOC100 segue vazio de página inteira**, agora com quatro avaliativas de 10,00 lançadas e nenhuma linha listada. É o caso mais forte até aqui para perguntar ao facilitador.
+- **O painel de participação do COM170 está parado em 12/08 às 23:25**, três dias atrás, e continua marcando o Módulo 1 da Quinzena 2 como "Critério ainda não identificado" mesmo com as duas atividades do módulo concluídas no AVA. A quinzena fecha hoje, então a pergunta ao facilitador tem hora.
+- **A live da Quinzena 2 foi em 13/08 às 18:30**, com gravação publicada em 14/08. Presença em live é um dos dez pontos da quinzena e o guia continua sem conseguir provar esse ponto, do jeito certo: ele diz "não sei", nunca "faltou".
+- **O envio do grupo (Q2 M7) fecha hoje às 23:59** e a conta dele segue dizendo "Você não enviou seu trabalho ainda", que é o estado correto para quem não é o representante. A confirmação de que o colega enviou continua sendo o print de 14/08, e o AVA não tem como confirmar isso da conta dele. Se houver erro, hoje é o último dia em que dá para consertar.
+
+## Fórum onde ele só respondeu contava como fórum onde ele não escreveu (15/08/2026)
+
+A fonte `meus_posts` lia o nome do fórum pegando o trecho depois da **última** seta do cabeçalho do post. Funciona para quem abre a discussão, e é assim que ele participa nas três disciplinas regulares, onde cada aluno cria o próprio tópico. Por isso a conferência de 15/08 fechou 12 de 12 e o defeito passou.
+
+Quando o post é resposta ao tópico de outra pessoa, o cabeçalho ganha duas linhas e a última seta passa a apontar para o título do tópico:
+
+```
+COM170-BIA-DRP12-2026S2-T001 ->
+Q2 M7 - Grupo: Ponto de encontro
+Informar participantes na atividade em grupo
+    -> Re: Informar participantes na atividade em grupo
+```
+
+O guia registrava "Re: Informar participantes na atividade em grupo" como se fosse um fórum, e o fórum de verdade sumia do mapa. Resultado: `postei: false` no ponto de encontro do grupo, onde ele escreveu em 13/08. Oito registros do COM170 estavam assim (os dois pontos de encontro e os fóruns de grupo do AIA). Nenhuma cobrança falsa saiu no site porque fórum de grupo não passa pelo teste de participação, mas bastava ele responder num fórum temático em vez de abrir tópico para ser cobrado por algo que fez.
+
+Agora o JS devolve o cabeçalho cru e quem separa fórum de tópico é `nome_do_forum`, em Python, testada com os três formatos reais copiados da página. Cabeçalho fora do formato devolve vazio, e vazio não entra no mapa: some do mapa é "não sei", que já é tratado como silêncio.
+
 ## Auditoria ao vivo (14/08/2026, 22:20) — COM100 zerado
 
 - **Os dois projetos do Scratch existem e estão públicos**, na conta `josemardp`: "Animação interativa - comandos e repetição" (1368884695) e "Condicional, variáveis e entrada do usuário" (1368882973). Conferido pela API pública do Scratch, sem depender de sessão.
@@ -126,8 +158,9 @@ O **COM170 avançou para uma estrutura nova**: além das 4 Semanas do AIA, agora
 - **Avaliação entre pares do M6 e do M7, de 16 a 18/08 23:59.** Vale ponto separado da entrega e é a única etapa que segue depois do fim da quinzena.
 - ~~Avaliativas de S3 e S4 das três disciplinas regulares~~ **todas feitas em 14/08, 10,00 em cada**. Não sobrou nenhuma avaliativa em aberto de S1 a S4.
 - **Fazer os dois desafios do Scratch do COM100** e postar o link nos fóruns temáticos S3 e S4. É o único jeito de destravar esses dois: o fórum pede o projeto do próprio aluno, não opinião. Prompt para agente externo montar os projetos foi entregue em 14/08.
-- **Perguntar ao facilitador do COM170** por que a Quinzena 1 está com 0,00 nos dois envios, e ao SOC100 por que o boletim não lista nenhum item.
-- Regularizar o **S1 - Formulário de conhecimentos prévios do COM170** (segue pendente, mesmo caso desde julho: falar com SAE ou orientador de polo).
+- **Perguntar ao facilitador do COM170** por que a Quinzena 1 está com 0,00 nos dois envios, e por que o Módulo 1 da Quinzena 2 segue como "critério ainda não identificado" com as duas atividades concluídas (o painel está parado em 12/08 e a quinzena fecha em 15/08). Ao do SOC100, por que o boletim não lista nenhum item mesmo com quatro notas 10,00 lançadas.
+- **Confirmar com o colega, ainda em 15/08**, que o envio do grupo no Q2 M7 está no ar com o PDF certo. Depois das 23:59 não há conserto, e a conta do Josemar nunca vai mostrar o envio do representante.
+- ~~Regularizar o **S1 - Formulário de conhecimentos prévios do COM170**~~ **não é tarefa dele**: a pesquisa fechou em 25/06/2026 às 23:59 (conferido na página em 15/08). Vai ficar "Pendente" para sempre. Se incomodar, é pedido de reabertura ao SAE, não coisa para fazer no AVA.
 - ~~Apagar o Secret `AVA_STORAGE_STATE`~~ feito em 13/08, com prova antes de destruir: o log da rodada mostrava a sessão sendo restaurada, vencendo, e o robô logando por credencial do mesmo jeito. Saíram o passo do workflow, o Secret, e os quatro scripts que só existiam para alimentá-lo (`capturar_sessao.py`, `renovar_sessao.py`, `publicar_sessao_no_github.py`, `renovar_sessao.bat`). **O que renova a sessão hoje é o próprio login**, com `AVA_USUARIO`/`AVA_SENHA` — não há mais nada para renovar à mão. `salvar_credenciais.py` fica: é ele que grava essas duas no cofre.
 - Revisão semanal da mentora: agora tem comando próprio, sem editar JSON na mão.
   ```bash

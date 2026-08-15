@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "automacao"))
 
 from dominio.acoes import montar_acoes  # noqa: E402
-from fontes.meus_posts import chave_forum  # noqa: E402
+from fontes.meus_posts import chave_forum, nome_do_forum  # noqa: E402
 
 falhas = []
 
@@ -140,6 +140,39 @@ checa(chave_forum("S3 - Fórum  temático") == chave_forum("S3 - Fórum temátic
       "espaço duplicado no meio também não")
 checa(chave_forum("S3 - Fórum temático") != chave_forum("S4 - Fórum temático"),
       "semanas diferentes continuam diferentes")
+
+
+print("\n== cabeçalho do post: fórum, e não título do tópico ==")
+
+# Textos copiados da página de mensagens dele em 15/08/2026, com as quebras de
+# linha como o Moodle manda. Quem abre a discussão tem duas linhas; quem
+# responde tem quatro, e era aí que a leitura antiga se perdia.
+ABRIU = (
+    "                    COM170-BIA-DRP12-2026S2-T001 ->\n"
+    "                Q2 - Fórum geral\n"
+)
+RESPONDEU = (
+    "                    COM170-BIA-DRP12-2026S2-T001 ->\n"
+    "                Q2 M7 - Grupo: Ponto de encontro\n"
+    "                    Informar participantes na atividade em grupo\n"
+    "                        -> Re: Informar participantes na atividade em grupo\n"
+)
+LONGO = (
+    "                    SOC100-BIA-2026S2B1-T001 ->\n"
+    "                S1 - Fórum Temático - Autonomia e liberdade: até que "
+    "ponto as pessoas são livres?\n"
+)
+
+checa(nome_do_forum(ABRIU) == "Q2 - Fórum geral",
+      "post que abre a discussão devolve o nome do fórum")
+checa(nome_do_forum(RESPONDEU) == "Q2 M7 - Grupo: Ponto de encontro",
+      "resposta devolve o fórum, não o 'Re: ' do tópico")
+checa(nome_do_forum(LONGO).endswith("as pessoas são livres?"),
+      "nome longo com traço e dois-pontos chega inteiro")
+checa(nome_do_forum("sem seta nenhuma") == "",
+      "cabeçalho fora do formato não vira nome de fórum")
+checa(nome_do_forum("CURSO ->\n    -> Re: Missão da Semana 3") == "",
+      "cabeçalho sem o nome do fórum não devolve o 'Re: ' no lugar dele")
 
 
 print("\n" + ("FALHOU: " + str(len(falhas)) if falhas else "TUDO OK"))

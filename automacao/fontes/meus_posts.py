@@ -28,23 +28,35 @@ from configuracao import AVA
 from dominio.datas import sem_acento
 from modelos import SourceResult
 
-# Cada post da página vem num article com o cabeçalho
-# "COM100-BIA-2026S2B1-T001 -> S3 - Fórum temático". O nome do fórum é o que
-# vem depois da seta, e é ele que casa com o rótulo do item no curso.
+# Cada post vem num article cujo h3 tem duas formas, e a diferença entre elas
+# custou caro. Quando ele abriu a discussão, o cabeçalho é
+#
+#     COM100-BIA-2026S2B1-T001 ->
+#     S3 - Fórum temático
+#
+# Quando ele respondeu a um tópico de outra pessoa, entram mais duas linhas:
+#
+#     COM170-BIA-DRP12-2026S2-T001 ->
+#     Q2 M7 - Grupo: Ponto de encontro
+#     Informar participantes na atividade em grupo
+#         -> Re: Informar participantes na atividade em grupo
+#
+# Ler o trecho depois da *última* seta devolvia "Re: Informar participantes...",
+# que não é nome de fórum nenhum, e o fórum sumia do mapa. Isto é, quem só
+# responde aparecia como quem nunca escreveu. O JS devolve o texto cru, com as
+# quebras de linha, e quem separa fórum de tópico é ``nome_do_forum``, aqui
+# embaixo, onde dá para testar com o texto real da página.
 JS_MEUS_POSTS = """
 () => {
   const artigos = [...document.querySelectorAll('article.forum-post-container')];
   return artigos.map(a => {
     const titulo = a.querySelector('h3');
-    const bruto = titulo ? titulo.textContent.replace(/\\s+/g, ' ').trim() : '';
-    const seta = bruto.lastIndexOf('->');
-    const forum = seta >= 0 ? bruto.slice(seta + 2).trim() : bruto;
     const quando = a.querySelector('time');
     return {
-      forum: forum,
+      titulo: titulo ? titulo.textContent : '',
       quando: quando ? (quando.getAttribute('datetime') || quando.textContent.trim()) : null,
     };
-  }).filter(p => p.forum);
+  });
 }
 """
 
@@ -57,6 +69,32 @@ MAX_PAGINAS = 5
 def chave_forum(rotulo):
     """Nome de fórum comparável: sem acento, sem caixa, sem espaço sobrando."""
     return re.sub(r"\s+", " ", sem_acento(rotulo or "")).strip()
+
+
+def nome_do_forum(titulo):
+    """Nome do fórum no cabeçalho de um post da página de mensagens.
+
+    O cabeçalho começa pelo nome curto do curso e uma seta. O que vem logo
+    depois, na própria linha, é o fórum; título de tópico e "Re: ..." vêm nas
+    linhas seguintes e não interessam aqui.
+
+    Cabeçalho fora do formato devolve string vazia, e vazio não entra no mapa:
+    é melhor não saber onde ele postou do que registrar um fórum que não
+    existe e depois cobrar (ou deixar de cobrar) pelo nome errado.
+    """
+    bruto = titulo or ""
+    seta = bruto.find("->")
+    if seta < 0:
+        return ""
+    depois = bruto[seta + 2:]
+    for linha in depois.split("\n"):
+        limpo = linha.strip()
+        if limpo:
+            # Linha que já começa na segunda seta quer dizer que o nome do
+            # fórum não veio. "Re: alguma coisa" não é fórum, e registrar isso
+            # como se fosse é o defeito que este parser existe para não ter.
+            return "" if limpo.startswith("->") else limpo
+    return ""
 
 
 def ler(page, usuario_id, curso_id):
@@ -90,7 +128,7 @@ def ler(page, usuario_id, curso_id):
             break
         antes = len(encontrados)
         for post in posts:
-            chave = chave_forum(post.get("forum"))
+            chave = chave_forum(nome_do_forum(post.get("titulo")))
             if not chave:
                 continue
             quando = post.get("quando") or ""
