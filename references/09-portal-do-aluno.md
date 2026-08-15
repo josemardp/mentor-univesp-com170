@@ -20,10 +20,16 @@ Três coisas ficam invisíveis para quem só olha o AVA:
 
 Duas entradas na tela de acesso (`sei.univesp.br/index.xhtml`):
 
-- **E-mail institucional** → SSO da Microsoft, com MFA. Não automatizável por conta
-  própria.
-- **Usuário e senha** (campos `form:usuario` e `form:senha`) → aceita as **mesmas
-  credenciais do AVA**. É por aqui que o robô entra.
+- **E-mail institucional** (`<RA>@aluno.univesp.br`) → leva ao **SSO SAML da Univesp**
+  (`login.univesp.br/simplesaml`), o mesmo do AVA. Ele pede só a senha, e às vezes nem
+  isso: se a sessão SAML ainda vale, volta autenticado direto. Não é login da Microsoft,
+  como se supôs em 13/08 (aquele era o `acesso.univesp.br`, outro sistema).
+- **Usuário e senha** (campos `form:usuario` e `form:senha`) → login local, e o usuário
+  aqui é **só o RA**, sem o domínio. Mesma senha do AVA.
+
+Os dois campos dividem **um único botão "Entrar"**, que é um `<a>` chamando
+`RichFaces.ajax`: apertar Enter no campo da senha não envia nada. O robô tenta o caminho
+local primeiro (menos redirecionamento) e o do SSO como reserva.
 
 A sessão dura **44 minutos** e é independente da do AVA: estar logado num não loga no
 outro. É por isso que ele "precisa logar de novo", e não é erro.

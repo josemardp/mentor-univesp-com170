@@ -49,9 +49,10 @@ TELA_INICIAL = f"{PORTAL}/visaoAluno/telaInicialVisaoAluno.xhtml"
 NOTAS_URL = f"{PORTAL}/visaoAluno/minhasNotasAlunos.xhtml"
 DISCIPLINAS_URL = f"{PORTAL}/visaoAluno/minhasDisciplinasAluno.xhtml"
 
-# O formulário de acesso do SEI tem duas entradas: e-mail institucional (que
-# leva ao SSO da Microsoft) e usuário/senha local. A segunda é a que aceita as
-# mesmas credenciais do AVA, e é a única que dá para automatizar sem MFA.
+# O formulário de acesso do SEI tem duas entradas para a mesma senha: e-mail
+# institucional, que leva ao SSO SAML da Univesp (`login.univesp.br`, o mesmo
+# do AVA), e usuário/senha local, que é o RA. As duas servem, e a automação
+# tenta as duas — a local primeiro, por não depender de redirecionamento.
 CAMPO_USUARIO = "#form\\:usuario"
 CAMPO_EMAIL = "#form\\:email"
 CAMPO_SENHA = "#form\\:senha"
@@ -77,6 +78,12 @@ RE_DISCIPLINA = re.compile(
 )
 # "2026 - COM100 - PENSAMENTO COMPUTACIONAL - 3 BIMESTRE"
 RE_TITULO_PROVA = re.compile(r"^(\d{4})\s*-\s*([A-Z]{3}\d{3})\s*-\s*(.+)$")
+# Marca que prova que a tela lida é mesmo a do calendário. Vale tanto a
+# listagem com atividades quanto a que diz que não há nenhuma agora.
+RE_TELA_DE_PROVAS = re.compile(
+    r"CALEND[ÁA]RIO DE ATIVIDADES|Suas atividades|Nenhuma atividade",
+    re.IGNORECASE,
+)
 RE_ATIVIDADE = re.compile(
     r"(Presencial|Online)\s*\n\s*(.+?)\s*\n\s*"
     r"De:\s*(\d{2}/\d{2})\s+(\d{2}:\d{2})\s*\n\s*"
@@ -407,10 +414,21 @@ def _abrir_sistema_de_provas(page):
         aba = nova.value
     except PlaywrightError:
         return None, "o Sistema de Provas não abriu"
+    # A aba nasce em ``/MestreGRSV``, que é só a página "estamos
+    # redirecionando" com um formulário que se posta sozinho. Ler o corpo aqui
+    # devolve esse texto de espera, e foi o que aconteceu na rodada de 15/08
+    # às 13:49: o login funcionou, a aba abriu e o guia leu zero prova.
     try:
         aba.wait_for_load_state("domcontentloaded", timeout=30000)
-        aba.wait_for_timeout(3000)
+        aba.wait_for_url("**prova.univesp.br/**", timeout=30000)
+        aba.wait_for_selector(
+            "text=/CALEND[ÁA]RIO DE ATIVIDADES|ATIVIDADES DISPON/i",
+            timeout=25000,
+        )
+        aba.wait_for_timeout(1500)
     except PlaywrightError:
+        # Segue mesmo assim: quem decide se a leitura serve é a conferência do
+        # texto, logo abaixo, e ela sabe dizer "não reconheci esta tela".
         pass
     return aba, ""
 
@@ -437,6 +455,15 @@ def ler_provas(page):
             pass
     if not texto:
         return None, "o Sistema de Provas abriu em branco"
+
+    # Zero atividade só pode ser afirmado numa tela que a gente reconheceu
+    # como o calendário. Sem esta conferência, a página de redirecionamento
+    # (ou qualquer tela nova) viraria "você não tem prova marcada", que é a
+    # frase mais perigosa que este guia pode dizer.
+    if not RE_TELA_DE_PROVAS.search(texto):
+        return None, (
+            "abri o Sistema de Provas mas não reconheci a tela do calendário"
+        )
 
     ano_corrente = datetime.now(BR_TZ).year
     provas = []

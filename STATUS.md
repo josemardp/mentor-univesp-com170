@@ -57,7 +57,7 @@ O guia nasceu olhando só o AVA. O AVA é onde a aula acontece, mas não é onde
 
 ### O que foi construído
 
-[`fontes/portal.py`](automacao/fontes/portal.py), com login próprio (as mesmas credenciais do AVA, no formulário local do SEI, não no botão de e-mail institucional que cai no SSO da Microsoft). Ela lê tela inicial, notas, disciplinas e o calendário de provas, e alimenta:
+[`fontes/portal.py`](automacao/fontes/portal.py), com login próprio. A tela de acesso tem duas portas para a mesma senha, e as duas servem: **usuário** quer só o RA (login local) e **e-mail institucional** leva ao SSO SAML da Univesp, o mesmo do AVA, que pede a senha ou devolve autenticado se a sessão ainda valer. O robô tenta a local primeiro. Ela lê tela inicial, notas, disciplinas e o calendário de provas, e alimenta:
 
 - **A fila**: prova vira compromisso com dia, hora e origem à mostra, e sai sozinha quando passa, pela mesma regra da live.
 - **O e-mail das 8h**: bloco fixo no topo com a prova e a contagem de dias.
@@ -84,7 +84,9 @@ Não adianta chamar `/MestreGRSV` direto: responde 404. O botão da tela inicial
 
 **Pesos das semanas.** O aviso "Pesos das Atividades" diz que as avaliativas não valem igual: S1 8%, S2 12%, S3 a S6 17% cada, S7 12%. O guia trata todas como iguais, então a S3 (17%) aparece com o mesmo peso visual da S1 (8%). O aviso já chega ao robô desde a correção de 13/08; falta usar o número no cartão da atividade.
 
-**Data da prova presencial** — segue sem fonte alcançável, mas não por falta de tentativa. Levantado em 13/08: o `acesso.univesp.br` autentica por conta Microsoft (`msal-browser.js`), fluxo diferente do SSO do AVA e provavelmente com MFA; a data não aparece em nenhum aviso, evento de calendário ou página de instrução coletada; o cronograma público não a traz; e o `cronograma.ics` que a própria Univesp linka responde **404**. O que passou a existir: o guia **procura** a data nos avisos oficiais e a mostra assim que um facilitador disser, exigindo "prova" e "presencial/polo" na mesma frase para não confundir com atividade avaliativa do AVA. Automatizar o login Microsoft continua fora de escopo por conta própria — é decisão do Josemar, e mexer com conta institucional pode disparar bloqueio de segurança.
+**Data da prova presencial** — ~~segue sem fonte alcançável~~ **resolvido em 15/08**: está no Sistema de Provas do portal do aluno, e a data dele é 05/11 às 19:40. O parágrafo abaixo fica como registro do que foi tentado antes, e de como a conclusão "não existe fonte" se sustentou por dias sem que ninguém tivesse olhado o segundo sistema.
+
+**Registro do que se pensava até 14/08:** segue sem fonte alcançável, mas não por falta de tentativa. Levantado em 13/08: o `acesso.univesp.br` autentica por conta Microsoft (`msal-browser.js`), fluxo diferente do SSO do AVA e provavelmente com MFA; a data não aparece em nenhum aviso, evento de calendário ou página de instrução coletada; o cronograma público não a traz; e o `cronograma.ics` que a própria Univesp linka responde **404**. O que passou a existir: o guia **procura** a data nos avisos oficiais e a mostra assim que um facilitador disser, exigindo "prova" e "presencial/polo" na mesma frase para não confundir com atividade avaliativa do AVA. Automatizar o login Microsoft continua fora de escopo por conta própria — é decisão do Josemar, e mexer com conta institucional pode disparar bloqueio de segurança.
 
 ## Participação em fórum virou prova, não selo (15/08/2026)
 

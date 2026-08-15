@@ -22,7 +22,12 @@ sys.path.insert(0, str(ROOT / "automacao"))
 
 from dominio.acoes import disciplinas_so_no_portal, provas_do_portal  # noqa: E402
 from fontes import portal  # noqa: E402
-from fontes.portal import RE_ATIVIDADE, RE_TITULO_PROVA, _iso  # noqa: E402
+from fontes.portal import (  # noqa: E402
+    RE_ATIVIDADE,
+    RE_TELA_DE_PROVAS,
+    RE_TITULO_PROVA,
+    _iso,
+)
 
 falhas = []
 
@@ -87,6 +92,16 @@ checa(cabecalho.group(2) == "COM100", "o código da disciplina é extraído")
 
 checa(not list(RE_ATIVIDADE.finditer(VAZIO)),
       "tela sem atividade não inventa prova")
+
+# A aba nasce numa página de espera antes de chegar ao calendário. Ler cedo
+# demais devolvia "nenhuma prova", que é diferente de "não consegui ler".
+ESPERA = "Prezados estudantes, estamos redirecionando para sistemas de provas."
+checa(bool(RE_TELA_DE_PROVAS.search(CALENDARIO)),
+      "a tela do calendário é reconhecida")
+checa(bool(RE_TELA_DE_PROVAS.search(VAZIO)),
+      '"nenhuma atividade" também é o calendário, e é resposta legítima')
+checa(not RE_TELA_DE_PROVAS.search(ESPERA),
+      "a página de redirecionamento não passa por calendário vazio")
 
 checa(_iso("05/11", "19:40", 2026).startswith("2026-11-05T19:40"),
       "a data vira ISO no fuso de Brasília")
@@ -156,10 +171,10 @@ checa(disciplinas_so_no_portal({"courses": [{"code": "COM100"}]}) == [],
 
 print("\n== qual usuário o portal quer ==")
 
-# A tela do SEI tem dois caminhos: "E-mail institucional" quer o endereço
-# inteiro e cai no SSO da Microsoft; "Usuário" quer só o registro acadêmico. O
-# gerenciador de senhas dele guarda as duas entradas separadas, e é a segunda
-# que a automação usa.
+# A tela do SEI tem dois caminhos, com a mesma senha: "E-mail institucional"
+# quer o endereço inteiro e leva ao SSO SAML da Univesp (login.univesp.br, o
+# mesmo do AVA); "Usuário" quer só o registro acadêmico e é login local. O
+# gerenciador de senhas dele guarda as duas entradas separadas.
 for chave in ("PORTAL_USUARIO", "AVA_USUARIO"):
     os.environ.pop(chave, None)
 
