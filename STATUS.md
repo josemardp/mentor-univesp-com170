@@ -73,6 +73,16 @@ O guia nasceu olhando só o AVA. O AVA é onde a aula acontece, mas não é onde
 
 Não adianta chamar `/MestreGRSV` direto: responde 404. O botão da tela inicial dispara um `RichFaces.ajax` que prepara um token na sessão; só depois `/MestreGRSV` devolve um formulário que se posta sozinho em `prova.univesp.br/ws/sso/` e abre o `runner.php`. Por isso a leitura clica no botão e acompanha a aba que nasce. Dentro do runner, a navegação é por `ptp` em base64 (`src=99992` é o calendário, `tp=HOJE;src=99992` são as atividades liberadas agora).
 
+### O Sistema de Provas não é automatizável, e isso é decisão, não limitação
+
+O login no portal funciona sozinho desde a rodada das 13:49. O calendário de provas, não: `prova.univesp.br` responde ao servidor da Action com **"Let's confirm you are human — Complete the security check before continuing"**. Do navegador do Josemar, logado, a tela abre normal; do datacenter do GitHub, aparece a verificação.
+
+**Não se contorna verificação anti-robô neste projeto**, nem com a conta do dono, nem sendo tecnicamente possível. Então o robô para ali e diz o que aconteceu, e a data passa a vir de [`docs/provas.json`](docs/provas.json), preenchido por conferência humana. O cartão da prova mostra a origem com todas as letras: "Sistema de Provas, conferido à mão em 15/08". As duas origens decidem o mesmo dia, mas envelhecem diferente, e quem lê precisa saber qual está vendo.
+
+O registro tem `vale_ate`. Passou disso, some sozinho, em vez de continuar afirmando o dia de uma prova de um bimestre que já virou. Reconferir é abrir o Sistema de Provas no navegador e atualizar o arquivo, uma vez por bimestre.
+
+Isso também vale como aviso para o resto do projeto: nem tudo que está na tela dele está ao alcance do robô, e a diferença entre "o robô não conseguiu" e "não existe" continua sendo a coisa mais importante a manter separada.
+
 ### O que ainda não foi feito aqui
 
 - **Nota de prova e média do bimestre** ainda estão todas em branco no portal, então o parser das quatro parcelas (ATIVIDADE AVA, PROVA, MÉDIA PARCIAL, EXAME) foi escrito, mas nunca viu número de verdade. Primeira nota que sair é a hora de conferir se ele lê certo.

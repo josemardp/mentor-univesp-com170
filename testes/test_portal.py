@@ -156,6 +156,38 @@ checa(sem_portal == [],
       "sem leitura do portal não aparece prova nenhuma, nem inventada")
 
 
+print("\n== de onde veio a data da prova ==")
+
+# O Sistema de Provas fica atrás de verificação anti-robô, que não se contorna
+# aqui. Então a data pode vir de uma conferência humana, e o cartão precisa
+# dizer isso: as duas origens decidem o mesmo dia, mas envelhecem diferente.
+A_MAO = {
+    "courses": [{"code": "COM100"}],
+    "portal": {
+        **DADOS["portal"],
+        "provas_origem": "conferido à mão",
+        "provas_conferido_em": "2026-08-15",
+    },
+}
+fonte_manual = provas_do_portal(A_MAO, date(2026, 8, 15), agora=AGORA)[0]
+checa(fonte_manual["prazo_fonte"] == "Sistema de Provas, conferido à mão em 15/08",
+      "conferência à mão aparece com a data em que foi feita")
+
+fonte_viva = provas_do_portal(DADOS, date(2026, 8, 15), agora=AGORA)[0]
+checa(fonte_viva["prazo_fonte"] == "Sistema de Provas (portal do aluno)",
+      "leitura ao vivo continua se apresentando como leitura ao vivo")
+
+SEM_DATA = {
+    "courses": [{"code": "COM100"}],
+    "portal": {**DADOS["portal"], "provas_origem": "conferido à mão"},
+}
+checa(
+    provas_do_portal(SEM_DATA, date(2026, 8, 15), agora=AGORA)[0]["prazo_fonte"]
+    == "Sistema de Provas, conferido à mão",
+    "sem saber quando foi conferido, não inventa uma data de conferência",
+)
+
+
 print("\n== disciplina que só a secretaria conhece ==")
 
 fora = disciplinas_so_no_portal(DADOS)

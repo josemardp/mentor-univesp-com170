@@ -84,6 +84,16 @@ RE_TELA_DE_PROVAS = re.compile(
     r"CALEND[ÁA]RIO DE ATIVIDADES|Suas atividades|Nenhuma atividade",
     re.IGNORECASE,
 )
+# O prova.univesp.br fica atrás de uma verificação anti-robô. Do navegador
+# dele, logado, ela não aparece; do servidor da Action, aparece sempre. Não se
+# contorna verificação de robô aqui, nem com a conta do dono: quando esta tela
+# surge, a leitura para e diz por quê, e a data da prova passa a vir do
+# registro conferido à mão (docs/provas.json).
+RE_ANTIBOT = re.compile(
+    r"confirm you are human|security check|verifica(ç|c)(ã|a)o de seguran|"
+    r"n(ã|a)o (é|e) um rob(ô|o)|captcha|cloudflare",
+    re.IGNORECASE,
+)
 RE_ATIVIDADE = re.compile(
     r"(Presencial|Online)\s*\n\s*(.+?)\s*\n\s*"
     r"De:\s*(\d{2}/\d{2})\s+(\d{2}:\d{2})\s*\n\s*"
@@ -462,6 +472,14 @@ def ler_provas(page):
     # como o calendário. Sem esta conferência, a página de redirecionamento
     # (ou qualquer tela nova) viraria "você não tem prova marcada", que é a
     # frase mais perigosa que este guia pode dizer.
+    if RE_ANTIBOT.search(texto):
+        # Estado esperado, não defeito: o robô não tem como passar por aqui, e
+        # não é para ter. Quem confere é o Josemar, e o que ele conferir fica
+        # em docs/provas.json.
+        return None, (
+            "o Sistema de Provas pediu verificação de robô, então a data da "
+            "prova vem do que foi conferido à mão"
+        )
     if not RE_TELA_DE_PROVAS.search(texto):
         # O começo do texto e a URL sem query dizem, na próxima rodada, se ele
         # ficou na página de espera, se caiu numa tela de erro ou se o

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Montagem, ordenação e deduplicação da fila de ações."""
 import re
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from configuracao import NOVO_ATE_DIAS
 from dominio.datas import sem_acento
@@ -593,6 +593,25 @@ def tarefas_do_calendario(dados, hoje, ja_na_fila):
     return novos
 
 
+def _origem_da_prova(portal):
+    """De onde veio a data, com todas as letras.
+
+    Leitura ao vivo e conferência humana valem o mesmo para decidir o dia,
+    mas não valem o mesmo para confiar: a conferida à mão envelhece, e quem
+    lê precisa saber de quando ela é para decidir se vale reconferir.
+    """
+    if (portal or {}).get("provas_origem") != "conferido à mão":
+        return "Sistema de Provas (portal do aluno)"
+    quando = (portal or {}).get("provas_conferido_em")
+    if quando:
+        try:
+            dia = date.fromisoformat(quando)
+            return f"Sistema de Provas, conferido à mão em {dia:%d/%m}"
+        except ValueError:
+            pass
+    return "Sistema de Provas, conferido à mão"
+
+
 def provas_do_portal(dados, hoje, agora=None):
     """Prova presencial, com dia e hora, vinda do Sistema de Provas.
 
@@ -636,7 +655,7 @@ def provas_do_portal(dados, hoje, agora=None):
                 "conta_nota": True,
                 "prazo": quando,
                 "prazo_txt": texto,
-                "prazo_fonte": "Sistema de Provas (portal do aluno)",
+                "prazo_fonte": _origem_da_prova(portal),
                 "fonte_url": None,
                 "autoridade": "institucional",
                 "carencia": None,

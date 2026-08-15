@@ -96,6 +96,17 @@ O ano só aparece no título; a linha `De:` traz só dia e mês.
   registrado nos recados.
 - **Atividade complementar**: nenhum registro. O curso vai exigir horas.
 
+## O calendário de provas não é lido por robô
+
+`prova.univesp.br` fica atrás de verificação anti-robô. Do navegador dele, logado, abre
+normal; de um servidor, responde "Let's confirm you are human". **Isso não se contorna**,
+nem com a conta do dono. Consequência prática: a data da prova é conferida à mão, e vive
+em `docs/provas.json`, com validade. O guia mostra a origem no cartão.
+
+Quando o Josemar perguntar da prova, a resposta vem de lá, com a data da conferência
+junto. Se o registro estiver vencido, a resposta certa é "precisa reconferir", não a
+data velha.
+
 ## Regra que não se quebra: o robô não escreve aqui
 
 Medido em 15/08: **abrir `recadoAluno.xhtml` marca sozinho o recado mais recente como

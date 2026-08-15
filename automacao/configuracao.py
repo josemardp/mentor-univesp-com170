@@ -7,6 +7,9 @@ ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"
 DATA_PATH = DOCS / "data.json"
 ESTADO_PATH = DOCS / "estado.json"
+# Provas conferidas à mão. Existe porque o Sistema de Provas fica atrás de
+# verificação anti-robô, que não se contorna aqui.
+PROVAS_PATH = DOCS / "provas.json"
 
 BR_TZ = timezone(timedelta(hours=-3))
 AVA = "https://ava.univesp.br"

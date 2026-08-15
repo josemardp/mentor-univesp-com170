@@ -2,10 +2,10 @@
 """Ponto de entrada compatível do coletor modular."""
 import os  # reexport de compatibilidade para injeção de falha nos testes
 import sys
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 import persistencia as _persistencia
-from configuracao import BR_TZ, DATA_PATH, ESTADO_PATH
+from configuracao import BR_TZ, DATA_PATH, ESTADO_PATH, PROVAS_PATH
 from dominio.acoes import (
     disciplinas_so_no_portal,
     entrega_provada,
@@ -23,6 +23,34 @@ from fontes.itens import SINAIS_FECHADO, SINAIS_INDEFINIDO
 from persistencia import carregar, gravar_json, normalizar_estado
 from pipeline import executar_coleta
 from saude import resumo_fontes, validar_cobertura
+
+def provas_conferidas_a_mao():
+    """Provas registradas à mão, quando ainda valem.
+
+    O Sistema de Provas fica atrás de verificação anti-robô, e contornar isso
+    está fora de escopo por decisão. Então a data vem de uma conferência
+    humana, e vem com validade: registro velho não pode continuar afirmando o
+    dia da prova depois que o bimestre virou.
+
+    Sem arquivo, sem prova. Nunca inventa e nunca sobrescreve leitura viva.
+    """
+    registro = carregar(PROVAS_PATH, None) or {}
+    provas = registro.get("provas") or []
+    if not provas:
+        return {}
+    vale_ate = registro.get("vale_ate")
+    if vale_ate:
+        try:
+            if datetime.now(BR_TZ).date() > date.fromisoformat(vale_ate):
+                return {}
+        except ValueError:
+            return {}
+    return {
+        "provas": provas,
+        "provas_origem": "conferido à mão",
+        "provas_conferido_em": registro.get("conferido_em"),
+    }
+
 
 def gravar_snapshot(data, estado):
     return _persistencia.gravar_snapshot(data, estado, DATA_PATH, ESTADO_PATH)
@@ -83,14 +111,26 @@ def main():
 
     momento = datetime.now(BR_TZ)
     hoje = momento.date()
+    # O portal é completado antes de montar a fila, senão a prova conferida à
+    # mão fica no site e não vira compromisso, que é justamente o que ela
+    # precisa virar.
+    portal = dict(dados.get("portal") or {})
+    if portal:
+        # O confronto entre as duas listas de matrícula precisa do AVA já
+        # lido: portal sem AVA não é comparação, é metade dela.
+        portal["_so_no_portal"] = disciplinas_so_no_portal(dados)
+    # Prova conferida à mão entra quando o Sistema de Provas não pôde ser lido,
+    # e é o caso normal: aquele sistema fica atrás de verificação anti-robô.
+    # Nunca sobrescreve leitura ao vivo, e carrega a data da conferência para o
+    # site poder dizer de quando ela é.
+    if not portal.get("provas"):
+        manual = provas_conferidas_a_mao()
+        if manual:
+            portal = {**portal, **manual}
+    dados["portal"] = portal
     acoes, encerrados, higiene, confirmar = montar_acoes(
         dados, hoje, agora=momento
     )
-    # O confronto entre as duas listas de matrícula é feito aqui, com o AVA já
-    # lido: portal sem AVA não é comparação, é metade dela.
-    portal = dict(dados.get("portal") or {})
-    if portal:
-        portal["_so_no_portal"] = disciplinas_so_no_portal(dados)
     saida = {
         "portal": portal,
         "status": "coleta_degradada" if degradada else "ok",
