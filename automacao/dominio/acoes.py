@@ -195,6 +195,29 @@ def entrega_provada(item):
     return item.get("entrega_confirmada")
 
 
+def forum_de_participacao(item, modelo):
+    """Fórum temático de disciplina regular: participar ali compõe a nota.
+
+    O rótulo é o critério porque é o que a Univesp padroniza. Fórum de dúvidas
+    e fórum de avisos ficam de fora de propósito: ninguém é cobrado por não
+    ter dúvida.
+    """
+    if modelo != "regular" or item.get("type") != "forum":
+        return False
+    return "forum tematico" in sem_acento(item.get("label") or "")
+
+
+def _participacao_pendente(item, modelo):
+    """Fórum que vale participação e onde ele comprovadamente não escreveu.
+
+    Só devolve ``True`` com prova dos dois lados: o fórum conta para a nota e
+    a leitura das mensagens dele funcionou e não achou post ali. Com
+    ``postei`` em ``None`` a resposta é ``False``, porque leitura que falhou
+    não pode virar cobrança.
+    """
+    return forum_de_participacao(item, modelo) and item.get("postei") is False
+
+
 def _item_resolvido(item):
     """O item já está feito? Mesmas regras que tiram o item da fila.
 
@@ -752,6 +775,7 @@ def montar_acoes(dados, hoje, agora=None):
     # propósito: é justamente esse caso que a rede precisa pegar.
     resolvidos = set()
     for curso in dados["courses"]:
+        modelo_curso = curso.get("modelo")
         quinzenas_antigas = quinzenas_encerradas(curso)
         labs_por_secao = laboratorios_por_secao(curso)
         itens_de_secao = itens_por_secao(curso)
@@ -920,7 +944,16 @@ def montar_acoes(dados, hoje, agora=None):
                     item.get("type") in TIPOS_QUE_VALEM_NOTA
                     and entrega_provada(item) is False
                 )
-                if item.get("status") == "Concluído" and not sem_entrega:
+                # Fórum temático marcado como concluído sem post dele é o
+                # mesmo caso da avaliativa "concluída" sem tentativa: a
+                # marcação é manual e não prova nada. Quem prova é a lista de
+                # mensagens dele na disciplina.
+                falta_postar = _participacao_pendente(item, modelo_curso)
+                if (
+                    item.get("status") == "Concluído"
+                    and not sem_entrega
+                    and not falta_postar
+                ):
                     resolvidos.add(cmid_item)
                     continue
                 # Laboratório de Avaliação são duas obrigações em sequência:
@@ -933,7 +966,11 @@ def montar_acoes(dados, hoje, agora=None):
                 ):
                     resolvidos.add(cmid_item)
                     continue
-                if item.get("status") is None and not item.get("conta_nota"):
+                if (
+                    item.get("status") is None
+                    and not item.get("conta_nota")
+                    and not falta_postar
+                ):
                     continue
                 verbo, coisa = _verbo_workshop(item)
                 base = {
@@ -996,6 +1033,21 @@ def montar_acoes(dados, hoje, agora=None):
                     and item.get("status") == "Pendente"
                 ):
                     registro["verificacao"] = "indefinida"
+                if falta_postar:
+                    # Fórum temático sem post dele não tem prazo no AVA, e
+                    # prazo aqui nunca é estimado. Mesmo assim não é higiene:
+                    # nas disciplinas regulares a participação compõe a nota,
+                    # e foi por cair no balde de higiene que quatro fóruns
+                    # ficaram parados desde a Semana 2 sem ninguém notar, até
+                    # a conferência à mão de 14/08/2026.
+                    registro["conta_nota"] = True
+                    registro["explicacao"] = (
+                        "Você ainda não escreveu neste fórum. Nas disciplinas "
+                        "regulares a participação nos fóruns temáticos compõe "
+                        "a nota, e o AVA não publica prazo para isso."
+                    )
+                    acoes.append(registro)
+                    continue
                 if not prazo and not item.get("conta_nota"):
                     higiene.append(registro)
                     continue

@@ -25,6 +25,7 @@ from fontes import (
     foruns,
     instrucoes,
     itens,
+    meus_posts,
     notificacoes,
     participacao,
 )
@@ -357,6 +358,7 @@ def executar_coleta(estado, anterior=None):
         resultados_cronograma = []
         resultados_boletim = []
         resultados_participacao = []
+        resultados_meus_posts = []
         diagnosticos_forum = []
         indefinidos = verificados = nao_entregues = 0
         # O que o teto de conferência deixou de fora nesta leitura. Contar é o
@@ -427,6 +429,29 @@ def executar_coleta(estado, anterior=None):
                 media_boletim = cache_medias.get(chave_curso)
                 totais_boletim = cache_totais.get(chave_curso)
             notas_por_cmid = resultado_boletim.dados or {}
+
+            # Em quais fóruns desta disciplina ele já escreveu. Fonte separada
+            # porque a varredura de fóruns prioriza post institucional e corta
+            # em 10 por discussão: num fórum de 800 respostas o post dele
+            # simplesmente não sobrevive ao teto, então ela não serve para
+            # responder "eu participei aqui?".
+            cache_meus_posts = cache_fontes.setdefault("meus_posts", {})
+            resultado_posts = meus_posts.resultado(
+                page,
+                uid,
+                descoberto["id"],
+                checked_at,
+                cache=cache_meus_posts.get(chave_curso),
+            )
+            resultados_meus_posts.append(resultado_posts)
+            if resultado_posts.status in ("live", "vazio_confirmado"):
+                cache_meus_posts[chave_curso] = resultado_posts.dados
+            foruns_com_post = resultado_posts.dados or {}
+            sei_onde_postei = resultado_posts.status in (
+                "live",
+                "vazio_confirmado",
+            )
+
             for secao in secoes:
                 numero_semana = None
                 encontrada = re.match(r"Semana (\d+)$", secao["title"])
@@ -436,6 +461,16 @@ def executar_coleta(estado, anterior=None):
                     item["conta_nota"] = conta_nota(
                         modelo, item, secao["title"]
                     )
+                    # ``postei``: True, False ou None. O None é obrigatório e
+                    # não é detalhe: sem leitura boa das mensagens dele, o
+                    # guia não pode dizer nem que participou nem que faltou.
+                    if item.get("type") == "forum":
+                        item["postei"] = (
+                            meus_posts.chave_forum(item.get("label"))
+                            in foruns_com_post
+                            if sei_onde_postei
+                            else None
+                        )
                     nota = notas_por_cmid.get(str(item.get("cmid")))
                     if nota:
                         item["nota"] = nota["nota"]
@@ -733,6 +768,9 @@ def executar_coleta(estado, anterior=None):
     agregado_participacao = _status_agregado(
         resultados_participacao, checked_at, nao_aplicavel=True
     )
+    agregado_meus_posts = _status_agregado(
+        resultados_meus_posts, checked_at, nao_aplicavel=True
+    )
 
     resultados_finais = {
         "disciplinas": descoberta,
@@ -742,6 +780,7 @@ def executar_coleta(estado, anterior=None):
         "itens": resultado_itens,
         "boletim": agregado_boletim,
         "participacao": agregado_participacao,
+        "meus_posts": agregado_meus_posts,
         "notificacoes": resultado_sinais,
     }
     status_fontes = {
@@ -761,7 +800,7 @@ def executar_coleta(estado, anterior=None):
         nome
         for nome, resultado in resultados_finais.items()
         if resultado.status in ("falhou", "degradado")
-        and nome not in ("boletim", "participacao")
+        and nome not in ("boletim", "participacao", "meus_posts")
     ]
     return {
         "courses": cursos,

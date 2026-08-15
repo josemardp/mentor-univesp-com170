@@ -51,6 +51,20 @@ Fora daqui, o alarme de verdade: **`josemardp/vigia-univesp`** (privado, outra c
 
 **Data da prova presencial** — segue sem fonte alcançável, mas não por falta de tentativa. Levantado em 13/08: o `acesso.univesp.br` autentica por conta Microsoft (`msal-browser.js`), fluxo diferente do SSO do AVA e provavelmente com MFA; a data não aparece em nenhum aviso, evento de calendário ou página de instrução coletada; o cronograma público não a traz; e o `cronograma.ics` que a própria Univesp linka responde **404**. O que passou a existir: o guia **procura** a data nos avisos oficiais e a mostra assim que um facilitador disser, exigindo "prova" e "presencial/polo" na mesma frase para não confundir com atividade avaliativa do AVA. Automatizar o login Microsoft continua fora de escopo por conta própria — é decisão do Josemar, e mexer com conta institucional pode disparar bloqueio de segurança.
 
+## Participação em fórum virou prova, não selo (15/08/2026)
+
+O guia sabia se um fórum estava marcado como concluído, e nada mais. A marcação é manual, então mente nos dois sentidos, e era a única coisa que ele olhava. Resultado: os quatro fóruns temáticos parados desde a Semana 2 nunca apareceram na fila, porque fórum sem prazo e sem `conta_nota` caía no balde de higiene. Só apareceram na conferência à mão de 13/08.
+
+Nas disciplinas regulares a participação nos fóruns temáticos compõe a nota. Então "eu escrevi ali?" é pergunta de nota, e a resposta passou a vir de prova: a página de mensagens do próprio aluno na disciplina (`/mod/forum/user.php?...&mode=posts`), lida pela fonte nova [`fontes/meus_posts.py`](automacao/fontes/meus_posts.py).
+
+A varredura normal de fóruns não serve para isso, e é bom entender por quê: ela prioriza post institucional e corta em 10 por discussão, então num fórum de 800 respostas o post dele não sobrevive ao teto. Ele estava lá o tempo todo e o guia não tinha como vê-lo.
+
+O campo novo é `postei`, com três estados, e o terceiro é o que segura a regra: `True` tira da fila, `False` cobra, e **`None` cala**. Leitura que falhou nunca vira "você não postou", mesma regra do boletim e do fórum de grupo. Junto disso, fórum temático marcado como "Concluído" sem post dele **continua sendo cobrado**: é o mesmo caso da avaliativa concluída sem tentativa.
+
+O cartão sai sem prazo, porque o AVA não publica prazo para isso e aqui prazo nunca é estimado. O que ele ganha é a explicação de por que está ali.
+
+Conferido contra o AVA ao vivo em 15/08: os 12 fóruns temáticos das três disciplinas regulares casaram com os posts reais dele, incluindo os títulos longos do SOC100 e a variação de caixa ("Fórum Temático" contra "Fórum temático"). Nenhuma cobrança falsa.
+
 ## Auditoria ao vivo (14/08/2026, 22:20) — COM100 zerado
 
 - **Os dois projetos do Scratch existem e estão públicos**, na conta `josemardp`: "Animação interativa - comandos e repetição" (1368884695) e "Condicional, variáveis e entrada do usuário" (1368882973). Conferido pela API pública do Scratch, sem depender de sessão.
@@ -130,6 +144,8 @@ O **COM170 avançou para uma estrutura nova**: além das 4 Semanas do AIA, agora
 
 ## Decisões que valem lembrar
 
+- **O balde de higiene esconde obrigação que vale nota.** Fórum temático não tem prazo no AVA e não passava no teste de `conta_nota`, então caía em "higiene" e ninguém via. Ficou parado da Semana 2 até a Semana 4. A pergunta certa não é "isso tem prazo?", é "isso entra na nota?". Item sem prazo pode ser urgente do mesmo jeito.
+- **Teto de leitura muda o que dá para perguntar.** A varredura de fóruns corta em 10 posts por discussão e prioriza autor institucional. É a decisão certa para achar aviso de facilitador, e a errada para responder "eu participei?". Quando o teto existe, a fonte responde uma pergunta e não responde outra, e vale escrever qual é qual antes de reusá-la.
 - **Relatório de trabalho feito não é prova de trabalho feito, nem quando vem em primeira pessoa da própria mentora.** Em 14/08 chegou à sessão um texto dizendo que ela havia postado nos dois fóruns do COM100, conferido o resultado e marcado as atividades. Nada daquilo tinha saído dela. Os fatos até bateram quando foram conferidos no AVA, mas isso foi sorte, não verificação: se o texto tivesse mentido, o guia teria dado por resolvido um item em aberto. Vale para retorno de outra IA, para print e para qualquer relato de terceiro. A regra antiga continua sendo a única defesa: **abrir a tela e olhar**, e dizer com todas as letras o que foi conferido e o que só foi contado.
 
 - **Suíte verde não é prova de que funciona.** Em 04/08 três defeitos passaram por todos os testes e falharam no AVA real. Nos três casos o teste usava um dado gentil escrito por quem fez o teste. Teste que cobre leitura do AVA precisa usar texto real copiado da página, com truncamento e quebras.
