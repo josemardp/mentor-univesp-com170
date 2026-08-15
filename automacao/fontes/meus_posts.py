@@ -60,10 +60,11 @@ JS_MEUS_POSTS = """
 }
 """
 
-# A página pagina de 10 em 10. Cinco páginas cobrem 50 posts numa disciplina,
-# muito acima do que um bimestre gera, e o teto existe só para uma mudança de
-# layout não virar laço infinito.
-MAX_PAGINAS = 5
+# A página pagina de **5 em 5**, não de 10 em 10 como se supôs até 15/08.
+# Com o teto antigo de 5 páginas, o guia enxergava 25 posts por disciplina, e o
+# COM170 já tinha 23. Doze páginas cobrem 60 posts, e o teto existe só para uma
+# mudança de layout não virar laço infinito.
+MAX_PAGINAS = 12
 
 
 def chave_forum(rotulo):
@@ -106,9 +107,10 @@ def ler(page, usuario_id, curso_id):
     concluir nada.
     """
     if not (usuario_id and curso_id):
-        return {}, False
+        return {}, False, False
     encontrados = {}
     leu_alguma = False
+    truncado = True
     for pagina in range(MAX_PAGINAS):
         url = (
             f"{AVA}/mod/forum/user.php?id={usuario_id}"
@@ -122,11 +124,14 @@ def ler(page, usuario_id, curso_id):
             # Falha no meio da paginação não invalida o que já foi lido: os
             # fóruns achados continuam sendo prova de que ele postou. O que
             # não dá é concluir ausência, e é isso que ``ok`` carrega.
-            return encontrados, False
+            return encontrados, False, True
         leu_alguma = True
         if not posts:
+            # Página vazia é o fim da lista: passado o último post, o Moodle
+            # devolve nada, não repete a última página. Este é o único jeito
+            # certo de parar.
+            truncado = False
             break
-        antes = len(encontrados)
         for post in posts:
             chave = chave_forum(nome_do_forum(post.get("titulo")))
             if not chave:
@@ -134,15 +139,16 @@ def ler(page, usuario_id, curso_id):
             quando = post.get("quando") or ""
             if quando > encontrados.get(chave, ""):
                 encontrados[chave] = quando
-        # Página repetida (o Moodle devolve a última quando o número passa do
-        # fim) não acrescenta nome novo: parar aqui evita rodar o teto à toa.
-        if len(encontrados) == antes and pagina:
-            break
-    return encontrados, leu_alguma
+        # Não se para porque a página não trouxe fórum novo. Ele posta várias
+        # vezes no mesmo fórum, então página sem nome novo é rotina, e parar
+        # ali deixava os fóruns mais antigos de fora: em 15/08 o COM170 tinha
+        # a página 3 só com repetição e o "S1 - Fórum de apresentação" na 4.
+        # Some do mapa quem nunca foi lido, e some em silêncio.
+    return encontrados, leu_alguma, truncado
 
 
 def resultado(page, usuario_id, curso_id, checked_at, cache=None):
-    mapa, ok = ler(page, usuario_id, curso_id)
+    mapa, ok, truncado = ler(page, usuario_id, curso_id)
     if not ok:
         if cache:
             return SourceResult(
@@ -167,6 +173,15 @@ def resultado(page, usuario_id, curso_id, checked_at, cache=None):
     return SourceResult(
         status="live" if mapa else "vazio_confirmado",
         dados=mapa,
+        # Bateu no teto de páginas quer dizer que pode haver post não lido, e
+        # post não lido vira "você não postou". Leitura incompleta tem que
+        # aparecer, como já aparece o corte de fóruns e de itens.
+        truncado=truncado,
+        problemas=(
+            ["parei no teto de páginas ao ler suas mensagens; pode faltar "
+             "fórum antigo"]
+            if truncado else []
+        ),
         checked_at=checked_at,
         quantidade_atual=len(mapa),
         last_live_at=checked_at,

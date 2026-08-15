@@ -253,7 +253,19 @@ def pontos_da_quinzena(curso, encerradas=()):
             pontos.append(_ponto(rotulo, None, "não achei a atividade"))
             pontos.append(_ponto(feedback, None, "não achei a atividade"))
             continue
-        pontos.append(_ponto(rotulo, lab.get("enviado")))
+        # Na entrega de grupo o Moodle registra o envio por aluno, então a
+        # conta de quem não é o representante diz "você não enviou" mesmo com
+        # o trabalho entregue. Isso é cegueira, não falta, e falta é o que
+        # aparecia no placar dos dez pontos.
+        enviado = lab.get("enviado")
+        if lab is grupo and enviado is not True:
+            pontos.append(
+                _ponto(rotulo, None,
+                       "quem envia é o representante, e o AVA não mostra "
+                       "isso na sua conta")
+            )
+        else:
+            pontos.append(_ponto(rotulo, enviado))
         pendente = lab.get("avaliacao_pendente")
         pontos.append(
             _ponto(feedback, None, "só dá para saber quando a fase de "

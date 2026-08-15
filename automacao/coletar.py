@@ -24,6 +24,21 @@ from persistencia import carregar, gravar_json, normalizar_estado
 from pipeline import executar_coleta
 from saude import resumo_fontes, validar_cobertura
 
+def _com_fuso(iso):
+    """Data ISO com o fuso de Brasília garantido. Data ilegível vira ``None``.
+
+    Devolver ``None`` em vez de deixar passar é o que impede uma linha
+    digitada errada de virar "prova sem data" no meio da fila.
+    """
+    if not iso:
+        return None
+    try:
+        quando = datetime.fromisoformat(str(iso))
+    except ValueError:
+        return None
+    return (quando if quando.tzinfo else quando.replace(tzinfo=BR_TZ)).isoformat()
+
+
 def provas_conferidas_a_mao():
     """Provas registradas à mão, quando ainda valem.
 
@@ -36,6 +51,15 @@ def provas_conferidas_a_mao():
     """
     registro = carregar(PROVAS_PATH, None) or {}
     provas = registro.get("provas") or []
+    if not provas:
+        return {}
+    # Este arquivo é escrito à mão, e a mão esquece o fuso. Sem o ``-03:00`` a
+    # data vira "ingênua" e qualquer comparação com o agora do robô levanta
+    # TypeError: o site publicava a prova e o e-mail das 8h morria. Quem
+    # completa é aqui, uma vez, na entrada.
+    provas = [{**p, "inicio": _com_fuso(p.get("inicio")),
+               "fim": _com_fuso(p.get("fim"))} for p in provas]
+    provas = [p for p in provas if p.get("inicio")]
     if not provas:
         return {}
     vale_ate = registro.get("vale_ate")

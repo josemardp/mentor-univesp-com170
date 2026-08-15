@@ -45,6 +45,26 @@ O alerta de prazo só dispara com prazo **novo** (comparação entre dois retrat
 
 Fora daqui, o alarme de verdade: **`josemardp/vigia-univesp`** (privado, outra conta), rodando 09h e 19h. Faz a mesma pergunta e avisa **falhando**, para o GitHub mandar a notificação nativa de workflow quebrado. Sem SMTP de propósito: alarme que depende de cinco segredos bem configurados tem cinco jeitos novos de quebrar em silêncio. Se o Actions desta conta parar por inteiro, o vigia interno para junto e o externo continua — que era exatamente o buraco anotado aqui desde 10/08.
 
+## Auditoria independente do portal (15/08/2026, à tarde) — cinco defeitos, quatro deles de "silêncio virou afirmação"
+
+Uma segunda sessão auditou o trabalho da manhã, com acesso ao AVA e ao portal, e achou o que a implementação não tinha visto. Todos foram conferidos contra a tela antes de corrigir, e todos ganharam teste com o texto real.
+
+**O guia cobrou dele uma entrega que não era dele.** Em 15/08 a única tarefa "para hoje" era "Entregue e avalie: Q2 M7, vence hoje às 23:59", e a página do laboratório diz, em letras claras: "Apenas o representante do grupo deve realizar este envio". O representante era o colega. O Moodle registra envio por aluno, então a conta de quem não é representante sempre diz "você não enviou", e o guia lia isso como falta, tanto na fila quanto no placar dos dez pontos. A regra estava escrita aqui desde 14/08 e não tinha chegado ao código. Agora entrega de grupo sem envio na conta dele é **"não sei"**, com o verbo mudado para "Confirme com o grupo" e a explicação no cartão. É o mesmo desenho do `postei: None`.
+
+**A leitura dos posts parava no meio e sumia com fórum.** A varredura parava quando uma página não trazia nome de fórum novo, e não quando a lista acabava. Como ele posta várias vezes no mesmo fórum, página sem novidade é rotina: no COM170, a página 3 só repetia e o "S1 - Fórum de apresentação" estava na 4. Some do mapa quem nunca foi lido, e some em silêncio, virando "você não postou". Três premissas erradas no mesmo trecho, todas medidas na página real: a paginação é de **5 em 5**, não de 10 (com o teto antigo o guia via 25 posts, e o COM170 já tinha 23); o Moodle devolve página **vazia** no fim, não a última repetida; e o corte por teto não marcava `truncado`, contra a regra dos tetos. Corrigidos os três.
+
+**O boletim da secretaria nunca funcionou.** Dois defeitos empilhados: a tabela **não existe** quando se chega pela URL (só é montada quando o seletor de ano/semestre dispara um `change`), e o casamento exigia que a linha começasse pelo código da disciplina, quando ela começa pela turma. O resultado era lista vazia, indistinguível de "não tem nota", e por isso o bloco esteve morto o dia inteiro sem ninguém notar. A leitura passou a cutucar o seletor, a extrair por célula (não por posição de linha) e a **devolver `None` quando a tabela não vem**. As parcelas casam por par rótulo/valor, então texto novo entre os dois deixa de virar nota inventada.
+
+**A linha de saúde declarava 8 fontes com 10 lidas.** `portal` e `meus_posts` ficaram de fora da lista, então o portal podia estar parcial, com "o Sistema de Provas pediu verificação de robô" registrado, e o site dizia "li tudo agora, sem reaproveitar dados antigos". É a recorrência literal do defeito de 10/08 com boletim e participação. Agora a linha diz "não consegui cobrir completamente: portal do aluno", conferido no HTML publicado.
+
+**Data sem fuso no `provas.json` derrubava o e-mail das 8h.** O arquivo é escrito à mão, e a comparação com o agora do robô levanta `TypeError` numa data sem `-03:00`. O site publicava a prova e o e-mail morria. O fuso passou a ser completado na entrada, e o e-mail ficou tolerante por precaução. Junto: o arquivo prometia um `automacao/provas.py` que não existe; agora traz o passo a passo de verdade.
+
+Mais três acertos de texto, todos do tipo que confunde na hora errada: a aba "Como estou" continuava dizendo que **a prova presencial não é lida pelo guia**, três abas depois de a fila publicar dia e hora; a aba Secretaria mostrava a data **sem dizer de onde veio**; e a situação da disciplina saía como "Cursando" por padrão quando a leitura não achava nada, escondendo que a tela de notas mostra **"Cursando (Em Recuperação)"** em três disciplinas.
+
+Ficou um `[VERIFICAR]`: ninguém sabe o que "Em Recuperação" significa no SEI com todas as notas ainda em "--". Vale perguntar ao polo junto com o resto.
+
+E um reforço para a pergunta do COM170 sem prova: no boletim da secretaria, **COM170 é a única disciplina que tem só a parcela "ATIVIDADE AVA"**; as outras cinco têm ATIVIDADE AVA, PROVA, MÉDIA PARCIAL e EXAME. Não fecha a questão, mas aponta na mesma direção do calendário de provas.
+
 ## O portal do aluno entrou no guia (15/08/2026)
 
 O guia nasceu olhando só o AVA. O AVA é onde a aula acontece, mas não é onde a Univesp trata matrícula, prova e secretaria: isso mora no **portal do aluno** (`sei.univesp.br`), que é outro sistema, com login próprio. Enquanto o guia não olhava para lá, três coisas grandes ficavam invisíveis.

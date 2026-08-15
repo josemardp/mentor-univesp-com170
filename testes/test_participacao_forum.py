@@ -21,7 +21,13 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "automacao"))
 
 from dominio.acoes import montar_acoes  # noqa: E402
-from fontes.meus_posts import chave_forum, nome_do_forum  # noqa: E402
+from fontes.meus_posts import (  # noqa: E402
+    MAX_PAGINAS,
+    chave_forum,
+    ler,
+    nome_do_forum,
+    resultado,
+)
 
 falhas = []
 
@@ -173,6 +179,61 @@ checa(nome_do_forum("sem seta nenhuma") == "",
       "cabeçalho fora do formato não vira nome de fórum")
 checa(nome_do_forum("CURSO ->\n    -> Re: Missão da Semana 3") == "",
       "cabeçalho sem o nome do fórum não devolve o 'Re: ' no lugar dele")
+
+
+print("\n== paginação: parar no fim da lista, não no primeiro repetido ==")
+
+
+class PaginaFalsa:
+    """Devolve páginas de 5 posts, como o Moodle faz de verdade.
+
+    A terceira página repete fóruns já vistos e a quarta traz um fórum novo.
+    É o caso real do COM170 em 15/08, e era exatamente onde a leitura parava.
+    """
+
+    def __init__(self, paginas):
+        self.paginas = paginas
+        self.atual = 0
+        self.visitadas = []
+
+    def goto(self, url, **kwargs):
+        self.atual = int(url.split("page=")[1])
+        self.visitadas.append(self.atual)
+
+    def wait_for_timeout(self, *a):
+        pass
+
+    def evaluate(self, js):
+        if self.atual >= len(self.paginas):
+            return []
+        return [{"titulo": f"CURSO ->\n{nome}\n", "quando": "2026-08-01"}
+                for nome in self.paginas[self.atual]]
+
+
+PAGINAS = [
+    ["S4 - Fórum temático"] * 5,
+    ["S3 - Fórum temático"] * 5,
+    ["S3 - Fórum temático"] * 5,          # página inteira sem nome novo
+    ["S1 - Fórum de apresentação"] * 5,   # o que sumia
+]
+
+pagina = PaginaFalsa(PAGINAS)
+mapa, ok, truncado = ler(pagina, "134270", "18922")
+checa("s1 - forum de apresentacao" in mapa,
+      "fórum da quarta página é lido, mesmo com a terceira só repetindo")
+checa(ok and not truncado,
+      "lista que terminou não é leitura truncada")
+checa(pagina.visitadas[:5] == [0, 1, 2, 3, 4],
+      "a varredura só para quando a página vem vazia")
+
+cheia = PaginaFalsa([[f"Fórum {i}"] * 5 for i in range(MAX_PAGINAS + 2)])
+_, ok_cheia, truncado_cheio = ler(cheia, "134270", "18922")
+checa(ok_cheia and truncado_cheio,
+      "bater no teto de páginas é leitura incompleta, e sai marcada como tal")
+
+resultado_cheio = resultado(cheia, "134270", "18922", "2026-08-15T00:00:00")
+checa(resultado_cheio.truncado and resultado_cheio.problemas,
+      "e o corte chega ao site com o motivo, como manda a regra dos tetos")
 
 
 print("\n" + ("FALHOU: " + str(len(falhas)) if falhas else "TUDO OK"))

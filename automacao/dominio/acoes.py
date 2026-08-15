@@ -261,10 +261,30 @@ def _secao_cumprida(itens):
     return all(_item_resolvido(item) for item in rastreados)
 
 
+def entrega_de_grupo(item):
+    """Laboratório em que quem envia é o representante, não cada aluno.
+
+    O Moodle registra envio por aluno, então na conta de quem não é o
+    representante o campo ``enviado`` fica ``False`` mesmo com o trabalho
+    entregue. Isso não é ausência, é cegueira: o STATUS registra a regra desde
+    14/08 ("envio de representante não é verificável pela conta de quem não
+    enviou") e ela precisa valer no código, senão o guia cobra do Josemar uma
+    entrega que não é dele.
+    """
+    return item.get("type") == "workshop" and "grupo" in sem_acento(
+        item.get("label") or ""
+    )
+
+
 def _verbo_workshop(item):
     """Entregou mas ainda falta avaliar: o pedido muda de fase."""
     if item.get("enviado") is True and item.get("avaliacao_pendente") is True:
         return "Avalie", "o trabalho do colega"
+    # Entrega de grupo sem envio na conta dele não é "entregue": é o estado
+    # normal de quem não é o representante. O pedido vira o que de fato cabe
+    # a ele, que é confirmar com quem envia.
+    if entrega_de_grupo(item) and item.get("enviado") is not True:
+        return "Confirme com o grupo", "a entrega do representante"
     return verbo_de(item)
 
 
@@ -657,7 +677,15 @@ def provas_do_portal(dados, hoje, agora=None):
                 "prazo_txt": texto,
                 "prazo_fonte": _origem_da_prova(portal),
                 "fonte_url": None,
-                "autoridade": "institucional",
+                # O selo "aviso oficial" ao lado de "conferido à mão" dá a
+                # entender que a Univesp publicou aquela linha hoje. A data é
+                # oficial, a leitura é que foi humana, e o cartão precisa
+                # deixar isso separado.
+                "autoridade": (
+                    "conferido"
+                    if (portal or {}).get("provas_origem") == "conferido à mão"
+                    else "institucional"
+                ),
                 "carencia": None,
                 "hora_certa": True,
                 "urgencia": urgencia,
@@ -1093,6 +1121,17 @@ def montar_acoes(dados, hoje, agora=None):
                 }
                 if sem_entrega:
                     base["entrega_nao_confirmada"] = True
+                if entrega_de_grupo(item) and item.get("enviado") is not True:
+                    # Sem isto, o cartão de uma entrega que não é dele fica
+                    # com cara de tarefa atrasada no topo da fila, e foi o que
+                    # aconteceu em 15/08: "Entregue e avalie, vence hoje".
+                    base["explicacao"] = (
+                        "Quem envia é o representante do grupo. O AVA registra "
+                        "envio por aluno, então a sua conta vai dizer que você "
+                        "não enviou mesmo que o grupo tenha entregado. O que "
+                        "cabe a você aqui é confirmar com quem envia."
+                    )
+                    base["entrega_nao_confirmada"] = False
                 if item.get("aberto") is False:
                     encerrados.append(
                         {

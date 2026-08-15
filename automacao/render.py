@@ -198,6 +198,8 @@ def render_fontes_status(data):
         "notificacoes": "notificações",
         "boletim": "boletins",
         "participacao": "progresso de participação",
+        "meus_posts": "suas mensagens de fórum",
+        "portal": "portal do aluno",
     }
     # Esta linha existe pra responder "posso confiar no que estou lendo?".
     # A primeira versão saía em idioma de programador ("foruns: live (60,
@@ -206,9 +208,12 @@ def render_fontes_status(data):
     # e nome aos bois quando alguma fonte falha.
     # Boletim e participação ficavam de fora desta linha, então podiam falhar
     # dias seguidos enquanto a frase continuava dizendo "li tudo agora, sem
-    # reaproveitar dados antigos". Oito fontes lidas, oito fontes declaradas.
+    # reaproveitar dados antigos". O mesmo defeito voltou com as duas fontes
+    # novas: em 15/08 o portal estava parcial, com "o Sistema de Provas pediu
+    # verificação de robô" registrado, e a linha saía verde. Toda fonte lida é
+    # fonte declarada, sem exceção — é isso que impede a linha de mentir.
     ordem = ("disciplinas", "calendario", "cronograma", "foruns", "itens",
-             "notificacoes", "boletim", "participacao")
+             "notificacoes", "boletim", "participacao", "meus_posts", "portal")
     quantidades = {
         "disciplinas": "{n} disciplinas",
         "calendario": "{n} prazos no calendário",
@@ -217,6 +222,8 @@ def render_fontes_status(data):
         "notificacoes": "{n} notificações",
         "boletim": "{n} notas no boletim",
         "participacao": "{n} quinzenas de participação",
+        "meus_posts": "{n} fóruns em que você escreveu",
+        "portal": "{n} provas no portal",
     }
 
     horas, numeros, falhas, parciais, truncadas = set(), [], [], [], []
@@ -915,10 +922,21 @@ def render_composicao(data):
     """
     from dominio.avaliacao import lacuna_da_prova
 
+    # A data da prova deixou de ser lacuna em 15/08: ela vem do Sistema de
+    # Provas, no portal do aluno. Enquanto houver prova conhecida para a
+    # disciplina, este bloco não pode continuar dizendo que ninguém sabe a
+    # data, senão o site se contradiz na mesma página — a fila publica dia e
+    # hora e a aba "Como estou" diz que não é lida.
+    provas_por_curso = {
+        (prova.get("codigo") or "").upper()
+        for prova in ((data.get("portal") or {}).get("provas") or [])
+    }
     linhas = []
     for c in data.get("courses", []):
         lacuna = lacuna_da_prova(c)
         if not lacuna:
+            continue
+        if (c.get("code") or "").upper() in provas_por_curso:
             continue
         origem = f'aviso de {esc(lacuna.get("autor") or "facilitador")}'
         if lacuna.get("url"):
@@ -939,12 +957,13 @@ def render_composicao(data):
             )
         else:
             corpo = (
-                '<div class="acao-pe">Este guia acompanha só a parte do AVA. '
-                'A prova presencial não é lida por ele: a data e o local saem '
-                f'no <a href="{esc(lacuna["onde"])}" target="_blank" '
-                'rel="noopener">Sistema de Provas</a>, que tem login '
-                'separado. O guia fica de olho nos avisos: se um facilitador '
-                'disser a data, ela aparece aqui.</div>'
+                '<div class="acao-pe">Este guia acompanha a parte do AVA. '
+                'A prova presencial mora no '
+                f'<a href="{esc(lacuna["onde"])}" target="_blank" '
+                'rel="noopener">Sistema de Provas</a>, no portal do aluno, e '
+                'para esta disciplina ainda não há prova marcada lá. Quando '
+                'houver, ela aparece na aba Secretaria e na fila, com dia e '
+                'hora.</div>'
             )
         linhas.append(
             f'<li class="acao"><div class="acao-chips">'
@@ -1282,11 +1301,25 @@ def render_portal(data):
                 f'<span class="status ok">{modalidade}</span></div>'
                 f'<div class="acao-frase">{esc(prova.get("titulo") or "")}</div></li>'
             )
+        # A origem vai junto, como em todo prazo deste guia. Na fila ela já
+        # aparecia; aqui não, e era justamente aqui que alguém viria conferir
+        # a prova. Data sem origem é data sem validade.
+        origem = "lido no Sistema de Provas nesta rodada"
+        if portal.get("provas_origem") == "conferido à mão":
+            quando_conf = portal.get("provas_conferido_em")
+            origem = "conferido à mão no Sistema de Provas"
+            if quando_conf:
+                origem += f", em {esc(fmt_dm(quando_conf + 'T00:00:00'))}"
+            origem += (
+                ". O sistema de provas exige verificação de robô, então esta "
+                "data não é relida sozinha: vale reconferir a cada bimestre"
+            )
         blocos.append(
             '<p class="sub secao-novidade">Provas deste bimestre, no seu dia. '
             'O calendário geral lista vários dias por disciplina; estes são os '
             'seus.</p>'
             f'<ul class="acoes">{"".join(linhas)}</ul>'
+            f'<p class="sub">{origem}.</p>'
         )
 
     fora = portal.get("_so_no_portal") or []

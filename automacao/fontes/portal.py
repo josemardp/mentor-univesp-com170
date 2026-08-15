@@ -41,13 +41,17 @@ from datetime import datetime
 from playwright.sync_api import Error as PlaywrightError
 
 from configuracao import BR_TZ
+from dominio.datas import sem_acento
 from modelos import SourceResult
 
 PORTAL = "https://sei.univesp.br"
 LOGIN_URL = f"{PORTAL}/index.xhtml"
 TELA_INICIAL = f"{PORTAL}/visaoAluno/telaInicialVisaoAluno.xhtml"
 NOTAS_URL = f"{PORTAL}/visaoAluno/minhasNotasAlunos.xhtml"
-DISCIPLINAS_URL = f"{PORTAL}/visaoAluno/minhasDisciplinasAluno.xhtml"
+# A tela "Minhas Disciplinas" (``/visaoAluno/minhasDisciplinasAluno.xhtml``)
+# não é lida: a tela inicial já traz a mesma lista de matrículas, e uma página
+# a menos por rodada é uma chance a menos de a sessão de 44 minutos vencer no
+# meio da leitura.
 
 # O formulário de acesso do SEI tem duas entradas para a mesma senha: e-mail
 # institucional, que leva ao SSO SAML da Univesp (`login.univesp.br`, o mesmo
@@ -282,23 +286,34 @@ def _tentar_login(page, seletor, valor, senha):
     )
 
 
-def _logar(page):
-    """Entra no portal. Devolve (ok, motivo)."""
+def _logar(page, ja_funcionou=None):
+    """Entra no portal. Devolve ``(ok, motivo, identidade)``.
+
+    ``ja_funcionou`` é o caminho que deu certo na rodada anterior. Existindo,
+    é o único tentado: descobrir qual campo o portal quer é trabalho de uma
+    vez só, e repetir a descoberta a cada rodada significa bater duas vezes
+    por rodada, dez vezes por dia, numa conta institucional. Senha trocada
+    passa a custar uma recusa por rodada, não duas.
+    """
     senha = os.environ.get("AVA_SENHA")
     identidades = _identidades()
+    if ja_funcionou:
+        conhecida = [i for i in identidades if list(i) == list(ja_funcionou)]
+        if conhecida:
+            identidades = conhecida
     if not (identidades and senha):
-        return False, "sem credenciais para entrar no portal"
+        return False, "sem credenciais para entrar no portal", None
     motivo = ""
     for seletor, valor in identidades:
         ok, motivo = _tentar_login(page, seletor, valor, senha)
         if ok:
-            return True, motivo
+            return True, motivo, (seletor, valor)
         # Só vale insistir com outro caminho quando a recusa foi de credencial
         # ou quando a tela simplesmente não abriu o painel: pode ser o campo
         # errado para aquele identificador. Erro de navegação se repetiria.
         if "falhei ao entrar" in motivo or "mudou de formato" in motivo:
             break
-    return False, motivo
+    return False, motivo, None
 
 
 def _texto(page, url):
@@ -333,7 +348,11 @@ def ler_tela_inicial(page):
             {
                 "codigo": codigo,
                 "nome": casou.group(2).strip(),
-                "situacao": situacao or "Cursando",
+                # Sem "Cursando" de reserva: a situação vem da tela ou não vem.
+                # A tela de notas mostra "Cursando (Em Recuperação)" em três
+                # disciplinas, então o padrão silencioso escondia diferença
+                # real em vez de completar informação que faltava.
+                "situacao": situacao,
             }
         )
     return {
@@ -352,6 +371,12 @@ def _contador_de_recados(page):
     try:
         bruto = page.evaluate(
             """() => {
+                // O contador tem classe própria (.text-alerta-contador). Ela
+                // vem primeiro de propósito: pegar "o primeiro .badge da
+                // página" acerta hoje e passa a errar no dia em que aparecer
+                // qualquer outro selo numérico antes dele.
+                const proprio = document.querySelector('.text-alerta-contador');
+                if (proprio) return proprio.textContent.trim();
                 const alvo = document.querySelector(
                     '.badge, .rf-ind-stg, [class*=notifica] span, .fa-envelope + span'
                 );
@@ -369,41 +394,100 @@ def _contador_de_recados(page):
     return int(numero.group()) if numero else None
 
 
+# Cada linha da tabela vira uma lista de células. Ler por célula, e não pelo
+# texto corrido da página, é o que permite não depender da ordem das colunas
+# nem de quantas linhas separam um rótulo do seu valor.
+JS_LINHAS_DE_NOTA = """
+() => [...document.querySelectorAll('tbody tr')]
+  .map(tr => [...tr.querySelectorAll('td')]
+    .map(td => td.innerText.replace(/\\s+/g, ' ').trim()))
+  .filter(celulas => celulas.length >= 4)
+"""
+
+# "ATIVIDADE AVA -- PROVA -- MÉDIA PARCIAL -- EXAME --" numa célula só. O valor
+# é o que vem colado no rótulo, então o casamento é por par, não por posição:
+# linha intermediária nova (um "Peso 4", por exemplo) deixa de virar nota.
+RE_PARCELA = re.compile(
+    r"(ATIVIDADE AVA|M[ÉE]DIA PARCIAL|PROVA|EXAME)\s*(--|[\d.,]+)",
+    re.IGNORECASE,
+)
+RE_CODIGO_NOME = re.compile(r"^([A-Z]{3}\d{3})\s*-\s*(.+)$")
+RE_FREQUENCIA = re.compile(r"^[\d.,]+\s*\(%\)$")
+SITUACOES = ("cursando", "aprovado", "reprovado", "trancad", "cancelad")
+
+
 def ler_notas(page):
     """Boletim oficial da secretaria, que não é o boletim do Moodle.
 
-    Aqui aparecem as quatro parcelas que formam a média do bimestre
-    (atividade no AVA, prova, média parcial e exame) e a situação da
+    Aqui aparecem as quatro parcelas que formam a média do bimestre (atividade
+    no AVA, prova, média parcial e exame), a frequência e a situação da
     matrícula. É a única fonte que enxerga a nota da prova presencial.
+
+    Duas armadilhas, as duas confirmadas na tela em 15/08:
+
+    1. **A tabela não existe quando se chega pela URL.** A página carrega só o
+       cabeçalho e o seletor de ano/semestre, já preenchido, e a lista só é
+       montada quando esse seletor dispara um ``change``. Navegar e ler devolvia
+       lista vazia, que é indistinguível de "não tem nota".
+    2. **A linha não começa pelo código da disciplina**, começa pela turma
+       (``Valparaiso-BIA-BIA-1-1P-NOT``). Casar o código no início da linha
+       nunca deu certo, e como o resultado era lista vazia, o defeito ficou
+       invisível.
+
+    Devolve ``None`` quando a tabela não pôde ser lida. Lista vazia aqui seria
+    uma afirmação, e a afirmação estaria errada.
     """
-    texto = _texto(page, NOTAS_URL)
-    linhas = [l.strip() for l in texto.split("\n") if l.strip()]
-    notas, atual = [], None
-    for linha in linhas:
-        casou = RE_DISCIPLINA.match(linha)
-        if casou:
-            atual = {
-                "codigo": casou.group(1),
-                "nome": casou.group(2).strip(),
-                "parcelas": {},
-                "situacao": "",
+    page.goto(NOTAS_URL, wait_until="domcontentloaded", timeout=45000)
+    page.wait_for_timeout(1200)
+    linhas = page.evaluate(JS_LINHAS_DE_NOTA)
+    if not any(_codigo_da_linha(celulas) for celulas in linhas):
+        # Cutuca o seletor e espera a tabela nascer.
+        try:
+            page.evaluate(
+                """() => {
+                    const sel = document.querySelector('select');
+                    if (sel) sel.dispatchEvent(new Event('change', {bubbles:true}));
+                }"""
+            )
+            page.wait_for_timeout(3000)
+        except PlaywrightError:
+            return None
+        linhas = page.evaluate(JS_LINHAS_DE_NOTA)
+
+    notas = []
+    for celulas in linhas:
+        achado = _codigo_da_linha(celulas)
+        if not achado:
+            continue
+        codigo, nome = achado
+        parcelas, frequencia, situacao = {}, "", ""
+        for celula in celulas:
+            for rotulo, valor in RE_PARCELA.findall(celula):
+                rotulo = sem_acento(rotulo).upper().replace("MEDIA", "MÉDIA")
+                parcelas[rotulo] = "" if valor == "--" else valor
+            if RE_FREQUENCIA.match(celula):
+                frequencia = celula
+            elif any(s in sem_acento(celula) for s in SITUACOES):
+                situacao = celula
+        notas.append(
+            {
+                "codigo": codigo,
+                "nome": nome.strip(),
+                "frequencia": frequencia,
+                "parcelas": parcelas,
+                "situacao": situacao,
             }
-            notas.append(atual)
-            continue
-        if not atual:
-            continue
-        if linha.upper() in ("ATIVIDADE AVA", "PROVA", "MÉDIA PARCIAL", "EXAME"):
-            atual["_ultima"] = linha.upper()
-            continue
-        rotulo = atual.pop("_ultima", None)
-        if rotulo:
-            atual["parcelas"][rotulo] = "" if linha == "--" else linha
-        elif linha.startswith("Cursando") or linha.startswith("Aprovado") \
-                or linha.startswith("Reprovado"):
-            atual["situacao"] = linha
-    for nota in notas:
-        nota.pop("_ultima", None)
-    return notas
+        )
+    return notas or None
+
+
+def _codigo_da_linha(celulas):
+    """``(codigo, nome)`` da célula que tiver a disciplina, em qualquer coluna."""
+    for celula in celulas:
+        casou = RE_CODIGO_NOME.match(celula)
+        if casou:
+            return casou.group(1), casou.group(2)
+    return None
 
 
 def _abrir_sistema_de_provas(page):
@@ -550,7 +634,7 @@ def resultado(contexto, checked_at, cache=None):
 
     page = contexto.new_page()
     try:
-        ok, motivo = _logar(page)
+        ok, motivo, identidade = _logar(page, (cache or {}).get("_login_ok"))
         if not ok:
             return degradado([motivo])
         dados, problemas = {}, []
@@ -559,7 +643,13 @@ def resultado(contexto, checked_at, cache=None):
         except PlaywrightError:
             problemas.append("não consegui ler a tela inicial do portal")
         try:
-            dados["notas"] = ler_notas(page)
+            notas = ler_notas(page)
+            if notas is None:
+                problemas.append(
+                    "abri o boletim da secretaria mas não consegui ler a tabela"
+                )
+            else:
+                dados["notas"] = notas
         except PlaywrightError:
             problemas.append("não consegui ler as notas no portal")
         try:
@@ -571,12 +661,25 @@ def resultado(contexto, checked_at, cache=None):
         except PlaywrightError:
             problemas.append("não consegui abrir o Sistema de Provas")
 
-        if not dados:
-            return degradado(problemas or ["o portal não devolveu nada"])
+        # Sessão que cai no meio da leitura devolve as chaves vazias, e
+        # ``if not dados`` nunca dispara: o resultado sairia "live" com zero
+        # disciplinas, que é uma afirmação falsa sobre a matrícula dele. A
+        # prova de que houve leitura é a lista de disciplinas, não o dicionário.
+        if not dados.get("disciplinas"):
+            return degradado(
+                problemas
+                + ["li o portal sem encontrar disciplina nenhuma; trato como "
+                   "leitura falhada, não como matrícula vazia"]
+            )
         # Leitura parcial mantém o que veio e diz o que faltou. O guia já sabe
         # tratar fonte parcial; o que ele não pode é publicar meia leitura como
         # se fosse inteira.
         dados["checked_at"] = checked_at
+        # Guardar qual caminho de login funcionou vale por segurança, não por
+        # velocidade: sem isso, senha trocada gera duas recusas por rodada e
+        # dez por dia numa conta institucional, que é como se bloqueia acesso
+        # sem querer.
+        dados["_login_ok"] = identidade
         return SourceResult(
             status="parcial" if problemas else "live",
             dados=dados,

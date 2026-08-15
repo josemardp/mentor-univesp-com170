@@ -162,10 +162,20 @@ def bloco_provas(data):
     if not futuras:
         return []
     agora = datetime.now(BR_TZ)
-    futuras = [
-        p for p in futuras
-        if datetime.fromisoformat(p["inicio"]) >= agora
-    ]
+
+    def ainda_vem(prova):
+        # Cinto e suspensório: o coletor já completa o fuso de quem escreveu o
+        # provas.json à mão, mas o e-mail não pode ser o passo que morre se um
+        # dia entrar uma data torta por outro caminho.
+        try:
+            quando = datetime.fromisoformat(prova["inicio"])
+        except (ValueError, TypeError, KeyError):
+            return False
+        if not quando.tzinfo:
+            quando = quando.replace(tzinfo=BR_TZ)
+        return quando >= agora
+
+    futuras = [p for p in futuras if ainda_vem(p)]
     if not futuras:
         return []
     por_dia = {}
@@ -174,6 +184,8 @@ def bloco_provas(data):
     linhas = ["PROVA PRESENCIAL (portal do aluno)"]
     for inicio, doDia in por_dia.items():
         quando = datetime.fromisoformat(inicio)
+        if not quando.tzinfo:
+            quando = quando.replace(tzinfo=BR_TZ)
         faltam = (quando.date() - agora.date()).days
         disciplinas = ", ".join(p.get("codigo") or "?" for p in doDia)
         prazo = "hoje" if faltam == 0 else (

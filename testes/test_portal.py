@@ -20,7 +20,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "automacao"))
 
-from dominio.acoes import disciplinas_so_no_portal, provas_do_portal  # noqa: E402
+import json  # noqa: E402
+
+from dominio.acoes import (  # noqa: E402
+    disciplinas_so_no_portal,
+    montar_acoes,
+    provas_do_portal,
+)
 from fontes import portal  # noqa: E402
 from fontes.portal import (  # noqa: E402
     RE_ATIVIDADE,
@@ -156,6 +162,83 @@ checa(sem_portal == [],
       "sem leitura do portal não aparece prova nenhuma, nem inventada")
 
 
+print("\n== boletim da secretaria ==")
+
+# Linhas copiadas da tela em 15/08/2026, célula a célula. A primeira é a
+# tabela de coordenadas que o RichFaces deixa na página, e serve para provar
+# que linha sem disciplina não vira registro.
+LINHAS_REAIS = [
+    ["X", "Y", "largura", "altura"],
+    ["Valparaiso-BIA-BIA-1-1P-NOT", "SOC100 - Ética, cidadania e Sociedade",
+     "100.0(%)", "ATIVIDADE AVA -- PROVA -- MÉDIA PARCIAL -- EXAME --", "",
+     "Cursando (Em Recuperação)"],
+    ["Valparaiso-BIA-BIA-1-1P-NOT",
+     "COM170 - Inteligência Artificial na Prática Acadêmica e Profissional",
+     "100.0(%)", "ATIVIDADE AVA --", "", ""],
+]
+
+
+class PaginaDeNotas:
+    """A tela só monta a tabela depois que o seletor dispara ``change``."""
+
+    def __init__(self, linhas, precisa_cutucar=True):
+        self.linhas = linhas
+        self.precisa_cutucar = precisa_cutucar
+        self.cutucou = False
+
+    def goto(self, *a, **k):
+        pass
+
+    def wait_for_timeout(self, *a):
+        pass
+
+    def evaluate(self, js):
+        if "dispatchEvent" in js:
+            self.cutucou = True
+            return None
+        if self.precisa_cutucar and not self.cutucou:
+            return [["X", "Y", "largura", "altura"]]
+        return self.linhas
+
+
+tela = PaginaDeNotas(LINHAS_REAIS)
+notas = portal.ler_notas(tela)
+checa(tela.cutucou,
+      "a tabela não vem pela URL: o seletor de ano/semestre é acionado")
+checa([n["codigo"] for n in notas] == ["SOC100", "COM170"],
+      "a disciplina é achada mesmo a linha começando pela turma")
+checa(notas[0]["situacao"] == "Cursando (Em Recuperação)",
+      "a situação real é publicada, e não um 'Cursando' de reserva")
+checa(notas[0]["frequencia"] == "100.0(%)", "a frequência sai junto")
+checa(list(notas[0]["parcelas"]) ==
+      ["ATIVIDADE AVA", "PROVA", "MÉDIA PARCIAL", "EXAME"],
+      "as quatro parcelas do bimestre são lidas")
+checa(list(notas[1]["parcelas"]) == ["ATIVIDADE AVA"],
+      "COM170 tem só a parcela do AVA, e isso é dado, não falha de leitura")
+
+COM_NOTA = [["Valparaiso-BIA-BIA-1-1P-NOT", "COM100 - Pensamento Computacional",
+             "100.0(%)",
+             "ATIVIDADE AVA 5,40 PROVA 8,50 MÉDIA PARCIAL 7,26 EXAME --", "",
+             "Aprovado"]]
+com_nota = portal.ler_notas(PaginaDeNotas(COM_NOTA))[0]
+checa(com_nota["parcelas"]["PROVA"] == "8,50"
+      and com_nota["parcelas"]["ATIVIDADE AVA"] == "5,40",
+      "com nota preenchida, cada valor fica no seu rótulo")
+
+# O pareamento é por par rótulo/valor, não por posição: uma linha nova entre
+# os dois deixa de virar nota. Antes, "Peso 4" viraria a nota do AVA.
+RUIDO = [["Valparaiso", "COM100 - Pensamento Computacional", "100.0(%)",
+          "ATIVIDADE AVA Peso 4 5,40 PROVA 8,50", "", "Cursando"]]
+ruido = portal.ler_notas(PaginaDeNotas(RUIDO))[0]
+checa(ruido["parcelas"].get("ATIVIDADE AVA") is None
+      and ruido["parcelas"]["PROVA"] == "8,50",
+      "texto estranho entre rótulo e valor não vira nota inventada")
+
+checa(portal.ler_notas(PaginaDeNotas([["X", "Y", "largura", "altura"]],
+                                     precisa_cutucar=False)) is None,
+      "tabela que não veio devolve None: vazio aqui seria uma afirmação falsa")
+
+
 print("\n== de onde veio a data da prova ==")
 
 # O Sistema de Provas fica atrás de verificação anti-robô, que não se contorna
@@ -199,6 +282,49 @@ checa(disciplinas_so_no_portal({"courses": [], "portal": DADOS["portal"]}) == []
 
 checa(disciplinas_so_no_portal({"courses": [{"code": "COM100"}]}) == [],
       "sem leitura do portal também não acusa nada")
+
+
+print("\n== entrega de grupo não é falta de quem não é representante ==")
+
+GRUPO = {
+    "courses": [{
+        "id": "18922", "code": "COM170", "modelo": "quinzena", "avisos": [],
+        "sections": [{
+            "id": "q2m7", "title": "Q2 Módulo 7",
+            "items": [{
+                "cmid": "215612",
+                "label": "Q2 M7 - Revisão entre pares (Portfólio em grupo)",
+                "type": "workshop",
+                "url": "https://ava.univesp.br/mod/workshop/view.php?id=215612",
+                "status": "Pendente", "conta_nota": True,
+                "enviado": False, "avaliacao_pendente": None,
+                "prazo": "2026-08-15T23:59:00-03:00",
+            }],
+        }],
+    }],
+    "eventos": [],
+}
+acoes_grupo, _, _, _ = montar_acoes(
+    GRUPO, date(2026, 8, 15),
+    agora=datetime(2026, 8, 15, 10, 0, tzinfo=timezone(timedelta(hours=-3))),
+)
+cartao = acoes_grupo[0]
+checa(cartao["verbo"] == "Confirme com o grupo",
+      "o pedido é confirmar com quem envia, não entregar")
+checa("representante" in (cartao.get("explicacao") or ""),
+      "e o cartão explica que o envio é do representante")
+checa(cartao.get("entrega_nao_confirmada") is not True,
+      "não sai marcado como entrega faltando, porque não é falta dele")
+
+INDIVIDUAL = json.loads(json.dumps(GRUPO))
+item = INDIVIDUAL["courses"][0]["sections"][0]["items"][0]
+item["label"] = "Q2 M6 - Revisão entre pares (colega)"
+acoes_ind, _, _, _ = montar_acoes(
+    INDIVIDUAL, date(2026, 8, 15),
+    agora=datetime(2026, 8, 15, 10, 0, tzinfo=timezone(timedelta(hours=-3))),
+)
+checa(acoes_ind[0]["verbo"] != "Confirme com o grupo",
+      "a entrega individual continua sendo cobrança dele, como sempre foi")
 
 
 print("\n== qual usuário o portal quer ==")

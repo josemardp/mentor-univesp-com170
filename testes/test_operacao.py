@@ -753,8 +753,27 @@ checa(composicao_da_nota({"avisos": [
 
 html_c = R.render_composicao({"courses": [
     {"code": "COM100", "avisos": [aviso_com100]}]})
-checa("60% prova presencial" in html_c and "login separado" in html_c,
+checa("60% prova presencial" in html_c and "Sistema de Provas" in html_c,
       "o site diz o que não acompanha, em vez de omitir")
+
+# Desde 15/08 a data da prova é lida no portal do aluno. Onde ela existe, este
+# bloco não pode continuar dizendo que o guia não a acompanha: a fila publica
+# dia e hora três abas antes, e o site passava a se contradizer sozinho.
+html_com_prova = R.render_composicao({
+    "courses": [{"code": "COM100", "avisos": [aviso_com100]}],
+    "portal": {"provas": [{"codigo": "COM100",
+                           "inicio": "2026-11-05T19:40:00-03:00"}]},
+})
+checa(html_com_prova == "",
+      "disciplina com prova conhecida sai do bloco de 'o que não acompanho'")
+
+html_sem_prova = R.render_composicao({
+    "courses": [{"code": "COM100", "avisos": [aviso_com100]}],
+    "portal": {"provas": [{"codigo": "SOC100",
+                           "inicio": "2026-11-05T19:40:00-03:00"}]},
+})
+checa("Sistema de Provas" in html_sem_prova,
+      "prova de outra disciplina não silencia a lacuna desta")
 checa(R.render_composicao({"courses": [{"code": "X", "avisos": []}]}) == "",
       "sem aviso oficial, o guia fica calado sobre a composição")
 
@@ -975,8 +994,9 @@ html_prova = R.render_composicao({"courses": [
 checa("20/09" in html_prova and "Sistema de Provas" in html_prova,
       "o site mostra a data achada e ainda manda confirmar na fonte oficial")
 sem_data = R.render_composicao({"courses": [_curso_com("Bons estudos.")]})
-checa("se um facilitador disser a data, ela aparece aqui" in sem_data,
-      "sem data, o guia diz que está procurando, não só que não sabe")
+checa("ainda não há prova marcada" in sem_data
+      and "aba Secretaria" in sem_data,
+      "sem prova marcada, o guia diz onde ela vai aparecer quando existir")
 
 print("\n== Recado da mentora: escrita e envelhecimento ==")
 
@@ -1114,12 +1134,19 @@ checa([p["nome"] for p in placar["pontos"]][:4]
       "os quatro módulos vêm do painel oficial, em ordem")
 checa(placar["pontos"][-1]["nome"] == "Qualidade da participação",
       "a qualidade da participação fecha a lista")
-checa(placar["atendidos"] == 4 and placar["pendentes"] == 3,
-      "estado real de 13/08: 4 contaram, 3 faltam")
+checa(placar["atendidos"] == 4 and placar["pendentes"] == 2,
+      "4 contaram e 2 faltam de verdade (a entrega de grupo não é falta dele)")
 por_nome = {p["nome"]: p for p in placar["pontos"]}
-checa(por_nome["Entrega individual do portfólio"]["atendido"] is False
-      and por_nome["Entrega de grupo"]["atendido"] is False,
-      "as duas entregas viram ponto próprio, lidas do Laboratório")
+checa(por_nome["Entrega individual do portfólio"]["atendido"] is False,
+      "a entrega individual sem envio é falta, e essa é dele mesmo")
+# O Moodle registra envio por aluno. Na conta de quem não é o representante,
+# a entrega do grupo aparece como "você não enviou" mesmo entregue, e isso
+# virava falta no placar e cobrança no topo da fila. Em 15/08 o guia pediu ao
+# Josemar, como única tarefa do dia, uma entrega que era do colega.
+checa(por_nome["Entrega de grupo"]["atendido"] is None,
+      "entrega de grupo sem envio na conta dele é 'não sei', não 'falta'")
+checa("representante" in (por_nome["Entrega de grupo"]["detalhe"] or ""),
+      "e o site explica que quem envia é o representante")
 checa(por_nome["Participação em uma live"]["atendido"] is None,
       "presença em live é None, nunca False: o guia não consegue conferir")
 checa("não consegue conferir" in por_nome["Participação em uma live"]["detalhe"],
