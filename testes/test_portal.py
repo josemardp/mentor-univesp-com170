@@ -164,15 +164,20 @@ for chave in ("PORTAL_USUARIO", "AVA_USUARIO"):
     os.environ.pop(chave, None)
 
 os.environ["AVA_USUARIO"] = "90011122@aluno.univesp.br"
-checa(portal._identidades() == ["90011122", "90011122@aluno.univesp.br"],
-      "o registro acadêmico sai do e-mail e é tentado primeiro")
+checa(
+    portal._identidades() == [
+        (portal.CAMPO_USUARIO, "90011122"),
+        (portal.CAMPO_EMAIL, "90011122@aluno.univesp.br"),
+    ],
+    "o registro acadêmico vai no campo Usuário e o e-mail no campo E-mail",
+)
 
 os.environ["AVA_USUARIO"] = "90011122"
-checa(portal._identidades() == ["90011122"],
+checa(portal._identidades() == [(portal.CAMPO_USUARIO, "90011122")],
       "usuário já sem @ não vira duas tentativas iguais")
 
 os.environ["PORTAL_USUARIO"] = "outro"
-checa(portal._identidades()[0] == "outro",
+checa(portal._identidades()[0] == (portal.CAMPO_USUARIO, "outro"),
       "PORTAL_USUARIO, quando existe, tem a palavra final")
 
 for chave in ("PORTAL_USUARIO", "AVA_USUARIO"):

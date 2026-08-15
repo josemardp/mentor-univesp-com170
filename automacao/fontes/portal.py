@@ -53,6 +53,7 @@ DISCIPLINAS_URL = f"{PORTAL}/visaoAluno/minhasDisciplinasAluno.xhtml"
 # leva ao SSO da Microsoft) e usuário/senha local. A segunda é a que aceita as
 # mesmas credenciais do AVA, e é a única que dá para automatizar sem MFA.
 CAMPO_USUARIO = "#form\\:usuario"
+CAMPO_EMAIL = "#form\\:email"
 CAMPO_SENHA = "#form\\:senha"
 # "Entrar" é um <a> que chama RichFaces.ajax, não um submit. Apertar Enter no
 # campo da senha não envia nada, e foi assim que a primeira rodada na nuvem
@@ -99,36 +100,40 @@ def _logado(page):
 
 
 def _identidades():
-    """Quem tentar como usuário, na ordem, com a mesma senha.
+    """Como tentar entrar, na ordem. Cada item é ``(campo, valor)``.
 
-    A tela de acesso do SEI tem dois caminhos e eles querem coisas
-    diferentes. O campo "E-mail institucional" quer o endereço inteiro
-    (``90011122@aluno.univesp.br``) e leva ao SSO da Microsoft. O campo
-    "Usuário", que é o que dá para automatizar, quer só o **registro
-    acadêmico** (``90011122``), como mostra o gerenciador de senhas dele, que
-    guarda essa entrada separada para ``sei.univesp.br``.
+    A tela tem dois campos e **um só botão "Entrar"**, então os dois caminhos
+    valem com a mesma senha, e a diferença está em qual campo recebe o quê:
 
-    Como o registro acadêmico é justamente a parte do e-mail antes do ``@``,
-    ele é derivado aqui em vez de virar mais um segredo para manter em dia. A
-    parte local vem primeiro porque é o que o campo espera; o valor inteiro
-    fica como segunda tentativa para o caso de o formato do e-mail mudar.
+    - ``form:usuario`` quer o **registro acadêmico** (``90011122``). É o que o
+      gerenciador de senhas dele guarda para ``sei.univesp.br``.
+    - ``form:email`` quer o **endereço inteiro**
+      (``90011122@aluno.univesp.br``), o mesmo do AVA.
 
-    ``PORTAL_USUARIO`` continua existindo para quando nada disso servir, e
-    tem prioridade sobre as duas.
+    Preencher o e-mail no campo do usuário não é a mesma coisa que usar o
+    caminho do e-mail, e era esse o erro da versão anterior. Agora cada valor
+    vai no campo que o espera. O registro acadêmico vem primeiro por ser o
+    caminho local, sem redirecionamento; o e-mail fica como segunda tentativa.
+
+    O registro acadêmico é derivado do e-mail em vez de virar mais um segredo
+    para manter em dia. ``PORTAL_USUARIO``, quando existe, tem prioridade.
     """
     vistos, ordem = set(), []
 
-    def juntar(valor):
+    def juntar(campo, valor):
         valor = (valor or "").strip()
-        if valor and valor not in vistos:
-            vistos.add(valor)
-            ordem.append(valor)
+        chave = (campo, valor)
+        if valor and chave not in vistos:
+            vistos.add(chave)
+            ordem.append(chave)
 
-    juntar(os.environ.get("PORTAL_USUARIO"))
+    juntar(CAMPO_USUARIO, os.environ.get("PORTAL_USUARIO"))
     do_ava = (os.environ.get("AVA_USUARIO") or "").strip()
     if "@" in do_ava:
-        juntar(do_ava.split("@", 1)[0])
-    juntar(do_ava)
+        juntar(CAMPO_USUARIO, do_ava.split("@", 1)[0])
+        juntar(CAMPO_EMAIL, do_ava)
+    else:
+        juntar(CAMPO_USUARIO, do_ava)
     return ordem
 
 
@@ -149,29 +154,114 @@ def _erro_visivel(page):
     return ""
 
 
-def _tentar_login(page, usuario, senha):
-    """Uma tentativa completa. Devolve (ok, motivo)."""
+def _escolher_perfil_aluno(page):
+    """O SEI atende aluno, professor e coordenador na mesma porta.
+
+    Depois de autenticar, ele pode parar numa tela de escolha de perfil em vez
+    de abrir direto o painel. Quem não clica ali fica numa página que não é a
+    de login nem a do aluno, que é exatamente o estado em que as rodadas de
+    15/08 empacaram.
+
+    Silencioso de propósito: se o botão não existe, é porque não havia escolha
+    a fazer.
+    """
+    for seletor in ("#panelAlunoFirstHref", '[name="panelAlunofirstHref"]'):
+        alvo = page.locator(seletor).first
+        try:
+            if alvo.count() and alvo.is_visible():
+                alvo.click()
+                page.wait_for_timeout(3000)
+                page.wait_for_load_state("domcontentloaded", timeout=30000)
+                return True
+        except PlaywrightError:
+            continue
+    return False
+
+
+def _onde_parou(page):
+    """Caminho da página atual, sem query string.
+
+    A query do SEI carrega token de sessão, então ela não entra em log. O
+    caminho basta para distinguir "parou no login", "parou na escolha de
+    perfil" e "chegou e eu não reconheci a tela".
+    """
+    url = page.url or ""
+    return url.split("?")[0].replace(PORTAL, "") or "(sem url)"
+
+
+def _passar_pelo_sso(page, senha):
+    """A tela do ``login.univesp.br``, quando o caminho do e-mail cai nela.
+
+    O campo "E-mail institucional" não é um login local: ele manda para o SSO
+    SAML da Univesp, o mesmo do AVA. Duas coisas podem acontecer ali, e as
+    duas são normais:
+
+    - a sessão SAML ainda vale, e o SSO devolve para o portal já autenticado,
+      sem pedir nada. É o caso comum quando o robô acabou de entrar no AVA
+      pelo mesmo navegador;
+    - a sessão não vale, e ele mostra o e-mail já preenchido pedindo só a
+      senha.
+
+    Devolve ``True`` quando havia uma tela de senha e ela foi preenchida.
+    """
+    if "login.univesp.br" not in (page.url or ""):
+        return False
+    campo = page.locator('input[type="password"]').first
+    if not (campo.count() and campo.is_visible()):
+        return False
+    campo.fill(senha)  # o valor não vai pra log
+    botao = page.locator(
+        'button[type="submit"], input[type="submit"], #loginbtn'
+    ).first
+    if botao.count():
+        botao.click()
+    else:
+        campo.press("Enter")
+    page.wait_for_timeout(4000)
+    page.wait_for_load_state("domcontentloaded", timeout=30000)
+    return True
+
+
+def _tentar_login(page, seletor, valor, senha):
+    """Uma tentativa completa, pelo campo indicado. Devolve (ok, motivo)."""
+    pelo_sso = seletor == CAMPO_EMAIL
     try:
         page.goto(LOGIN_URL, wait_until="domcontentloaded", timeout=45000)
         page.wait_for_timeout(1000)
-        campo = page.locator(CAMPO_USUARIO).first
+        campo = page.locator(seletor).first
         if not campo.count():
             return False, "a tela de login do portal mudou de formato"
-        campo.fill(usuario)
-        page.locator(CAMPO_SENHA).first.fill(senha)  # o valor não vai pra log
+        campo.fill(valor)
+        # No caminho do e-mail a senha não é digitada aqui: quem pergunta por
+        # ela é o SSO, na tela seguinte, e às vezes nem pergunta.
+        if not pelo_sso:
+            page.locator(CAMPO_SENHA).first.fill(senha)
         botao = page.locator(BOTAO_ENTRAR).first
         if not botao.count():
             return False, 'não achei o botão "Entrar" na tela de login do portal'
         botao.click()
         page.wait_for_timeout(4000)
         page.wait_for_load_state("domcontentloaded", timeout=30000)
+        if pelo_sso:
+            _passar_pelo_sso(page, senha)
+        if not _logado(page):
+            _escolher_perfil_aluno(page)
+        if not _logado(page):
+            # Autenticado, o SEI pode devolver para a raiz em vez da tela do
+            # aluno; sem este passo um login bem-sucedido parecia falha.
+            page.goto(TELA_INICIAL, wait_until="domcontentloaded",
+                      timeout=45000)
+            page.wait_for_timeout(1500)
     except PlaywrightError as erro:
         return False, f"falhei ao entrar no portal ({type(erro).__name__})"
     if _logado(page):
         return True, "entrei no portal"
+    recusa = _erro_visivel(page)
+    if recusa:
+        return False, recusa
     return False, (
-        _erro_visivel(page)
-        or "o portal não abriu a tela do aluno depois do login"
+        "o portal não abriu a tela do aluno depois do login "
+        f"(parou em {_onde_parou(page)})"
     )
 
 
@@ -182,13 +272,14 @@ def _logar(page):
     if not (identidades and senha):
         return False, "sem credenciais para entrar no portal"
     motivo = ""
-    for usuario in identidades:
-        ok, motivo = _tentar_login(page, usuario, senha)
+    for seletor, valor in identidades:
+        ok, motivo = _tentar_login(page, seletor, valor, senha)
         if ok:
             return True, motivo
-        # Só vale insistir com outra identidade quando a recusa foi de
-        # credencial. Tela mudada ou erro de navegação se repetiria igual.
-        if "recusou" not in motivo:
+        # Só vale insistir com outro caminho quando a recusa foi de credencial
+        # ou quando a tela simplesmente não abriu o painel: pode ser o campo
+        # errado para aquele identificador. Erro de navegação se repetiria.
+        if "falhei ao entrar" in motivo or "mudou de formato" in motivo:
             break
     return False, motivo
 
