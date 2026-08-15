@@ -444,8 +444,10 @@ def ler_provas(page):
     aba, problema = _abrir_sistema_de_provas(page)
     if not aba:
         return None, problema
+    onde = ""
     try:
         texto = aba.locator("body").inner_text()
+        onde = (aba.url or "").split("?")[0]
     except PlaywrightError:
         texto = ""
     finally:
@@ -461,8 +463,14 @@ def ler_provas(page):
     # (ou qualquer tela nova) viraria "você não tem prova marcada", que é a
     # frase mais perigosa que este guia pode dizer.
     if not RE_TELA_DE_PROVAS.search(texto):
+        # O começo do texto e a URL sem query dizem, na próxima rodada, se ele
+        # ficou na página de espera, se caiu numa tela de erro ou se o
+        # calendário mudou de cara. Sem isso o diagnóstico é adivinhação, e
+        # cada tentativa custa uma rodada inteira.
         return None, (
-            "abri o Sistema de Provas mas não reconheci a tela do calendário"
+            "abri o Sistema de Provas mas não reconheci a tela do calendário "
+            f"(parou em {onde or 'url desconhecida'}; a tela começa com "
+            f"\"{' '.join(texto.split())[:120]}\")"
         )
 
     ano_corrente = datetime.now(BR_TZ).year
