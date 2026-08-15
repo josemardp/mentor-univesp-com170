@@ -1125,11 +1125,17 @@ def montar_acoes(dados, hoje, agora=None):
                     # Sem isto, o cartão de uma entrega que não é dele fica
                     # com cara de tarefa atrasada no topo da fila, e foi o que
                     # aconteceu em 15/08: "Entregue e avalie, vence hoje".
+                    # O guia não sabe quem é o representante da quinzena, e
+                    # essa é a parte que não pode ficar implícita: trocar
+                    # "entregue" por "confirme" resolve a cobrança falsa e
+                    # abre a chance de calar justo na quinzena em que o
+                    # representante é ele. As duas metades vão escritas.
                     base["explicacao"] = (
-                        "Quem envia é o representante do grupo. O AVA registra "
-                        "envio por aluno, então a sua conta vai dizer que você "
-                        "não enviou mesmo que o grupo tenha entregado. O que "
-                        "cabe a você aqui é confirmar com quem envia."
+                        "O AVA registra envio por aluno, então a sua conta diz "
+                        "que você não enviou mesmo que o grupo tenha "
+                        "entregado. Se o representante desta quinzena é outra "
+                        "pessoa, confirme com ela. Se for você, o envio é seu "
+                        "e ainda não consta."
                     )
                     base["entrega_nao_confirmada"] = False
                 if item.get("aberto") is False:

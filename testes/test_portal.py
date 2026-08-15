@@ -313,6 +313,11 @@ checa(cartao["verbo"] == "Confirme com o grupo",
       "o pedido é confirmar com quem envia, não entregar")
 checa("representante" in (cartao.get("explicacao") or ""),
       "e o cartão explica que o envio é do representante")
+# O guia não sabe quem representa o grupo nesta quinzena. Dizer só "confirme
+# com o representante" cala justo na quinzena em que o representante é ele,
+# que foi o caso da Quinzena 1: ele enviou o M7 em 31/07.
+checa("Se for você, o envio é seu" in (cartao.get("explicacao") or ""),
+      "e cobre o caso de o representante ser ele mesmo")
 checa(cartao.get("entrega_nao_confirmada") is not True,
       "não sai marcado como entrega faltando, porque não é falta dele")
 
