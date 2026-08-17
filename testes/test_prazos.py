@@ -413,6 +413,47 @@ _, txt = C.urgencia_de("2026-07-26T23:59:00-03:00", HOJE, hora_certa=False)
 checa("horário não informado" in txt, "sem hora na fonte, o texto avisa em vez de inventar")
 
 # ---------------------------------------------------------------------------
+print("\n== Mês da célula no calendário da quinzena (17/08) ==")
+
+# A legenda da Quinzena 3 atravessa dois meses e o código pegava o último mês
+# escrito: os prazos de 23 e 29 de agosto foram para o ar como 23/09 e 29/09,
+# com confiança alta, na fila e no e-mail.
+from fontes.instrucoes import data_da_celula, janela_da_legenda  # noqa: E402
+
+Q3 = janela_da_legenda(
+    "Calendário da Quinzena 3, de 16 de agosto a 1º de setembro de 2026, "
+    "com as etapas e os prazos."
+)
+checa(Q3 is not None, "legenda que atravessa dois meses continua sendo lida")
+checa(data_da_celula(23, Q3) == (2026, 8),
+      "o dia 23 da Quinzena 3 é de agosto, não de setembro")
+checa(data_da_celula(29, Q3) == (2026, 8),
+      "a entrega do dia 29 é de agosto, não de setembro")
+checa(data_da_celula(1, Q3) == (2026, 9),
+      "o dia 1º, esse sim, é do mês do fim do intervalo")
+checa(data_da_celula(10, Q3) is None,
+      "dia fora do intervalo declarado não vira data chutada")
+
+Q2 = janela_da_legenda(
+    "Calendário da Quinzena 2, de 3 a 18 de agosto de 2026, com as etapas "
+    "e os prazos."
+)
+checa(Q2 is not None and Q2["numero"] == 2,
+      "legenda de um mês só continua lida, com o número da quinzena")
+checa(data_da_celula(9, Q2) == (2026, 8) and data_da_celula(15, Q2) == (2026, 8),
+      "os prazos da Quinzena 2 seguem em agosto")
+checa(data_da_celula(25, Q2) is None,
+      "dia depois do fim do intervalo não entra")
+
+VIRADA = janela_da_legenda(
+    "Calendário da Semana 7, de 28 de dezembro a 3 de janeiro de 2027."
+)
+checa(VIRADA and data_da_celula(30, VIRADA) == (2026, 12),
+      "quinzena que vira o ano guarda dezembro em 2026")
+checa(VIRADA and data_da_celula(2, VIRADA) == (2027, 1),
+      "e janeiro em 2027")
+
+# ---------------------------------------------------------------------------
 print("\n" + "=" * 62)
 if falhas:
     print(f"{len(falhas)} FALHA(S):")

@@ -45,6 +45,12 @@ jobs:
           python testes/test_workshop_enviado.py
           python testes/test_login.py
           python testes/test_operacao.py
+          # Estes três existiam desde 15/08 e nunca rodaram aqui: ficaram de
+          # fora da lista quando foram escritos. Teste que não roda no CI é
+          # teste que ninguém sabe que quebrou.
+          python testes/test_participacao_forum.py
+          python testes/test_portal.py
+          python testes/test_revisao_entre_pares.py
 
       # A sessão salva (Secret AVA_STORAGE_STATE) saiu em 13/08/2026. Ela era
       # um atalho para pular o login, e o log da rodada mostrou que o atalho

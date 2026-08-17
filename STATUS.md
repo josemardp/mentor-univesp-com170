@@ -45,6 +45,18 @@ O alerta de prazo só dispara com prazo **novo** (comparação entre dois retrat
 
 Fora daqui, o alarme de verdade: **`josemardp/vigia-univesp`** (privado, outra conta), rodando 09h e 19h. Faz a mesma pergunta e avisa **falhando**, para o GitHub mandar a notificação nativa de workflow quebrado. Sem SMTP de propósito: alarme que depende de cinco segredos bem configurados tem cinco jeitos novos de quebrar em silêncio. Se o Actions desta conta parar por inteiro, o vigia interno para junto e o externo continua — que era exatamente o buraco anotado aqui desde 10/08.
 
+## Auditoria de 17/08/2026 (fim de tarde): o mês da Quinzena 3 saiu errado
+
+**Corrigido: os dois prazos da Quinzena 3 estavam um mês adiantados no site e no e-mail.** A fila publicava "Quinzena 3 · Prazo módulos 1 a 4, vence 23/09" e "Prazo entrega, vence 29/09", com confiança alta, quando a própria página de instruções diz 23 e 29 **de agosto**. A tabela-calendário da quinzena dá só o número do dia na célula ("23 PRAZO MÓDULOS 1 A 4") e o mês tem que vir da legenda. A legenda da Q2 cabia num mês só ("de 3 a 18 de agosto de 2026") e o regex pegava o último mês escrito, o que funcionava por acaso. A legenda da Q3 atravessa dois meses ("de 16 de agosto a 1º de setembro de 2026") e o último mês escrito é setembro.
+
+Foi o defeito mais caro achado até aqui, porque não fez o guia calar: fez ele afirmar, com a etiqueta de fonte oficial, uma data com seis dias de folga a mais do que existe. E o mesmo aviso já tinha sido lido certo pelo caminho do texto corrido, que publicou 23/08 e 29/08 no bloco "confirme se é prazo". As duas leituras da mesma página discordavam na tela e ninguém tinha como notar.
+
+Agora a legenda é lida como intervalo, com as duas pontas separadas, e cada célula recebe o mês da ponta em que o dia cabe. Quinzena que vira o ano ganha o ano certo em cada ponta. Dia que não cabe no intervalo declarado não vira data nenhuma: legenda e tabela discordando é motivo para calar, não para escolher. Testado em `testes/test_prazos.py` com as três legendas reais.
+
+**Três suítes de teste nunca rodaram no CI.** `test_participacao_forum.py`, `test_portal.py` e `test_revisao_entre_pares.py` nasceram em 15/08 e ficaram fora da lista do `guia-diario.yml`. Passam todas, mas isso é sorte: teste que não roda no CI é teste que ninguém sabe que quebrou. Entraram na lista.
+
+**A rodada das 14h falhou por causa do GitHub, não do robô.** O Pages respondeu 503 ("No server is currently available") nas duas tentativas de deploy, o passo de espera desistiu depois de 8 minutos e o e-mail de falha saiu falando em senha vencida e mudança de layout do Moodle, nada disso. O site ficou servindo o retrato das 11h29 por seis horas, e a rodada das 17h resolveu sozinha. Fica anotado como pendência: o passo de deploy não tem repetição, e o aviso de falha não sabe distinguir "o AVA me barrou" de "o Pages estava fora".
+
 ## Auditoria independente do portal (15/08/2026, à tarde) — cinco defeitos, quatro deles de "silêncio virou afirmação"
 
 Uma segunda sessão auditou o trabalho da manhã, com acesso ao AVA e ao portal, e achou o que a implementação não tinha visto. Todos foram conferidos contra a tela antes de corrigir, e todos ganharam teste com o texto real.

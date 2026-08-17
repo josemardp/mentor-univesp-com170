@@ -37,12 +37,74 @@ def paginas_de_instrucao(secoes):
     return achadas[:MAX_PAGINAS]
 
 
+# A legenda descreve um intervalo, e o intervalo pode atravessar dois meses:
+# "de 3 a 18 de agosto de 2026" fica num mês só, "de 16 de agosto a 1º de
+# setembro de 2026" não. Por isso as duas pontas são capturadas separadas.
 CAPTION_RE = re.compile(
-    r"calend[áa]rio da (quinzena|semana)\s*(\d+).{0,80}?de\s+(\w+)\s+de\s+(\d{4})",
+    r"calend[áa]rio da (quinzena|semana)\s*(\d+)"
+    r".{0,40}?\bde\s+(\d{1,2})[ºo°]?\s*(?:de\s+(\w+))?"
+    r"\s+a\s+(\d{1,2})[ºo°]?\s+de\s+(\w+)\s+de\s+(\d{4})",
     re.IGNORECASE,
 )
 CELULA_RE = re.compile(r"^(\d{1,2})\s+(.+)$")
 ESCOPO_MODULO_RE = re.compile(r"m[óo]dulo\s+(\d+)", re.IGNORECASE)
+
+
+def janela_da_legenda(caption):
+    """As duas pontas do intervalo escrito na legenda, ou ``None``.
+
+    O ano só aparece no fim ("a 1º de setembro de 2026"), então uma quinzena
+    que vira o ano tem o começo no ano anterior.
+    """
+    from dominio.datas import mes as numero_do_mes
+
+    achado = CAPTION_RE.search(caption or "")
+    if not achado:
+        return None
+    mes_fim = numero_do_mes(achado.group(6))
+    if not mes_fim:
+        return None
+    mes_ini = numero_do_mes(achado.group(4)) if achado.group(4) else mes_fim
+    if not mes_ini:
+        return None
+    ano_fim = int(achado.group(7))
+    return {
+        "familia": sem_acento(achado.group(1)),
+        "numero": int(achado.group(2)),
+        "dia_ini": int(achado.group(3)),
+        "mes_ini": mes_ini,
+        "ano_ini": ano_fim - 1 if mes_ini > mes_fim else ano_fim,
+        "dia_fim": int(achado.group(5)),
+        "mes_fim": mes_fim,
+        "ano_fim": ano_fim,
+    }
+
+
+def data_da_celula(dia, janela):
+    """``(ano, mês)`` do dia solto da célula, ou ``None`` quando não dá para saber.
+
+    A célula traz só o número ("23 PRAZO MÓDULOS 1 A 4"); o mês tem que vir da
+    legenda. Até 17/08/2026 o código pegava o último mês escrito nela, e a
+    legenda da Quinzena 3 ("de 16 de agosto a 1º de setembro de 2026") terminava
+    em setembro: o dia 23 virou 23/09 no lugar de 23/08, e o mesmo com a entrega
+    de 29/08. Um mês inteiro de folga em dois prazos que valem nota, publicados
+    na fila e no e-mail como se fossem certos.
+
+    Dia que não cabe no intervalo declarado não é adivinhado: a legenda e a
+    tabela estão discordando, e aí o guia prefere não afirmar data nenhuma.
+    """
+    if (janela["mes_ini"], janela["ano_ini"]) == (
+        janela["mes_fim"],
+        janela["ano_fim"],
+    ):
+        if janela["dia_ini"] <= dia <= janela["dia_fim"]:
+            return janela["ano_fim"], janela["mes_fim"]
+        return None
+    if dia >= janela["dia_ini"]:
+        return janela["ano_ini"], janela["mes_ini"]
+    if dia <= janela["dia_fim"]:
+        return janela["ano_fim"], janela["mes_fim"]
+    return None
 
 
 def calendario_da_quinzena(page, url):
@@ -58,8 +120,6 @@ def calendario_da_quinzena(page, url):
     diferente do resto desta fonte. Foi a leitura de texto livre que causou
     quatro rodadas de auditoria; tabela com legenda não tem essa ambiguidade.
     """
-    from dominio.datas import mes as numero_do_mes
-
     try:
         page.goto(url, wait_until="domcontentloaded", timeout=40000)
         page.wait_for_timeout(1500)
@@ -72,14 +132,10 @@ def calendario_da_quinzena(page, url):
             continue
         if not tabela:
             continue
-        achado = CAPTION_RE.search(tabela.get("caption") or "")
-        if not achado:
+        janela = janela_da_legenda(tabela.get("caption") or "")
+        if not janela:
             continue
-        numero_mes = numero_do_mes(achado.group(3))
-        if not numero_mes:
-            continue
-        ano = int(achado.group(4))
-        familia = sem_acento(achado.group(1))
+        familia = janela["familia"]
         prazos = []
         for celula in tabela.get("celulas") or []:
             if "prazo" not in (celula.get("classe") or ""):
@@ -89,14 +145,17 @@ def calendario_da_quinzena(page, url):
                 continue
             dia = int(partes.group(1))
             rotulo = partes.group(2).strip()
+            data = data_da_celula(dia, janela)
+            if data is None:
+                continue
             try:
                 quando = datetime(
-                    ano, numero_mes, dia, 23, 59, tzinfo=BR_TZ
+                    data[0], data[1], dia, 23, 59, tzinfo=BR_TZ
                 )
             except ValueError:
                 continue
             modulo = ESCOPO_MODULO_RE.search(rotulo)
-            numero_quinzena = int(achado.group(2))
+            numero_quinzena = janela["numero"]
             escopo = (
                 {
                     "familia": "modulo",
