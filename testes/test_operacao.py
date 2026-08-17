@@ -1174,6 +1174,37 @@ checa(pontos_da_quinzena(
       == "não achei a atividade",
       "Laboratório ausente vira 'não achei', não 'não entregou'")
 
+# --- virada de quinzena (17/08/2026) ---------------------------------------
+# A Q3 abriu, as seções da Q2 passaram a contar como encerradas e o placar da
+# Q2, que o painel ainda estava pontuando, disse "não achei a atividade" nas
+# duas entregas. Pior: o único Laboratório de seção viva era o da Semana 4 da
+# ambientação, que virou "Entrega individual do portfólio" no placar.
+VIRADA = json.loads(json.dumps(CURSO_Q2))
+VIRADA["participacao"]["quinzena_atual"] = {"rotulo": "Q2 - Indicador provisório"}
+VIRADA["sections"].append(
+    {"id": "s-s4", "title": "Semana 4", "items": [
+        {"type": "workshop", "label": "S4 - Laboratório: Revisão entre pares",
+         "enviado": True, "avaliacao_pendente": False}]}
+)
+ENCERRADAS = {"s-q2m6": 2, "s-q2m7": 2}
+na_virada = {p["nome"]: p for p in
+             pontos_da_quinzena(VIRADA, ENCERRADAS)["pontos"]}
+checa(na_virada["Entrega individual do portfólio"]["detalhe"] is None,
+      "com a Q3 aberta, o placar da Q2 continua achando os Laboratórios da Q2")
+checa(na_virada["Entrega individual do portfólio"]["atendido"] is False,
+      "e lê o estado do Laboratório certo, não o da ambientação")
+
+# Zero pendente porque nada foi sorteado não é feedback dado.
+SEM_ATRIBUICAO = json.loads(json.dumps(VIRADA))
+SEM_ATRIBUICAO["sections"][1]["items"][0].update(
+    {"avaliacao_pendente": False, "sem_envio_atribuido": True})
+sem_nada = {p["nome"]: p for p in
+            pontos_da_quinzena(SEM_ATRIBUICAO, ENCERRADAS)["pontos"]}
+checa(sem_nada["Feedback ao outro grupo"]["atendido"] is None,
+      "revisão que nunca foi atribuída não vira ponto ganho")
+checa("representante" in (sem_nada["Feedback ao outro grupo"]["detalhe"] or ""),
+      "e o placar diz de quem é a vez")
+
 html_pontos = R.render_pontos_da_quinzena({"courses": [CURSO_Q2]})
 checa("4 de 10 já contaram" in html_pontos,
       "o site mostra a escala real, não só o 4 de 5 do painel")

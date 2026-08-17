@@ -190,6 +190,57 @@ MARCA_DE_GRUPO = "grupo"
 MARCA_DE_QUALIDADE = "qualidade"
 
 
+QUINZENA_DO_PAINEL_RE = re.compile(r"\bq(\d+)\b")
+PREFIXO_DO_LAB_RE = re.compile(r"^q(\d+)\s")
+
+
+def quinzena_avaliada(participacao):
+    """O número da quinzena que o painel oficial está pontuando, ou ``None``.
+
+    O painel carimba "Q2 - Indicador provisório" enquanto a quinzena não fecha,
+    e continua carimbando Q2 depois que a Q3 abre no AVA. É esse número que
+    manda no placar, não a quinzena onde as aulas estão hoje.
+    """
+    rotulo = ((participacao or {}).get("quinzena_atual") or {}).get("rotulo")
+    achado = QUINZENA_DO_PAINEL_RE.search(sem_acento(rotulo or ""))
+    return int(achado.group(1)) if achado else None
+
+
+def _laboratorios_da_quinzena(curso, numero, encerradas):
+    """Os dois Laboratórios da quinzena que o painel está avaliando.
+
+    Antes daqui a busca era pelos Laboratórios de seção "viva", e isso quebrava
+    exatamente na virada: em 17/08/2026 a Q3 tinha aberto, as seções da Q2
+    contavam como encerradas, e o placar da Q2 dizia "Entrega de grupo: não
+    achei a atividade" com a revisão do Q2 M7 vencendo no dia seguinte. Pior,
+    o único Laboratório "vivo" que sobrava era o da Semana 4 da ambientação, de
+    outro assunto, que virou "Entrega individual do portfólio" no placar.
+
+    A partir da Quinzena 2 o AVA prefixa o rótulo ("Q2 M6 - Revisão entre
+    pares"). A Quinzena 1 não tem prefixo, e por isso ela cai na regra antiga.
+    """
+    achados = [
+        item
+        for secao in curso.get("sections") or []
+        for item in secao.get("items") or []
+        if item.get("type") == "workshop"
+    ]
+    if numero is not None:
+        prefixados = [
+            item
+            for item in achados
+            for achado in [PREFIXO_DO_LAB_RE.match(sem_acento(item.get("label") or ""))]
+            if achado and int(achado.group(1)) == numero
+        ]
+        if prefixados:
+            return prefixados
+        if numero > 1:
+            # A quinzena tem número, o AVA prefixa desde a 2 e nada casou:
+            # afirmar com o Laboratório de outra unidade é pior que calar.
+            return []
+    return _laboratorios_vivos(curso, encerradas)
+
+
 def _laboratorios_vivos(curso, encerradas):
     """Os dois Laboratórios da quinzena que ainda está em curso."""
     achados = []
@@ -227,7 +278,9 @@ def pontos_da_quinzena(curso, encerradas=()):
         if MARCA_DE_QUALIDADE not in sem_acento(criterio.get("nome") or "")
     ]
 
-    labs = _laboratorios_vivos(curso, encerradas)
+    labs = _laboratorios_da_quinzena(
+        curso, quinzena_avaliada(participacao), encerradas
+    )
     individual = next(
         (
             lab
@@ -267,12 +320,23 @@ def pontos_da_quinzena(curso, encerradas=()):
         else:
             pontos.append(_ponto(rotulo, enviado))
         pendente = lab.get("avaliacao_pendente")
-        pontos.append(
-            _ponto(feedback, None, "só dá para saber quando a fase de "
-                                   "avaliação abrir")
-            if pendente is None
-            else _ponto(feedback, not pendente)
-        )
+        if lab.get("sem_envio_atribuido") is True:
+            # Zero pendente aqui não é "já avaliei": é "nada foi sorteado para
+            # esta conta". No laboratório de grupo quem recebe é o
+            # representante, e sem esta linha o placar passaria a dar o ponto
+            # do feedback por uma revisão que ele não fez.
+            pontos.append(
+                _ponto(feedback, None,
+                       "nada foi atribuído à sua conta; quem recebe a revisão "
+                       "do grupo é o representante")
+            )
+        else:
+            pontos.append(
+                _ponto(feedback, None, "só dá para saber quando a fase de "
+                                       "avaliação abrir")
+                if pendente is None
+                else _ponto(feedback, not pendente)
+            )
 
     pontos.append(
         _ponto(

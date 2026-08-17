@@ -738,7 +738,7 @@ def _nome_da_atividade(evento):
     return nome.strip()
 
 
-def revisoes_entre_pares(dados, hoje, ja_avaliando):
+def revisoes_entre_pares(dados, hoje, ja_avaliando, sem_atribuicao=()):
     """A fase de revisão do Laboratório, anunciada desde antes de abrir.
 
     A obrigação de avaliar o colega já era coberta, mas só depois que o Moodle
@@ -801,6 +801,23 @@ def revisoes_entre_pares(dados, hoje, ja_avaliando):
             "hora_certa": True,
             "urgencia": urgencia,
         }
+        if cmid in sem_atribuicao:
+            # A página do laboratório afirma, com todas as letras, que nada
+            # foi sorteado para esta conta. O calendário não sabe disso: em
+            # 17/08/2026 a fila cobrou "Avalie o trabalho do colega: Q2 M7,
+            # vence amanhã" com a tela dizendo "Você não recebeu nenhum envio
+            # para avaliar". Em laboratório de grupo quem recebe o trabalho da
+            # outra equipe é o representante, e é a mesma família da entrega
+            # de grupo resolvida em 15/08: cobrança do que não é dele.
+            registro["verbo"] = "Confirme com o grupo"
+            registro["coisa"] = "a revisão"
+            registro["explicacao"] = (
+                "O AVA diz que nenhum trabalho foi atribuído à sua conta "
+                "nesta revisão. Em laboratório de grupo quem recebe é o "
+                "representante, então confirme com ele se a revisão do grupo "
+                "já foi feita. Se o representante for você, nada chegou, e "
+                "aí vale perguntar ao facilitador antes do prazo."
+            )
         # Comparação por dia, não por instante: a fase que abre hoje às 00:00
         # já está aberta, e não deve alternar entre "abre" e "aberta" conforme
         # a hora da rodada.
@@ -1243,6 +1260,15 @@ def montar_acoes(dados, hoje, agora=None):
                 for acao in acoes
                 if (acao.get("verbo") or "").startswith("Avalie")
                 for cmid in [_cmid_da_url(acao.get("url"))]
+                if cmid
+            },
+            {
+                cmid
+                for curso in dados.get("courses", [])
+                for secao in curso.get("sections") or []
+                for item in secao.get("items") or []
+                if item.get("sem_envio_atribuido") is True
+                for cmid in [_cmid_da_url(item.get("url"))]
                 if cmid
             },
         )

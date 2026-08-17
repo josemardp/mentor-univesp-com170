@@ -52,9 +52,11 @@ def achar_datas(texto, referencia):
     # "19h" (sem minutos) é como se escreve hora em aviso de fórum, e era
     # justamente o formato que o robô não lia: caía no padrão sem hora e
     # virava 23:59, dez horas depois da live. O separador aceita travessão
-    # porque a agenda de lives vem como "04/08/2026 – 14h".
+    # porque a agenda de lives vem como "04/08/2026 – 14h", e ponto médio
+    # porque a página de lembrete da Quinzena 3 escreve "18/08/2026 · 18h":
+    # com o ponto no meio a hora sumia e a live das 18h virava 23:59.
     hora = (
-        r"(?:[,\s)\]–—-]*(?:[àa]s\s*)?"
+        r"(?:[,\s)\]·•–—-]*(?:[àa]s\s*)?"
         r"(\d{1,2})(?:[:h](\d{2})|h)\b)?"
     )
     padroes = [

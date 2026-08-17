@@ -74,6 +74,14 @@ CONTADOR_AVALIACAO_RE = re.compile(
     re.DOTALL,
 )
 
+# Sem contador, a fase de avaliação tem duas caras diferentes, e até
+# 17/08/2026 as duas viravam "não sei". A frase abaixo é o Moodle afirmando
+# que nada foi sorteado para esta conta: no Q2 M7, laboratório de grupo, quem
+# recebe o trabalho da outra equipe é o representante, e a fila cobrava dele
+# "Avalie o trabalho do colega" com prazo para o dia seguinte. É o mesmo caso
+# da entrega de grupo resolvido em 15/08, agora do lado da avaliação.
+SEM_ENVIO_ATRIBUIDO = "voce nao recebeu nenhum envio para avaliar"
+
 
 def _texto_da_atividade(page, url):
     """Corpo da página em minúsculas, sem acento e com espaço normalizado.
@@ -123,13 +131,17 @@ def estado_workshop(page, url):
             "avaliacoes_total": None,
             "avaliacoes_pendentes": None,
             "avaliacao_pendente": None,
+            "sem_envio_atribuido": None,
         }
     enviado = _enviado_no_texto(corpo)
     total = pendentes = None
+    sem_atribuicao = SEM_ENVIO_ATRIBUIDO in corpo
     encontrado = CONTADOR_AVALIACAO_RE.search(corpo)
     if encontrado:
         total = int(encontrado.group(1))
         pendentes = int(encontrado.group(2))
+    elif sem_atribuicao:
+        total, pendentes = 0, 0
     elif "ja foi avaliada" in corpo and "avaliar" not in corpo:
         total, pendentes = 1, 0
     # `item_aberto` não serve aqui. A página do Laboratório em fase de
@@ -153,6 +165,7 @@ def estado_workshop(page, url):
         "avaliacoes_total": total,
         "avaliacoes_pendentes": pendentes,
         "avaliacao_pendente": None if pendentes is None else pendentes > 0,
+        "sem_envio_atribuido": sem_atribuicao,
     }
 
 

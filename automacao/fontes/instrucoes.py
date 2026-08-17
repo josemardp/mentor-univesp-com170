@@ -22,8 +22,15 @@ from configuracao import BR_TZ
 from dominio.datas import sem_acento
 from dominio.prazos import extrair_prazos
 
-ROTULO_RE = re.compile(r"instrucoes da (quinzena|semana)", re.IGNORECASE)
-MAX_PAGINAS = 4
+# "Lembrete de datas e live" entrou em 17/08/2026. É outra página da mesma
+# quinzena, e é onde moram as datas das lives: a Quinzena 3 oferece sete, uma
+# delas conta ponto, e a primeira era no dia seguinte. Nada disso chegava ao
+# guia, que mostrava "Assista: Live com facilitador" sem data nenhuma.
+ROTULO_RE = re.compile(
+    r"instrucoes da (quinzena|semana)|lembrete de datas", re.IGNORECASE
+)
+# Duas páginas por unidade, e duas unidades convivem na virada da quinzena.
+MAX_PAGINAS = 6
 
 
 def paginas_de_instrucao(secoes):

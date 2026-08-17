@@ -139,6 +139,24 @@ vencida = revisoes_entre_pares(DADOS, date(2026, 8, 19), set())
 checa(vencida == [], "revisão vencida sai da fila em vez de virar cobrança")
 
 
+print("\n== nada atribuído à conta dele: confirma, não cobra (17/08) ==")
+
+# O Q2 M7 é laboratório de grupo. Quem recebe o trabalho da outra equipe é o
+# representante, e a página dizia "Você não recebeu nenhum envio para avaliar"
+# enquanto a fila cobrava "Avalie o trabalho do colega, vence amanhã".
+sem_nada = revisoes_entre_pares(DADOS, date(2026, 8, 16), set(), {"215612"})
+grupo = {r["url"].rsplit("=", 1)[1]: r for r in sem_nada}["215612"]
+individual = {r["url"].rsplit("=", 1)[1]: r for r in sem_nada}["215609"]
+checa(grupo["verbo"] == "Confirme com o grupo",
+      f"revisão sem envio atribuído não vira cobrança (veio {grupo['verbo']!r})")
+checa("representante" in (grupo.get("explicacao") or ""),
+      "e o cartão diz por que, em vez de deixar o silêncio explicar")
+checa(grupo["prazo"] == "2026-08-18T23:59:00-03:00",
+      "o prazo continua à vista: ele ainda precisa cobrar o representante")
+checa(individual["verbo"] == "Avalie",
+      "o laboratório individual, esse sim, segue sendo cobrança")
+
+
 print("\n== sem evento de avaliação: não inventa tarefa ==")
 
 so_envio = {
