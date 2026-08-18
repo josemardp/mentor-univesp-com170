@@ -22,6 +22,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "automacao"))
 
 from dominio.acoes import (  # noqa: E402
+    cmids_com_revisao_feita,
     cmids_sem_envio_atribuido,
     revisoes_entre_pares,
     tarefas_do_calendario,
@@ -273,6 +274,72 @@ resto = revisoes_entre_pares(
 )
 checa(not [r for r in resto if r["url"].endswith("215612")],
       "e por isso o mesmo Laboratorio nao sai duas vezes")
+
+
+print("\n== 18/08, 10h40: revisao feita nao pode voltar pela rede ==")
+
+# O Josemar avaliou o colega no Q2 M6, a pagina passou a dizer "total: 1,
+# pendente: 0", e a rodada seguinte publicou de novo "Avalie o trabalho do
+# colega, vence hoje as 23:59". A leitura da pagina some da fila quando o
+# trabalho e feito, e a rede de seguranca ressuscitava a cobranca justamente
+# porque a fila tinha ficado (corretamente) vazia. Cobranca que sobrevive a
+# entrega e o defeito mais antigo deste projeto.
+def _curso_com(item_extra):
+    return {
+        "courses": [
+            {
+                "id": "18922",
+                "code": "COM170",
+                "sections": [
+                    {
+                        "title": "Q2 Módulo 6",
+                        "items": [
+                            {
+                                "cmid": "215609",
+                                "type": "workshop",
+                                "label": "Q2 M6 - Revisão entre pares",
+                                "url": "https://ava.univesp.br/mod/workshop/"
+                                       "view.php?id=215609",
+                                "status": "Pendente",
+                                **item_extra,
+                            }
+                        ],
+                    }
+                ],
+            }
+        ],
+        "eventos": EVENTOS,
+    }
+
+
+feito = _curso_com({"avaliacao_pendente": False})
+checa(cmids_com_revisao_feita(feito) == {"215609"},
+      "pagina que diz 'pendente: 0' afirma que a revisao foi feita")
+sobra = revisoes_entre_pares(
+    feito, date(2026, 8, 18), set(), set(), cmids_com_revisao_feita(feito)
+)
+checa(not [r for r in sobra if r["url"].endswith("215609")],
+      "e por isso ela nao volta a ser cobrada")
+resgate = tarefas_do_calendario(
+    feito, date(2026, 8, 18), set(), set(), cmids_com_revisao_feita(feito)
+)
+checa(not [r for r in resgate if r["url"].endswith("215609")],
+      "nem pelo resgate cru do calendario")
+
+# "Nao sei" continua valendo como antes: leitura que falhou nao apaga tarefa.
+nao_sei = _curso_com({"avaliacao_pendente": None})
+checa(cmids_com_revisao_feita(nao_sei) == set(),
+      "leitura que nao leu o contador nao afirma que a revisao foi feita")
+checa([r for r in revisoes_entre_pares(nao_sei, date(2026, 8, 18), set())
+       if r["url"].endswith("215609")],
+      "e a tarefa segue a vista, que e o desenho desde 14/08")
+
+# Zero pendente por nada atribuido nao e "ja avaliei": aquele tem cartao proprio.
+sem_nada = _curso_com(
+    {"avaliacao_pendente": False, "sem_envio_atribuido": True}
+)
+checa(cmids_com_revisao_feita(sem_nada) == set(),
+      "zero pendente por nada atribuido nao conta como revisao feita")
 
 
 print("\n" + ("FALHOU: " + str(len(falhas)) if falhas else "TUDO OK"))

@@ -291,9 +291,14 @@ def consequencia_do_prazo(texto, dia):
     perda, devolve ``None`` — cartão sem explicação é melhor que explicação
     inventada.
     """
+    # Quebra de linha separa frase tanto quanto ponto final: título de seção
+    # não termina em ponto, e sem isso "Se você concluir os módulos depois do
+    # dia 23" (o título) saía colado no parágrafo que vem embaixo dele,
+    # repetindo a mesma informação duas vezes no cartão.
     frases = [
-        frase.strip()
-        for frase in re.split(r"(?<=\.)\s+", " ".join((texto or "").split()))
+        " ".join(frase.split())
+        for linha in (texto or "").splitlines()
+        for frase in re.split(r"(?<=\.)\s+", linha)
         if len(frase.strip()) > 20
     ]
     for inicio, frase in enumerate(frases):

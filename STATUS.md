@@ -87,6 +87,18 @@ Nenhuma era defeito. Todas eram o guia sabendo menos do que a página que ele j�
 
 **Um susto no meio do caminho, que vale como regra de bancada.** Uma edição feita por heredoc do shell transformou os `\b` de um regex em bytes de backspace literais. O regex compilava, não levantava erro nenhum e nunca casava — falha silenciosa perfeita, dentro de um projeto cuja regra é justamente não deixar silêncio virar afirmação. Só apareceu porque o valor testado veio `None` para todas as entradas de uma vez, que é o sinal já registrado aqui em 14/08 ("desconfiar quando a leitura devolve o mesmo resultado negativo para todos os itens"). O repositório foi varrido inteiro atrás de outros caracteres de controle: nenhum. Edição de código com escapes passa a ser feita por arquivo, nunca por heredoc.
 
+### A rodada das quatro melhorias achou o defeito mais antigo do projeto, vivo
+
+Duas coisas apareceram ao conferir o site publicado às 14h.
+
+**A cobrança sobrevivia à entrega, de novo.** O Josemar avaliou o colega no Q2 M6 às 10h40 e a página passou a dizer "total: 1, pendente: 0". A rodada das 11h publicou "Avalie o trabalho do colega: Q2 M6, vence hoje às 23:59". O motivo é quase elegante de tão perverso: a leitura da página **para de gerar a tarefa** quando o trabalho é feito, a fila fica corretamente vazia, e a rede de segurança do calendário lê essa fila vazia como "a leitura falhou" e ressuscita a cobrança. Quanto mais certo o guia acerta, mais a rede duvida dele.
+
+A regra que faltava é a mesma dos outros três estados: `avaliacao_pendente` em `False` é a página **afirmando** que não há nada a avaliar, e afirmação cala a rede de segurança. `None` continua mantendo a tarefa à vista, porque leitura que falhou nunca virou permissão para sumir com nada. E zero pendente por "nada foi atribuído à sua conta" fica de fora: ali o zero não é "já avaliei", e aquele cartão tem tratamento próprio desde ontem.
+
+Vale como o registro mais claro do dia: **a rede de segurança precisa saber distinguir "a fila está vazia porque falhei" de "a fila está vazia porque ele fez"**. As duas se parecem por fora, e tratar as duas igual é o que faz um guia bom cobrar o trabalho que a pessoa acabou de entregar.
+
+**E a melhoria do "o que se perde" nasceu com o título grudado.** O cartão saiu com "Se você concluir os módulos depois do dia 23 Quem conclui os quatro primeiros módulos depois de domingo, 23 de agosto...", repetindo a informação porque o título de seção da página não termina em ponto e a divisão em frases só cortava em ponto final. Quebra de linha passou a separar frase também.
+
 ### Conferido ao vivo e correto
 
 - Os prazos da Quinzena 3 (23/08 e 29/08) batem com a página de instruções: a correção de ontem funcionou.

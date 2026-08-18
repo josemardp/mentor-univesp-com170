@@ -582,7 +582,9 @@ def _verbo_do_evento(nome):
     return "Conclua", ""
 
 
-def tarefas_do_calendario(dados, hoje, ja_na_fila, sem_atribuicao=()):
+def tarefas_do_calendario(
+    dados, hoje, ja_na_fila, sem_atribuicao=(), ja_feitas=()
+):
     """Rede de segurança: prazo do calendário que não virou tarefa vira tarefa.
 
     Todo erro grave desta sessão teve a mesma forma — uma atividade com data
@@ -611,6 +613,11 @@ def tarefas_do_calendario(dados, hoje, ja_na_fila, sem_atribuicao=()):
         if not _eh_fim_de_prazo(evento) or _eh_encontro(evento):
             continue
         if status_por_cmid.get(cmid) == "Concluído":
+            continue
+        # O selo "Concluído" do Moodle só fecha quando as cinco fases do
+        # Laboratório terminam, então ele nunca chega a tempo de calar esta
+        # cobrança. Quem responde antes é o contador da própria página.
+        if cmid in ja_feitas:
             continue
         urgencia, texto = urgencia_de(evento.get("quando"), hoje)
         if urgencia in ("vencido", "sem_prazo"):
@@ -814,6 +821,35 @@ def _virar_confirmacao_de_grupo(registro):
     return registro
 
 
+def cmids_com_revisao_feita(dados):
+    """Laboratórios cuja página afirma que não há mais nada a avaliar.
+
+    ``avaliacao_pendente`` só é ``False`` quando o contador foi lido e diz
+    zero pendente. Isso é afirmação, não silêncio, e é diferente de ``None``,
+    que continua valendo como "não sei" e mantém a tarefa à vista.
+
+    Sem isto a revisão sobrevivia à própria entrega: em 18/08/2026 o Josemar
+    avaliou o colega às 10h40, a página passou a dizer "total: 1, pendente:
+    0", e a rodada das 11h publicou de novo "Avalie o trabalho do colega,
+    vence hoje às 23:59". A leitura da página some da fila quando o trabalho
+    é feito, e a rede de segurança do calendário ressuscitava a cobrança
+    justamente porque a fila tinha ficado (corretamente) vazia.
+
+    O laboratório sem envio atribuído fica de fora: lá o zero não é "já
+    avaliei", é "nada chegou", e o cartão dele tem tratamento próprio.
+    """
+    return {
+        cmid
+        for curso in dados.get("courses", [])
+        for secao in curso.get("sections") or []
+        for item in secao.get("items") or []
+        if item.get("avaliacao_pendente") is False
+        and item.get("sem_envio_atribuido") is not True
+        for cmid in [_cmid_da_url(item.get("url"))]
+        if cmid
+    }
+
+
 def cmids_sem_envio_atribuido(dados):
     """Os Laboratórios em que a página nega ter atribuído trabalho a ele."""
     return {
@@ -827,7 +863,9 @@ def cmids_sem_envio_atribuido(dados):
     }
 
 
-def revisoes_entre_pares(dados, hoje, ja_avaliando, sem_atribuicao=()):
+def revisoes_entre_pares(
+    dados, hoje, ja_avaliando, sem_atribuicao=(), ja_feitas=()
+):
     """A fase de revisão do Laboratório, anunciada desde antes de abrir.
 
     A obrigação de avaliar o colega já era coberta, mas só depois que o Moodle
@@ -863,7 +901,7 @@ def revisoes_entre_pares(dados, hoje, ja_avaliando, sem_atribuicao=()):
             exemplo[cmid] = evento
     novos = []
     for cmid, prazo in sorted(fecha.items()):
-        if cmid in ja_avaliando:
+        if cmid in ja_avaliando or cmid in ja_feitas:
             continue
         urgencia, texto = urgencia_de(prazo, hoje)
         if urgencia in ("vencido", "sem_prazo"):
@@ -1328,12 +1366,14 @@ def montar_acoes(dados, hoje, agora=None):
         if cmid
     }
     sem_atribuicao = cmids_sem_envio_atribuido(dados)
+    ja_feitas = cmids_com_revisao_feita(dados)
     acoes.extend(
         tarefas_do_calendario(
             dados,
             hoje,
             ja_na_fila | {c for c in resolvidos if c},
             sem_atribuicao,
+            ja_feitas,
         )
     )
     # A revisão entre pares é a segunda obrigação do mesmo Laboratório, com
@@ -1351,6 +1391,7 @@ def montar_acoes(dados, hoje, agora=None):
                 if cmid
             },
             sem_atribuicao,
+            ja_feitas,
         )
     )
     # Depois das tarefas do calendário: o aviso herda o prazo da entrega em
