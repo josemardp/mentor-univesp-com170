@@ -25,6 +25,7 @@ from dominio.acoes import (  # noqa: E402
     cmids_sem_envio_atribuido,
     revisoes_entre_pares,
     tarefas_do_calendario,
+    VERBOS_DE_REVISAO,
 )
 
 falhas = []
@@ -249,6 +250,29 @@ checa(cmids_sem_envio_atribuido(sem_campo) == set(),
 cru = tarefas_do_calendario(sem_campo, date(2026, 8, 18), set(), set())
 checa([t for t in cru if t["url"].endswith("215612")][0]["verbo"] == "Avalie",
       "sem a afirmacao da pagina, o resgate segue cobrando como antes")
+
+
+# A dedupe entre os dois caminhos olhava o verbo "Avalie", e quando o cartao do
+# calendario passou a virar "Confirme com o grupo" ela deixou de reconhece-lo:
+# na rodada das 13:10 de 18/08 o Q2 M7 saiu duas vezes na fila, com o mesmo
+# texto e o mesmo prazo. Corrigir um cartao nao pode custar a dedupe dele.
+fila = tarefas_do_calendario(
+    DADOS_COM_ITEM, date(2026, 8, 18), set(),
+    cmids_sem_envio_atribuido(DADOS_COM_ITEM),
+)
+ja_na_fila = {
+    acao["url"].rsplit("=", 1)[1]
+    for acao in fila
+    if acao["verbo"] in VERBOS_DE_REVISAO
+}
+checa("215612" in ja_na_fila,
+      "o cartao de confirmacao conta como revisao ja publicada")
+resto = revisoes_entre_pares(
+    DADOS_COM_ITEM, date(2026, 8, 18), ja_na_fila,
+    cmids_sem_envio_atribuido(DADOS_COM_ITEM),
+)
+checa(not [r for r in resto if r["url"].endswith("215612")],
+      "e por isso o mesmo Laboratorio nao sai duas vezes")
 
 
 print("\n" + ("FALHOU: " + str(len(falhas)) if falhas else "TUDO OK"))

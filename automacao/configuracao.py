@@ -56,8 +56,17 @@ NOVO_ATE_DIAS = 3
 # fonte de prazo confiável para sempre. Um bimestre tem sete semanas.
 VALIDADE_AUTOR_DIAS = 90
 
-# Incrementar quando o formato persistido de fórum mudar.
+# Incrementar quando o formato persistido de fórum mudar **ou quando a leitura
+# de prazos mudar**. O cache não guarda só o post: guarda os prazos já
+# extraídos dele. Correção de parser não alcança post que não voltou a ser
+# lido, e o guia segue publicando a conclusão velha sem nada indicar isso.
 # 3: prazos passaram a distinguir compromisso (live) de entrega. O cache
 # guarda o texto já cortado em 400, então sem reler do AVA a agenda das
 # lives ficava fora do alcance do parser novo.
-VERSAO_CACHE = 3
+# 4: negação de data ("e não na terça-feira (18/08)") e saudação como nome de
+# evento. Em 18/08/2026 o mesmo aviso do LET110 saiu certo num fórum e errado
+# no outro, com texto idêntico nos dois: o de "Avisos" não teve post novo,
+# veio do cache, e continuou marcando a live no dia que o aviso desmarca. A
+# correção estava no ar e não alcançava o defeito que ela existia para
+# corrigir.
+VERSAO_CACHE = 4

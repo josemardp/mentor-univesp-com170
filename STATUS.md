@@ -63,6 +63,16 @@ Varredura pedida pelo Josemar, com o AVA aberto ao vivo. A mecânica estava bem:
 
 **Dois defeitos latentes, achados no caminho.** Página de laboratório que não carrega devolvia um dicionário sem a chave `aberto`, e quem chama lê a chave direto: uma leitura falha derrubaria a rodada inteira com `KeyError`, que é exatamente o que `FONTES_QUE_NAO_BLOQUEIAM` existe para impedir. E `pytest testes` não rodava nenhum dos dez arquivos: três deles chamavam `sys.exit` no corpo do módulo, e a coleta morria com `INTERNALERROR`. O CI chama cada teste como script e por isso ninguém via. Os três ganharam `if __name__ == "__main__":`.
 
+### A rodada de validação achou mais dois, e o segundo é o mais instrutivo do dia
+
+Disparei a rodada manual às 13:09 para não deixar o site cobrando a revisão errada até as 11h. Ela publicou as seis lives e o cartão "Confirme com o grupo", e expôs dois defeitos novos.
+
+**A correção do cartão custou a dedupe dele.** O Q2 M7 saiu **duas vezes** na fila, com o mesmo texto e o mesmo prazo. O teste que evita a duplicata perguntava se o verbo começa com "Avalie", e o cartão tinha acabado de virar "Confirme com o grupo". Os dois verbos viraram constantes (`VERBOS_DE_REVISAO`): decisão de fluxo não pode depender de comparar texto de tela, que muda justamente quando se corrige a tela.
+
+**A correção estava no ar e não alcançava o defeito que ela existe para corrigir.** O mesmo aviso do LET110 foi publicado em dois fóruns, com texto idêntico. No "Fórum de dúvidas gerais" a negação funcionou e o 18/08 sumiu; em "Avisos" o guia continuou marcando a live no dia que o aviso desmarca. A diferença não estava no texto: o fórum de "Avisos" não teve post novo hoje, então a varredura o serviu **do cache** — e o cache não guarda só o post, guarda **os prazos já extraídos dele**. Parser novo não reprocessa post velho.
+
+O mecanismo para isso já existia (`VERSAO_CACHE`, incrementado uma vez em 13/08 por um motivo quase igual) e ninguém lembrou de usar. Subiu para 4, e o comentário deixou de falar só em "formato persistido": agora diz, com todas as letras, que **mudar a leitura de prazos obriga a incrementar**, porque a conclusão velha continua no ar sem nada indicando isso. É a versão de cache do defeito da manhã — dado certo existindo em um lugar e não chegando a quem decide.
+
 ### Conferido ao vivo e correto
 
 - Os prazos da Quinzena 3 (23/08 e 29/08) batem com a página de instruções: a correção de ontem funcionou.

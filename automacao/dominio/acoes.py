@@ -644,7 +644,7 @@ def tarefas_do_calendario(dados, hoje, ja_na_fila, sem_atribuicao=()):
         # A rede de segurança não pode ser mais burra que a fila que ela
         # protege: resgatar o prazo é certo, cobrar a revisão de quem não
         # recebeu envio nenhum é o defeito que ela deveria evitar.
-        if cmid in sem_atribuicao and verbo == "Avalie":
+        if cmid in sem_atribuicao and verbo == VERBO_DE_REVISAO:
             _virar_confirmacao_de_grupo(registro)
         novos.append(registro)
     return novos
@@ -775,6 +775,16 @@ def _nome_da_atividade(evento):
     return nome.strip()
 
 
+# Os dois verbos que uma revisão entre pares pode carregar na fila. O teste de
+# duplicata olhava só "Avalie", e quando o cartão do calendário passou a virar
+# "Confirme com o grupo" ele deixou de ser reconhecido: em 18/08/2026 o Q2 M7
+# saiu duas vezes, com o mesmo texto e o mesmo prazo. Verbo é texto de tela, e
+# comparar decisão por texto de tela quebra assim que a tela muda de palavra.
+VERBO_DE_REVISAO = "Avalie"
+VERBO_DE_CONFIRMACAO = "Confirme com o grupo"
+VERBOS_DE_REVISAO = (VERBO_DE_REVISAO, VERBO_DE_CONFIRMACAO)
+
+
 def _virar_confirmacao_de_grupo(registro):
     """Cobrança de revisão que a página diz não ser dele vira confirmação.
 
@@ -792,7 +802,7 @@ def _virar_confirmacao_de_grupo(registro):
     em 18/08/2026 foi ela que publicou a cobrança falsa, com a regra escrita
     e testada logo abaixo, sem nunca ser consultada.
     """
-    registro["verbo"] = "Confirme com o grupo"
+    registro["verbo"] = VERBO_DE_CONFIRMACAO
     registro["coisa"] = "a revisão"
     registro["explicacao"] = (
         "O AVA diz que nenhum trabalho foi atribuído à sua conta "
@@ -1326,7 +1336,7 @@ def montar_acoes(dados, hoje, agora=None):
             {
                 cmid
                 for acao in acoes
-                if (acao.get("verbo") or "").startswith("Avalie")
+                if (acao.get("verbo") or "") in VERBOS_DE_REVISAO
                 for cmid in [_cmid_da_url(acao.get("url"))]
                 if cmid
             },
