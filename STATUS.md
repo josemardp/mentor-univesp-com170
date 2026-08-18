@@ -73,6 +73,20 @@ Disparei a rodada manual às 13:09 para não deixar o site cobrando a revisão e
 
 O mecanismo para isso já existia (`VERSAO_CACHE`, incrementado uma vez em 13/08 por um motivo quase igual) e ninguém lembrou de usar. Subiu para 4, e o comentário deixou de falar só em "formato persistido": agora diz, com todas as letras, que **mudar a leitura de prazos obriga a incrementar**, porque a conclusão velha continua no ar sem nada indicando isso. É a versão de cache do defeito da manhã — dado certo existindo em um lugar e não chegando a quem decide.
 
+### As quatro melhorias que estavam anotadas saíram no mesmo dia
+
+Nenhuma era defeito. Todas eram o guia sabendo menos do que a página que ele já lia.
+
+**A hora dos prazos estava escrita e o guia dizia não saber.** A tabela-calendário da quinzena traz só o número do dia na célula, então o cartão saía "vence 23/08 (horário não informado)" enquanto a mesma página escrevia, dois parágrafos abaixo, "23 de agosto, domingo, às 23h59" e ainda "uma regra que vale para toda a disciplina: os prazos terminam sempre às 23h59 do dia indicado". A leitura estruturada resolvia metade da página e a outra metade ficava no chão. Agora, depois de montar os prazos da tabela, a fonte procura no texto a hora daquela data e, na falta dela, a regra geral da unidade. Sem nenhuma das duas o guia continua dizendo que não sabe: hora que a página não escreveu segue sendo hora que ninguém leu.
+
+**O cartão não dizia o que se perde.** "Conclua: Quinzena 3 · Prazo módulos 1 a 4" é um prazo diferente dos outros, e a página explica por quê: quem conclui depois de 23/08 **fica fora do trabalho em grupo da quinzena** e só volta a participar na seguinte. Não é atraso, é perder a etapa. O cartão passou a carregar a frase da própria página, entre aspas, sem resumo do guia — mesma regra do bloco "confirme se é prazo". Sem frase que ligue o dia à perda, o cartão sai como antes: explicação inventada é pior que cartão sem explicação.
+
+**O placar não dizia de qual quinzena era.** O painel oficial segue pontuando a Q2 depois que a Q3 abre, e ele estava certo em mostrar a Q2 — mas a tela não dizia isso, então "6 de 10 já contaram" parecia o placar de agora, com a Q3 correndo desde o dia 16 e prazo de módulos em 23/08. É a família do "4 de 5" de 13/08: número certo enganando pela moldura. O bloco agora diz qual quinzena está sendo pontuada e que a em curso é outra, e ainda não tem placar.
+
+**O e-mail cortava calado.** A lista completa mostrava no máximo 12 itens por bloco e, ao contrário de todos os outros blocos do e-mail, não avisava quando cortava. Em 18/08 o bloco "Mais pra frente" tinha 13. Duas correções: o corte passou a ser declarado, e a prova presencial saiu da lista, porque ela já tem bloco fixo no topo com dia, hora e contagem regressiva. Era a informação de maior peso ocupando três das doze linhas para se repetir, e ainda assim saindo pela metade numa delas.
+
+**Um susto no meio do caminho, que vale como regra de bancada.** Uma edição feita por heredoc do shell transformou os `\b` de um regex em bytes de backspace literais. O regex compilava, não levantava erro nenhum e nunca casava — falha silenciosa perfeita, dentro de um projeto cuja regra é justamente não deixar silêncio virar afirmação. Só apareceu porque o valor testado veio `None` para todas as entradas de uma vez, que é o sinal já registrado aqui em 14/08 ("desconfiar quando a leitura devolve o mesmo resultado negativo para todos os itens"). O repositório foi varrido inteiro atrás de outros caracteres de controle: nenhum. Edição de código com escapes passa a ser feita por arquivo, nunca por heredoc.
+
 ### Conferido ao vivo e correto
 
 - Os prazos da Quinzena 3 (23/08 e 29/08) batem com a página de instruções: a correção de ontem funcionou.
@@ -80,6 +94,8 @@ O mecanismo para isso já existia (`VERSAO_CACHE`, incrementado uma vez em 13/08
 - O portfólio individual dele consta enviado em 13/08 às 20:04.
 
 ### Fica anotado, sem código ainda
+
+> As quatro primeiras saíram no mesmo dia, na seção acima. Ficam as duas de infraestrutura.
 
 - **A hora dos prazos da COM170 está escrita e o guia diz que não sabe.** As duas páginas da Quinzena 3 afirmam "23 de agosto, domingo, às 23h59" e, em outra frase, "uma regra que vale para toda a disciplina: os prazos terminam sempre às 23h59 do dia indicado". A tabela-calendário, que é a fonte usada, só traz o número do dia, e o cartão sai "(horário não informado)". Não é chute usar o que a página declara.
 - **O cartão dos módulos não diz o que se perde.** A mesma página avisa que quem conclui os quatro módulos depois de 23/08 **fica fora do trabalho em grupo da quinzena**. O cartão diz só "Conclua: Quinzena 3 · Prazo módulos 1 a 4".

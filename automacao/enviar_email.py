@@ -318,11 +318,23 @@ def montar_texto(data):
         linhas.append("LISTA COMPLETA")
         linhas.append("")
     for chave, titulo in TITULOS.items():
-        grupo = [a for a in acoes if a["urgencia"] == chave]
+        # A prova presencial já tem bloco fixo no topo, com dia, hora e
+        # contagem regressiva. Repeti-la aqui só gastava três das doze linhas
+        # do grupo mais cheio, e foi assim que a terceira prova caiu no corte
+        # em 18/08/2026: a informação estava no e-mail duas vezes e mesmo
+        # assim saiu pela metade numa delas.
+        grupo = [
+            a for a in acoes
+            if a["urgencia"] == chave and a.get("tipo") != "prova"
+        ]
         if not grupo:
             continue
         linhas.append(f"{titulo}:")
         linhas += [linha_acao(a) for a in grupo[:12]]
+        # Corte por teto é leitura incompleta e tem que aparecer. Este era o
+        # único bloco do e-mail que cortava calado.
+        if len(grupo) > 12:
+            linhas.append(f"  ... e mais {len(grupo) - 12}, no site.")
         linhas.append("")
 
     hig = data.get("higiene") or []

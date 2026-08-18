@@ -232,6 +232,86 @@ def _texto_da_pagina(page, url):
         return None
 
 
+# "Uma regra que vale para toda a disciplina: os prazos terminam sempre às
+# 23h59 do dia indicado." A tabela-calendário traz só o número do dia, então o
+# cartão saía "vence 23/08 (horário não informado)" com a hora escrita na
+# mesma página, dois parágrafos abaixo. Usar o que a página declara não é
+# estimar: é ler a fonte inteira em vez de metade dela.
+REGRA_DE_HORA_RE = re.compile(
+    r"prazos?[^.]{0,90}?sempre[^.]{0,25}?(\d{1,2})\s*[h:]\s*(\d{2})"
+)
+# "23 de agosto, domingo, às 23h59." A hora da data específica ganha da regra
+# geral, porque uma unidade pode ter uma exceção e quem diz isso é a frase
+# mais próxima da data.
+HORA_DA_DATA_RE = (
+    r"\b{dia}\s+de\s+{mes}\b[^.]{{0,60}}?(\d{{1,2}})\s*[h:]\s*(\d{{2}})"
+)
+MESES_POR_NUMERO = {
+    1: "janeiro", 2: "fevereiro", 3: "marco", 4: "abril",
+    5: "maio", 6: "junho", 7: "julho", 8: "agosto",
+    9: "setembro", 10: "outubro", 11: "novembro", 12: "dezembro",
+}
+# "Quem conclui os quatro primeiros módulos depois de domingo, 23 de agosto,
+# (...) O trabalho em grupo fica com quem concluiu os módulos até domingo."
+# Perder este prazo não atrasa: tira ele do trabalho em grupo da quinzena. O
+# cartão dizia só "Conclua: Prazo módulos 1 a 4".
+GATILHO_CONSEQUENCIA_RE = re.compile(r"\bdepois\s+d[eo]\b", re.IGNORECASE)
+# Quantas frases seguir procurando a perda depois do gatilho. Três cobrem o
+# caso real da Quinzena 3 sem varrer parágrafo alheio.
+FRASES_ADIANTE = 3
+PERDA = ("grupo", "proxima oportunidade", "fica com quem", "nao participa")
+
+
+def hora_declarada(texto, dia, mes):
+    """A hora que a própria página dá para aquele prazo, ou ``None``.
+
+    Devolve ``(hora, minuto)``. Procura primeiro a frase que fala da data e
+    depois a regra geral da disciplina. Sem nenhuma das duas, cala: hora que
+    a fonte não escreveu continua sendo hora que o guia não sabe.
+    """
+    alvo = sem_acento(texto or "")
+    nome = MESES_POR_NUMERO.get(mes)
+    if nome:
+        especifica = re.search(
+            HORA_DA_DATA_RE.format(dia=dia, mes=nome), alvo
+        )
+        if especifica:
+            return int(especifica.group(1)), int(especifica.group(2))
+    geral = REGRA_DE_HORA_RE.search(alvo)
+    if geral:
+        return int(geral.group(1)), int(geral.group(2))
+    return None
+
+
+def consequencia_do_prazo(texto, dia):
+    """A frase em que a página diz o que se perde ao passar deste prazo.
+
+    Sai literal, truncada, como o bloco "confirme se é prazo": o guia mostra
+    o que leu e não resume por conta própria. Sem frase que ligue o dia à
+    perda, devolve ``None`` — cartão sem explicação é melhor que explicação
+    inventada.
+    """
+    frases = [
+        frase.strip()
+        for frase in re.split(r"(?<=\.)\s+", " ".join((texto or "").split()))
+        if len(frase.strip()) > 20
+    ]
+    for inicio, frase in enumerate(frases):
+        if not GATILHO_CONSEQUENCIA_RE.search(frase):
+            continue
+        if not re.search(rf"\b{dia}\b", frase):
+            continue
+        # A perda quase nunca está na mesma frase do "depois de": a página
+        # diz primeiro o que acontece com quem atrasa e só depois o que ele
+        # deixa de fazer. Junta até achar, e para assim que achou.
+        for fim in range(inicio, min(inicio + FRASES_ADIANTE, len(frases))):
+            if any(
+                palavra in sem_acento(frases[fim]) for palavra in PERDA
+            ):
+                return " ".join(frases[inicio:fim + 1])
+    return None
+
+
 def _chave_do_prazo(prazo):
     """Uma linha por data, menos quando o dia tem vários encontros.
 
@@ -252,6 +332,22 @@ def _chave_do_prazo(prazo):
     return prazo["quando"][:10]
 
 
+def _completar_pelo_texto(prazo, texto):
+    """Hora e consequência, quando a própria página as escreve."""
+    quando = datetime.fromisoformat(prazo["quando"])
+    hora = hora_declarada(texto, quando.day, quando.month)
+    if hora and not prazo.get("hora_certa"):
+        prazo["quando"] = quando.replace(
+            hour=hora[0], minute=hora[1]
+        ).isoformat()
+        prazo["hora_certa"] = True
+        prazo["hora_fonte"] = "a página da unidade declara o horário"
+    consequencia = consequencia_do_prazo(texto, quando.day)
+    if consequencia:
+        prazo["consequencia"] = consequencia
+    return prazo
+
+
 def ler(page, secoes, referencia):
     saida = []
     for item in paginas_de_instrucao(secoes):
@@ -267,6 +363,11 @@ def ler(page, secoes, referencia):
             if prazos:
                 saida.append(_como_aviso(item, prazos))
             continue
+        # A tabela dá o dia; o texto da mesma página costuma dar a hora e
+        # dizer o que se perde ao passar do prazo. Nada disso é inferência:
+        # é a metade da página que a leitura estruturada não alcança.
+        for prazo in prazos:
+            _completar_pelo_texto(prazo, texto)
         vistos = {_chave_do_prazo(prazo) for prazo in prazos}
         for prazo in extrair_prazos(texto, referencia):
             if prazo["quando"][:10] < referencia.isoformat():

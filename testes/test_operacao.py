@@ -2093,6 +2093,70 @@ checa(_espera and int(_espera.group(1)) * 5 >= 420,
       "a espera do Pages cobre pelo menos 7 minutos")
 
 
+# ---------------------------------------------------------------------------
+print("\n== O placar diz de qual quinzena ele e (18/08/2026) ==")
+
+# O painel oficial continua pontuando a Q2 depois que a Q3 abre. O numero
+# estava certo e a tela nao dizia de qual quinzena era, entao parecia o placar
+# de agora — um dado certo enganando pela moldura.
+from dominio.avaliacao import pontos_da_quinzena  # noqa: E402
+
+CURSO_QUINZENAS = {
+    "code": "COM170",
+    "participacao": {
+        "quinzena_atual": {"rotulo": "Q2 - Indicador provisório"},
+        "criterios": [
+            {"nome": "Módulo 1", "atendido": False},
+            {"nome": "Qualidade da participação", "atendido": True},
+        ],
+    },
+    "sections": [
+        {"id": 1, "title": "Quinzena 2", "items": []},
+        {"id": 2, "title": "Quinzena 3", "items": []},
+    ],
+}
+placar = pontos_da_quinzena(CURSO_QUINZENAS, encerradas=(1,))
+checa(placar["quinzena"] == 2, "o placar sabe que esta pontuando a Quinzena 2")
+checa(placar["quinzena_em_curso"] == 3,
+      "e sabe que a quinzena em curso e a 3")
+
+so_uma = copy.deepcopy(CURSO_QUINZENAS)
+so_uma["sections"] = [{"id": 1, "title": "Quinzena 2", "items": []}]
+checa(pontos_da_quinzena(so_uma, encerradas=())["quinzena_em_curso"] == 2,
+      "sem quinzena nova aberta, as duas sao a mesma e nao ha o que avisar")
+
+# ---------------------------------------------------------------------------
+print("\n== O e-mail nao repete a prova nem corta calado (18/08/2026) ==")
+
+import enviar_email as E  # noqa: E402
+
+def _acao(urgencia, tipo, nome):
+    return {
+        "curso": "SOC100", "secao": "S5", "fase": "regular",
+        "verbo": "Compareça" if tipo == "prova" else "Leia",
+        "coisa": "à prova no polo" if tipo == "prova" else "material",
+        "o_que": nome, "tipo": tipo, "url": None, "conta_nota": True,
+        "prazo": "2026-11-05T19:40:00-03:00", "prazo_txt": "acontece 05/11",
+        "prazo_fonte": "Sistema de Provas", "carencia": None,
+        "hora_certa": True, "urgencia": urgencia,
+    }
+
+DADOS_EMAIL = {
+    "snapshot_at": "2026-08-18T11:30:00+00:00",
+    "status": "ok",
+    "courses": [],
+    "acoes": (
+        [_acao("depois", "prova", f"prova {i}") for i in range(3)]
+        + [_acao("depois", "cronograma", f"leitura {i}") for i in range(14)]
+    ),
+}
+texto = E.montar_texto(DADOS_EMAIL)
+depois = texto[texto.index("Mais pra frente:"):]
+checa("Compareça" not in depois,
+      "a prova nao se repete na lista: ela ja tem bloco proprio no topo")
+checa("... e mais 2, no site." in depois,
+      "e o corte da lista passa a ser declarado, como nos outros blocos")
+
 print("\n" + "=" * 66)
 if falhas:
     print(f"{falhas} teste(s) operacional(is) falharam.")

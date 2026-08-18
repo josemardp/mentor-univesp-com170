@@ -1008,12 +1008,32 @@ def render_pontos_da_quinzena(data):
         if placar["desconhecidos"]:
             resumo += (f', {placar["desconhecidos"]} o guia não consegue '
                        'conferir')
+        # O painel oficial segue pontuando a quinzena anterior depois que a
+        # nova abre. Em 18/08/2026 este placar era da Quinzena 2, com a 3
+        # correndo desde o dia 16: o número estava certo e parecia ser o de
+        # agora, que é o jeito de um dado certo enganar.
+        avaliada, em_curso = placar.get("quinzena"), placar.get(
+            "quinzena_em_curso"
+        )
+        de_qual = ""
+        if avaliada:
+            de_qual = f'<div class="acao-pe">Este placar é da <b>Quinzena '
+            de_qual += f'{avaliada}</b>, que é a que o painel oficial está '
+            de_qual += 'pontuando'
+            if em_curso and em_curso != avaliada:
+                de_qual += (
+                    f'. A quinzena em curso é a <b>{em_curso}</b>, e ela '
+                    'ainda não tem placar: o painel só passa a pontuá-la '
+                    'quando fecha a anterior'
+                )
+            de_qual += '.</div>'
         blocos.append(
             f'<h3 class="grupo">Pontos da quinzena · '
             f'{esc(c.get("code") or "")}</h3>'
             f'<ul class="acoes"><li class="acao">'
             f'<div class="acao-txt"><b>{esc(resumo)}</b></div>'
             f'<ul class="tasklist">{itens}</ul>'
+            + de_qual +
             '<div class="acao-pe">Todos valem o mesmo peso, pelo aviso '
             'CRITÉRIOS DE AVALIAÇÃO da disciplina. O painel oficial de '
             'participação só mostra os módulos e a qualidade; os outros o '

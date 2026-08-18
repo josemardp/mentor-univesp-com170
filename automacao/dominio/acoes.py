@@ -1136,8 +1136,7 @@ def montar_acoes(dados, hoje, agora=None):
                     continue
                 vistos_fase.add(chave_fase)
                 aviso = prazo["aviso"]
-                acoes.append(
-                    {
+                registro_fase = {
                         "curso": curso["code"],
                         "secao": secao["title"],
                         "fase": secao.get("fase", "regular"),
@@ -1158,8 +1157,19 @@ def montar_acoes(dados, hoje, agora=None):
                         "hora_certa": prazo.get("hora_certa", True),
                         "urgencia": urgencia,
                         "bloqueio": secao.get("locked"),
-                    }
-                )
+                }
+                # A página da unidade às vezes diz o que se perde ao passar do
+                # prazo, e isso muda a decisão: o prazo de módulos da Quinzena
+                # 3 não atrasa quem perde, tira a pessoa do trabalho em grupo
+                # daquela quinzena. Sai com a frase original da página, sem
+                # resumo do guia.
+                if prazo.get("consequencia"):
+                    registro_fase["explicacao"] = (
+                        f"A página da unidade avisa: “{prazo['consequencia']}”"
+                    )
+                if prazo.get("hora_fonte"):
+                    registro_fase["hora_fonte"] = prazo["hora_fonte"]
+                acoes.append(registro_fase)
             if secao.get("locked"):
                 continue
             for item in secao["items"]:

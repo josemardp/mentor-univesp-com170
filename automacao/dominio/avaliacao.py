@@ -192,6 +192,9 @@ MARCA_DE_QUALIDADE = "qualidade"
 
 QUINZENA_DO_PAINEL_RE = re.compile(r"\bq(\d+)\b")
 PREFIXO_DO_LAB_RE = re.compile(r"^q(\d+)\s")
+# O painel escreve "Q2"; o título da seção escreve "Quinzena 3". São as duas
+# formas da mesma coisa, e comparar as duas exige aceitar as duas.
+QUINZENA_DA_SECAO_RE = re.compile(r"\bq(?:uinzena)?\s*(\d+)\b")
 
 
 def quinzena_avaliada(participacao):
@@ -350,10 +353,31 @@ def pontos_da_quinzena(curso, encerradas=()):
             pontos.append(
                 _ponto(criterio.get("nome"), criterio.get("atendido"))
             )
+    avaliada = quinzena_avaliada(participacao)
     return {
         "pontos": pontos,
         "atendidos": sum(1 for p in pontos if p["atendido"] is True),
         "pendentes": sum(1 for p in pontos if p["atendido"] is False),
         "desconhecidos": sum(1 for p in pontos if p["atendido"] is None),
         "total": len(pontos),
+        "quinzena": avaliada,
+        # O painel oficial continua pontuando a quinzena anterior depois que a
+        # nova abre: em 18/08/2026 o placar era da Q2, com a Q3 correndo desde
+        # o dia 16 e prazo de módulos em 23/08. O número estava certo e a tela
+        # não dizia de qual quinzena ele era, então parecia o placar de agora.
+        "quinzena_em_curso": _quinzena_em_curso(curso, encerradas),
     }
+
+
+def _quinzena_em_curso(curso, encerradas):
+    """A maior quinzena com seção viva, ou ``None`` fora do modelo quinzenal."""
+    numeros = []
+    for secao in curso.get("sections") or []:
+        if secao.get("id") in encerradas or secao.get("locked"):
+            continue
+        achado = QUINZENA_DA_SECAO_RE.search(
+            sem_acento(secao.get("title") or "")
+        )
+        if achado:
+            numeros.append(int(achado.group(1)))
+    return max(numeros) if numeros else None

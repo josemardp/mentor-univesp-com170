@@ -16,7 +16,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "automacao"))
 import coletar as C  # noqa: E402
 from dominio.datas import sem_acento  # noqa: E402
 from dominio.prazos import eh_saudacao  # noqa: E402
-from fontes.instrucoes import _chave_do_prazo as chave_do_prazo  # noqa: E402
+from fontes.instrucoes import (  # noqa: E402
+    _chave_do_prazo as chave_do_prazo,
+    _completar_pelo_texto,
+    consequencia_do_prazo,
+    hora_declarada,
+)
 
 BR = timezone(timedelta(hours=-3))
 HOJE = date(2026, 7, 25)
@@ -593,6 +598,69 @@ checa(chave_do_prazo({"quando": "2026-08-23T23:59:00-03:00", "tipo": "fim"})
       == chave_do_prazo({"quando": "2026-08-23T23:59:00-03:00", "tipo": "fim",
                          "rotulo": "outra frase, mesmo dia"}),
       "data de prazo repetida em varios paragrafos continua saindo uma vez")
+
+# ---------------------------------------------------------------------------
+print("\n== A pagina diz a hora, e o guia dizia nao saber (18/08/2026) ==")
+
+# Texto real das duas paginas da Quinzena 3 (ids 228099 e 228101), lidas ao
+# vivo em 18/08. A tabela-calendario da so o numero do dia, entao o cartao
+# saia "vence 23/08 (horario nao informado)" com a hora escrita por extenso
+# dois paragrafos abaixo, e ainda uma regra geral para a disciplina inteira.
+TEXTO_Q3 = (
+    "A Quinzena 3 comeca no dia 16 de agosto e termina no dia 30, quando a "
+    "Quinzena 4 se inicia. Dentro desse periodo existem dois prazos: 23 de "
+    "agosto para concluir os quatro primeiros modulos e 29 de agosto para "
+    "enviar os trabalhos.\n"
+    "23 de agosto, domingo, as 23h59. E a data em que os Modulos 1, 2, 3 e 4 "
+    "precisam estar concluidos.\n"
+    "Uma regra que vale para toda a disciplina: os prazos terminam sempre as "
+    "23h59 do dia indicado.\n"
+    "Quem conclui os quatro primeiros modulos depois de domingo, 23 de "
+    "agosto, as 23h59, recebe na segunda-feira a etapa pratica individual: "
+    "le a situacao e escreve o trabalho individual, dentro da mesma janela "
+    "de entrega. Esse trabalho vale por inteiro. O trabalho em grupo fica "
+    "com quem concluiu os modulos ate domingo, e a sua proxima oportunidade "
+    "de participar dele chega na quinzena seguinte."
+)
+
+checa(hora_declarada(TEXTO_Q3, 23, 8) == (23, 59),
+      "a hora escrita ao lado da data e lida")
+checa(hora_declarada(TEXTO_Q3, 29, 8) == (23, 59),
+      "e a regra geral da disciplina responde pelas datas sem hora propria")
+checa(hora_declarada("nenhuma hora aqui, so o dia 5 de setembro", 5, 9)
+      is None,
+      "pagina que nao escreve hora nenhuma continua sem hora")
+
+prazo_23 = _completar_pelo_texto(
+    {"quando": "2026-08-23T23:59:00-03:00", "hora_certa": False}, TEXTO_Q3
+)
+checa(prazo_23["hora_certa"] is True,
+      "o prazo da tabela para de dizer 'horario nao informado'")
+checa(prazo_23["quando"] == "2026-08-23T23:59:00-03:00",
+      "e a hora continua sendo a que a pagina declarou")
+checa("declara o horario" in sem_acento(prazo_23.get("hora_fonte") or ""),
+      "com a origem da hora registrada")
+
+sem_hora = _completar_pelo_texto(
+    {"quando": "2026-09-05T23:59:00-03:00", "hora_certa": False},
+    "Uma pagina qualquer, sem hora nenhuma escrita.",
+)
+checa(sem_hora["hora_certa"] is False,
+      "sem declaracao na pagina, o guia segue dizendo que nao sabe a hora")
+
+# ---------------------------------------------------------------------------
+print("\n== O que se perde ao passar do prazo (18/08/2026) ==")
+
+perda = consequencia_do_prazo(TEXTO_Q3, 23)
+checa(perda is not None, "a pagina diz o que acontece com quem passa do dia 23")
+checa(perda and "trabalho em grupo fica com quem" in perda,
+      "e a frase que importa entra, mesmo estando duas sentencas adiante")
+checa(perda and perda.startswith("Quem conclui"),
+      "o trecho comeca na frase do gatilho, nao no meio dela")
+checa(consequencia_do_prazo(TEXTO_Q3, 29) is None,
+      "prazo sem consequencia escrita nao ganha explicacao inventada")
+checa(consequencia_do_prazo("Entregue ate o dia 23 de agosto.", 23) is None,
+      "frase que so repete a data nao vira aviso de perda")
 
 print("\n" + "=" * 62)
 if falhas:
