@@ -126,8 +126,15 @@ def estado_workshop(page, url):
     """
     corpo = _texto_da_atividade(page, url)
     if corpo is None:
+        # "aberto" faltava neste retorno, e quem chama lê a chave direto. Uma
+        # página de Laboratório que não carregasse derrubaria a rodada com
+        # KeyError — a falha de uma leitura levando junto as outras sete
+        # fontes, que é exatamente o que `FONTES_QUE_NAO_BLOQUEIAM` existe
+        # para impedir. Leitura que falha responde "não sei" em todos os
+        # campos, nunca some com um deles.
         return {
             "enviado": None,
+            "aberto": None,
             "avaliacoes_total": None,
             "avaliacoes_pendentes": None,
             "avaliacao_pendente": None,

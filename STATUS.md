@@ -4,7 +4,7 @@
 > Site: https://esdraaline.github.io/mentor-univesp-com170/ (conta GitHub `esdraaline`)
 > Histórico completo de sessões, auditorias e etapas concluídas: [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
-## Estado atual (13/08/2026)
+## Estado atual (18/08/2026)
 
 Funcionando e verificado na nuvem. O robô roda sozinho em cinco janelas do dia (8h de Brasília com site + e-mail; 11h, 14h, 17h e 20h só o site), entra no AVA, lê as 8 fontes (`disciplinas`, `itens`, `calendario`, `cronograma`, `foruns`, `notificacoes`, `boletim`, `participacao`), monta a agenda e manda o resumo por e-mail.
 
@@ -44,6 +44,38 @@ O alerta de prazo só dispara com prazo **novo** (comparação entre dois retrat
 **Residual coberto em 13/08, em duas camadas.** Dentro deste repositório, [`vigia.yml`](.github/workflows/vigia.yml) roda às 12h30 e 21h30, não lê o AVA e não depende do robô: pergunta ao site público qual `snapshot_at` está sendo servido e manda e-mail se passar de 16h. Site que não responde também o acorda — silêncio do próprio guia é falha, não sono.
 
 Fora daqui, o alarme de verdade: **`josemardp/vigia-univesp`** (privado, outra conta), rodando 09h e 19h. Faz a mesma pergunta e avisa **falhando**, para o GitHub mandar a notificação nativa de workflow quebrado. Sem SMTP de propósito: alarme que depende de cinco segredos bem configurados tem cinco jeitos novos de quebrar em silêncio. Se o Actions desta conta parar por inteiro, o vigia interno para junto e o externo continua — que era exatamente o buraco anotado aqui desde 10/08.
+
+## Auditoria de 18/08/2026 (manhã): a correção de ontem estava morta em produção
+
+Varredura pedida pelo Josemar, com o AVA aberto ao vivo. A mecânica estava bem: rodada das 8h verde, site publicado às 11:39 UTC, `status: ok`, as dez fontes lidas ao vivo sem cache, e-mail enviado, dez suítes passando, site sem quebra em mobile nem em tema escuro. O que estava errado era o conteúdo, e num ponto o site se contradizia na mesma leitura.
+
+**O campo que a correção de 17/08 usa nunca chegava ao item.** `estado_workshop` calculava `sem_envio_atribuido` desde ontem, e o pipeline copiava do resultado quatro campos, um a um, esquecendo justamente esse. A regra existia, tinha teste próprio e nunca viu um `True`. O efeito publicado hoje foi o pior tipo: **duas leituras do mesmo fato discordando na mesma página**. A fila cobrava "Avalie o trabalho do colega: Q2 M7, vence hoje às 23:59" e a aba "Como estou" creditava "Feedback ao outro grupo: já contou" — enquanto a tela do laboratório, conferida ao vivo às 9h, dizia "Você não recebeu nenhum envio para avaliar". O crédito falso vem do mesmo lugar: "nada foi atribuído" zera o contador de pendentes, e zero pendente foi lido como "já avaliei". A cópia campo a campo virou `item.update(...)`, e o teste novo confere que a leitura entrega tudo o que o domínio pergunta — campo que o coletor não transporta não quebra nada, só responde "não sei" para sempre, que é o jeito mais caro de errar neste projeto.
+
+**A rede de segurança do calendário cobrava por fora da regra.** Mesmo com o campo chegando, o cartão continuaria errado: com a Quinzena 2 encerrada, o Q2 M7 não chega à fila pelo caminho normal, e quem o publica é `tarefas_do_calendario`, que só olha data e status. Ela criava o "Avalie" cru, ocupava o cmid, e `revisoes_entre_pares` — a função que sabe da regra — pulava o item por já estar na fila. A regra virou função única (`_virar_confirmacao_de_grupo`), usada pelos dois caminhos. Rede de segurança não pode ser mais burra que a fila que ela protege.
+
+**Três das seis lives da Quinzena 3 sumiam, e participar de uma vale ponto.** A página "Q3 - Lembrete de datas e live" publica seis lives, três delas dividindo dia com outra (19/08 às 16h, 18h e 19h; 20/08 às 10h e 17h). A fonte de instruções deduplicava por dia, com um motivo bom — a mesma página repete "15 de agosto" em vários parágrafos e o bloco de conferência não precisa do eco — e a mesma regra comia metade das opções de live. O site oferecia três onde o AVA oferece seis. Encontro com hora marcada passou a casar por instante e nome; data de prazo continua casando por dia.
+
+**O guia marcou uma live que o aviso desmarca.** O facilitador do LET110 postou em 17/08: "nossa live ocorrerá na quinta-feira (20/08) e não na terça-feira (18/08)". O guia publicou "acontece hoje (horário não informado)". O detector de negação derrubava a frase inteira quando via "não haverá", e não tinha como tratar a negação que desmarca uma data e confirma outra na mesma oração. Agora a negação cai sobre a data que vem logo depois dela, por posição, e nunca sobre a frase toda: quem escreve "é X e não Y" está afirmando X.
+
+**A saudação virou nome da live.** O mesmo aviso abre com "Prezados/as," e o cartão saiu "Assista ao vivo: Prezados/as". A lista de saudações tinha `prezados(as)` e não `prezados/as`. A comparação passou a usar a raiz antes do separador, o que cobre as duas sem transformar "Olavo" em saudação.
+
+**E o cartão escondia a hora que o aviso dá.** O mesmo post diz "quinta-feira (20/08), às 20h", e o robô leu isso certo — mas o agrupamento elegia como principal o primeiro da lista, que era a leitura sem hora. O e-mail listava "20/08 às 23:59: LET110 live" debaixo de **COM HORA MARCADA**, com uma hora que ninguém marcou. Entre opções do mesmo dia ganha a que tem hora vinda da fonte. Só do mesmo dia: trocar de dia mudaria a urgência, e corrigir a hora não pode custar a data.
+
+**Dois defeitos latentes, achados no caminho.** Página de laboratório que não carrega devolvia um dicionário sem a chave `aberto`, e quem chama lê a chave direto: uma leitura falha derrubaria a rodada inteira com `KeyError`, que é exatamente o que `FONTES_QUE_NAO_BLOQUEIAM` existe para impedir. E `pytest testes` não rodava nenhum dos dez arquivos: três deles chamavam `sys.exit` no corpo do módulo, e a coleta morria com `INTERNALERROR`. O CI chama cada teste como script e por isso ninguém via. Os três ganharam `if __name__ == "__main__":`.
+
+### Conferido ao vivo e correto
+
+- Os prazos da Quinzena 3 (23/08 e 29/08) batem com a página de instruções: a correção de ontem funcionou.
+- O Q2 M6 é cobrança de verdade — a tela diz "Avaliar colegas · total: 1 · pendente: 1", e vence hoje às 23:59.
+- O portfólio individual dele consta enviado em 13/08 às 20:04.
+
+### Fica anotado, sem código ainda
+
+- **A hora dos prazos da COM170 está escrita e o guia diz que não sabe.** As duas páginas da Quinzena 3 afirmam "23 de agosto, domingo, às 23h59" e, em outra frase, "uma regra que vale para toda a disciplina: os prazos terminam sempre às 23h59 do dia indicado". A tabela-calendário, que é a fonte usada, só traz o número do dia, e o cartão sai "(horário não informado)". Não é chute usar o que a página declara.
+- **O cartão dos módulos não diz o que se perde.** A mesma página avisa que quem conclui os quatro módulos depois de 23/08 **fica fora do trabalho em grupo da quinzena**. O cartão diz só "Conclua: Quinzena 3 · Prazo módulos 1 a 4".
+- **O placar dos dez pontos mostra a Q2 enquanto a Q3 corre.** Está certo — é a quinzena que o painel oficial pontua, e o painel está parado em 12/08 — mas o site não diz que a quinzena em curso é outra e ainda não tem placar.
+- **O e-mail corta a lista e a terceira prova cai no corte.** "Compareça à prova" do SOC100 ficou no "... e mais 4, no site". O corte é declarado, mas o item de maior peso não deveria ser o cortado.
+- **O passo de deploy continua sem repetição** (pendência de 17/08), e o aviso de falha ainda não distingue "o AVA me barrou" de "o Pages estava fora".
 
 ## Auditoria de 17/08/2026 (fim de tarde): o mês da Quinzena 3 saiu errado
 

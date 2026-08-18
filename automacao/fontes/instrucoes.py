@@ -232,6 +232,26 @@ def _texto_da_pagina(page, url):
         return None
 
 
+def _chave_do_prazo(prazo):
+    """Uma linha por data, menos quando o dia tem vários encontros.
+
+    A dedução era só ``quando[:10]``, com um motivo bom: a mesma página
+    repete "15 de agosto" em vários parágrafos e o bloco de conferência não
+    precisa do eco. Só que a página "Lembrete de datas e live" da Quinzena 3
+    publica seis lives, e três delas dividem dia com outra (19/08 às 16h, 18h
+    e 19h; 20/08 às 10h e 17h). Com a chave por dia, as três segundas
+    sumiam: o guia mostrava três opções de live onde o AVA oferece seis, e
+    participar ao vivo de uma delas é um dos dez pontos da quinzena.
+
+    Encontro com hora marcada casa por instante e nome; o resto continua
+    casando por dia.
+    """
+    if prazo.get("tipo") == "compromisso" and prazo.get("hora_certa"):
+        nome = prazo.get("titulo_evento") or prazo.get("rotulo") or ""
+        return (prazo["quando"], sem_acento(nome))
+    return prazo["quando"][:10]
+
+
 def ler(page, secoes, referencia):
     saida = []
     for item in paginas_de_instrucao(secoes):
@@ -247,13 +267,11 @@ def ler(page, secoes, referencia):
             if prazos:
                 saida.append(_como_aviso(item, prazos))
             continue
-        vistos = {prazo["quando"][:10] for prazo in prazos}
+        vistos = {_chave_do_prazo(prazo) for prazo in prazos}
         for prazo in extrair_prazos(texto, referencia):
             if prazo["quando"][:10] < referencia.isoformat():
                 continue
-            # Uma linha por data: a mesma página repete "15 de agosto" em
-            # vários parágrafos, e o bloco de conferência não precisa de eco.
-            chave = prazo["quando"][:10]
+            chave = _chave_do_prazo(prazo)
             if chave in vistos:
                 continue
             vistos.add(chave)

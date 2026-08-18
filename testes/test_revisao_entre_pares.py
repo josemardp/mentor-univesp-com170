@@ -21,7 +21,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "automacao"))
 
-from dominio.acoes import revisoes_entre_pares  # noqa: E402
+from dominio.acoes import (  # noqa: E402
+    cmids_sem_envio_atribuido,
+    revisoes_entre_pares,
+    tarefas_do_calendario,
+)
 
 falhas = []
 
@@ -167,5 +171,86 @@ checa(revisoes_entre_pares(so_envio, date(2026, 8, 14), set()) == [],
       "sem closeassessment no calendário, nada é afirmado")
 
 
+print("\n== 18/08: a rede de seguranca do calendario nao pode cobrar sozinha ==")
+
+# Este e o defeito que a correcao de 17/08 nao pegou, achado em 18/08 com a
+# pagina do Q2 M7 aberta ao vivo dizendo "Voce nao recebeu nenhum envio para
+# avaliar". Com a Quinzena 2 encerrada, o item nao chega a fila pelo caminho
+# normal, e quem o publica e `tarefas_do_calendario`. Ela nao consultava a
+# regra: o cartao saia "Avalie o trabalho do colega: Q2 M7, vence hoje as
+# 23:59", cobranca do que e do representante. E como ela ocupa o cmid antes,
+# `revisoes_entre_pares` pulava o item e a regra certa nunca rodava.
+DADOS_COM_ITEM = {
+    "courses": [
+        {
+            "id": "18922",
+            "code": "COM170",
+            "sections": [
+                {
+                    "title": "Q2 Módulo 7",
+                    "items": [
+                        {
+                            "cmid": "215612",
+                            "type": "workshop",
+                            "label": "Q2 M7 - Revisão entre pares (grupo)",
+                            "url": "https://ava.univesp.br/mod/workshop/"
+                                   "view.php?id=215612",
+                            "status": "Pendente",
+                            "sem_envio_atribuido": True,
+                        }
+                    ],
+                }
+            ],
+        }
+    ],
+    "eventos": EVENTOS,
+}
+
+checa(cmids_sem_envio_atribuido(DADOS_COM_ITEM) == {"215612"},
+      "o item lido do AVA entrega o cmid de quem nao recebeu envio")
+
+resgatadas = tarefas_do_calendario(
+    DADOS_COM_ITEM, date(2026, 8, 18), set(),
+    cmids_sem_envio_atribuido(DADOS_COM_ITEM),
+)
+m7 = [t for t in resgatadas if t["url"].endswith("215612")]
+checa(len(m7) == 1, "o prazo continua sendo resgatado do calendario")
+checa(m7 and m7[0]["verbo"] == "Confirme com o grupo",
+      "a rede de seguranca aplica a mesma regra da fila"
+      + (f" (veio {m7[0]['verbo']!r})" if m7 else ""))
+checa(m7 and "representante" in (m7[0].get("explicacao") or ""),
+      "e explica no cartao por que nao e cobranca")
+checa(m7 and m7[0]["prazo"] == "2026-08-18T23:59:00-03:00",
+      "sem perder o prazo: ele ainda precisa cobrar o representante hoje")
+
+# Sem o campo, nada muda: leitura que falhou nao vira nem cobranca nem alivio.
+sem_campo = {
+    "courses": [
+        {
+            **DADOS_COM_ITEM["courses"][0],
+            "sections": [
+                {
+                    "title": "Q2 Módulo 7",
+                    "items": [
+                        {
+                            **DADOS_COM_ITEM["courses"][0]["sections"][0]
+                            ["items"][0],
+                            "sem_envio_atribuido": None,
+                        }
+                    ],
+                }
+            ],
+        }
+    ],
+    "eventos": EVENTOS,
+}
+checa(cmids_sem_envio_atribuido(sem_campo) == set(),
+      "leitura que nao afirmou nada nao entra na lista")
+cru = tarefas_do_calendario(sem_campo, date(2026, 8, 18), set(), set())
+checa([t for t in cru if t["url"].endswith("215612")][0]["verbo"] == "Avalie",
+      "sem a afirmacao da pagina, o resgate segue cobrando como antes")
+
+
 print("\n" + ("FALHOU: " + str(len(falhas)) if falhas else "TUDO OK"))
-sys.exit(1 if falhas else 0)
+if __name__ == "__main__":
+    sys.exit(1 if falhas else 0)

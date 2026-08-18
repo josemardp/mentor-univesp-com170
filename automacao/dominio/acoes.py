@@ -412,7 +412,40 @@ def _agrupar_compromissos(acoes):
     for acao in saida:
         if len(acao.get("opcoes") or []) < 2:
             acao.pop("opcoes", None)
+            continue
+        _promover_melhor_opcao(acao)
     return saida
+
+
+def _promover_melhor_opcao(acao):
+    """O cartão mostra o horário que o aviso realmente marcou.
+
+    O primeiro da lista virava o principal, e ele podia ser o palpite: o
+    aviso do LET110 de 17/08/2026 cita a data três vezes e só uma delas traz
+    a hora ("quinta-feira (20/08), às 20h"). O cartão saiu com 23:59, que é
+    o fim de dia que o robô usa quando não sabe a hora, e o e-mail listou a
+    live sob "COM HORA MARCADA" com uma hora que ninguém marcou.
+
+    A troca é só dentro do mesmo dia do cartão. Trocar de dia mudaria a
+    urgência, que já foi calculada, e a urgência é o que decide se ele vê o
+    cartão hoje: corrigir a hora não pode custar a data.
+    """
+    dia = (acao.get("prazo") or "")[:10]
+    candidatas = [
+        opcao
+        for opcao in acao["opcoes"]
+        if (opcao.get("quando") or "")[:10] == dia
+        and (opcao.get("quando") or "")[11:16] not in ("", "23:59")
+    ]
+    if not candidatas:
+        return
+    melhor = min(candidatas, key=lambda opcao: opcao.get("quando") or "9999")
+    if melhor.get("quando") == acao.get("prazo"):
+        return
+    acao["prazo"] = melhor.get("quando")
+    acao["prazo_txt"] = melhor.get("prazo_txt")
+    acao["o_que"] = melhor.get("o_que") or acao.get("o_que")
+    acao["hora_certa"] = True
 
 
 GATILHOS_ENCONTRO = (
@@ -549,7 +582,7 @@ def _verbo_do_evento(nome):
     return "Conclua", ""
 
 
-def tarefas_do_calendario(dados, hoje, ja_na_fila):
+def tarefas_do_calendario(dados, hoje, ja_na_fila, sem_atribuicao=()):
     """Rede de segurança: prazo do calendário que não virou tarefa vira tarefa.
 
     Todo erro grave desta sessão teve a mesma forma — uma atividade com data
@@ -584,8 +617,7 @@ def tarefas_do_calendario(dados, hoje, ja_na_fila):
             continue
         vistos.add(cmid)
         verbo, coisa = _verbo_do_evento(evento.get("nome"))
-        novos.append(
-            {
+        registro = {
                 "curso": por_curso.get(str(evento.get("curso_id") or ""))
                 or evento.get("curso")
                 or "",
@@ -609,7 +641,12 @@ def tarefas_do_calendario(dados, hoje, ja_na_fila):
                 "urgencia": urgencia,
                 "resgatado": True,
             }
-        )
+        # A rede de segurança não pode ser mais burra que a fila que ela
+        # protege: resgatar o prazo é certo, cobrar a revisão de quem não
+        # recebeu envio nenhum é o defeito que ela deveria evitar.
+        if cmid in sem_atribuicao and verbo == "Avalie":
+            _virar_confirmacao_de_grupo(registro)
+        novos.append(registro)
     return novos
 
 
@@ -738,6 +775,48 @@ def _nome_da_atividade(evento):
     return nome.strip()
 
 
+def _virar_confirmacao_de_grupo(registro):
+    """Cobrança de revisão que a página diz não ser dele vira confirmação.
+
+    A página do laboratório afirma, com todas as letras, que nada foi
+    sorteado para esta conta. O calendário não sabe disso: em 17/08/2026 a
+    fila cobrou "Avalie o trabalho do colega: Q2 M7, vence amanhã" com a tela
+    dizendo "Você não recebeu nenhum envio para avaliar". Em laboratório de
+    grupo quem recebe o trabalho da outra equipe é o representante, e é a
+    mesma família da entrega de grupo resolvida em 15/08: cobrança do que não
+    é dele. O prazo continua à mostra, porque ele ainda precisa cobrar o
+    representante antes que a janela feche.
+
+    Mora aqui, e não dentro de ``revisoes_entre_pares``, porque a rede de
+    segurança do calendário monta o mesmo cartão por um caminho próprio — e
+    em 18/08/2026 foi ela que publicou a cobrança falsa, com a regra escrita
+    e testada logo abaixo, sem nunca ser consultada.
+    """
+    registro["verbo"] = "Confirme com o grupo"
+    registro["coisa"] = "a revisão"
+    registro["explicacao"] = (
+        "O AVA diz que nenhum trabalho foi atribuído à sua conta "
+        "nesta revisão. Em laboratório de grupo quem recebe é o "
+        "representante, então confirme com ele se a revisão do grupo "
+        "já foi feita. Se o representante for você, nada chegou, e "
+        "aí vale perguntar ao facilitador antes do prazo."
+    )
+    return registro
+
+
+def cmids_sem_envio_atribuido(dados):
+    """Os Laboratórios em que a página nega ter atribuído trabalho a ele."""
+    return {
+        cmid
+        for curso in dados.get("courses", [])
+        for secao in curso.get("sections") or []
+        for item in secao.get("items") or []
+        if item.get("sem_envio_atribuido") is True
+        for cmid in [_cmid_da_url(item.get("url"))]
+        if cmid
+    }
+
+
 def revisoes_entre_pares(dados, hoje, ja_avaliando, sem_atribuicao=()):
     """A fase de revisão do Laboratório, anunciada desde antes de abrir.
 
@@ -802,22 +881,7 @@ def revisoes_entre_pares(dados, hoje, ja_avaliando, sem_atribuicao=()):
             "urgencia": urgencia,
         }
         if cmid in sem_atribuicao:
-            # A página do laboratório afirma, com todas as letras, que nada
-            # foi sorteado para esta conta. O calendário não sabe disso: em
-            # 17/08/2026 a fila cobrou "Avalie o trabalho do colega: Q2 M7,
-            # vence amanhã" com a tela dizendo "Você não recebeu nenhum envio
-            # para avaliar". Em laboratório de grupo quem recebe o trabalho da
-            # outra equipe é o representante, e é a mesma família da entrega
-            # de grupo resolvida em 15/08: cobrança do que não é dele.
-            registro["verbo"] = "Confirme com o grupo"
-            registro["coisa"] = "a revisão"
-            registro["explicacao"] = (
-                "O AVA diz que nenhum trabalho foi atribuído à sua conta "
-                "nesta revisão. Em laboratório de grupo quem recebe é o "
-                "representante, então confirme com ele se a revisão do grupo "
-                "já foi feita. Se o representante for você, nada chegou, e "
-                "aí vale perguntar ao facilitador antes do prazo."
-            )
+            _virar_confirmacao_de_grupo(registro)
         # Comparação por dia, não por instante: a fase que abre hoje às 00:00
         # já está aberta, e não deve alternar entre "abre" e "aberta" conforme
         # a hora da rodada.
@@ -1243,9 +1307,13 @@ def montar_acoes(dados, hoje, agora=None):
         for cmid in [_cmid_da_url(acao.get("url"))]
         if cmid
     }
+    sem_atribuicao = cmids_sem_envio_atribuido(dados)
     acoes.extend(
         tarefas_do_calendario(
-            dados, hoje, ja_na_fila | {c for c in resolvidos if c}
+            dados,
+            hoje,
+            ja_na_fila | {c for c in resolvidos if c},
+            sem_atribuicao,
         )
     )
     # A revisão entre pares é a segunda obrigação do mesmo Laboratório, com
@@ -1262,15 +1330,7 @@ def montar_acoes(dados, hoje, agora=None):
                 for cmid in [_cmid_da_url(acao.get("url"))]
                 if cmid
             },
-            {
-                cmid
-                for curso in dados.get("courses", [])
-                for secao in curso.get("sections") or []
-                for item in secao.get("items") or []
-                if item.get("sem_envio_atribuido") is True
-                for cmid in [_cmid_da_url(item.get("url"))]
-                if cmid
-            },
+            sem_atribuicao,
         )
     )
     # Depois das tarefas do calendário: o aviso herda o prazo da entrega em

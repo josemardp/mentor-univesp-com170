@@ -561,15 +561,9 @@ def executar_coleta(estado, anterior=None):
                 if item.get("type") == "workshop":
                     # Uma leitura só: a página do Laboratório responde as duas
                     # perguntas (ainda há o que fazer, e qual fase falta).
-                    estado_lab = itens.estado_workshop(page, item.get("url"))
-                    item["enviado"] = estado_lab["enviado"]
-                    item["aberto"] = estado_lab["aberto"]
-                    item["avaliacao_pendente"] = estado_lab[
-                        "avaliacao_pendente"
-                    ]
-                    item["avaliacoes_pendentes"] = estado_lab[
-                        "avaliacoes_pendentes"
-                    ]
+                    item.update(
+                        itens.estado_workshop(page, item.get("url"))
+                    )
                 else:
                     item["aberto"] = itens.item_aberto(page, item.get("url"))
                 # Só onde a página não afirmou nada. O calendário responde por

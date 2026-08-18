@@ -365,4 +365,5 @@ checa(portal._identidades() == [],
 
 
 print("\n" + ("FALHOU: " + str(len(falhas)) if falhas else "TUDO OK"))
-sys.exit(1 if falhas else 0)
+if __name__ == "__main__":
+    sys.exit(1 if falhas else 0)

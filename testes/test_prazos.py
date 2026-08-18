@@ -14,6 +14,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "automacao"))
 import coletar as C  # noqa: E402
+from dominio.datas import sem_acento  # noqa: E402
+from dominio.prazos import eh_saudacao  # noqa: E402
+from fontes.instrucoes import _chave_do_prazo as chave_do_prazo  # noqa: E402
 
 BR = timezone(timedelta(hours=-3))
 HOJE = date(2026, 7, 25)
@@ -520,6 +523,76 @@ checa(all(p["tipo"] != "compromisso" for p in pz_agenda
 # Bug latente: data sem ano sumia calada quando a referência era um date.
 checa(C.achar_datas("dia 30/07", date(2026, 7, 28)),
       "data sem ano sobrevive mesmo com referência sem hora")
+
+# ---------------------------------------------------------------------------
+print("\n== 18/08: o aviso que desmarca a live, e o guia marcando a live ==")
+
+# Texto copiado do post real do facilitador do LET110, publicado em 17/08 as
+# 19:26 no "Forum de duvidas gerais" e repetido em "Avisos". O guia publicou
+# "Assista ao vivo: Prezados/as - acontece hoje (horario nao informado)" para
+# 18/08, o dia que a frase nega, com o nome tirado da saudacao.
+AVISO_TROCA_DE_DIA = (
+    "Prezados/as,\n\nConforme comentei anteriormente, nesta semana 5, nossa "
+    "live ocorrerá na quinta-feira (20/08) e não na terça-feira (18/08).\n\n"
+    "Na semana que vem, a de nº 6, voltamos pra terça-feira (25/08).\n\n"
+    "Portanto, a live desta semana será na quinta-feira (20/08), às 20h.\n\n"
+    "Tragam as dúvidas de vocês."
+)
+pz_troca = C.extrair_prazos(
+    AVISO_TROCA_DE_DIA, datetime(2026, 8, 18, 8, 30, tzinfo=BR)
+)
+dias_troca = {p["quando"][:10] for p in pz_troca}
+checa("2026-08-18" not in dias_troca,
+      "data negada por 'e nao na terca-feira (18/08)' nao vira compromisso")
+checa("2026-08-20" in dias_troca,
+      "a data afirmada na mesma frase continua valendo")
+checa("2026-08-25" in dias_troca,
+      "a live da semana seguinte, em outra frase, nao some junto")
+checa(all(sem_acento(p.get("titulo_evento") or "") != "prezados/as"
+          for p in pz_troca),
+      "saudacao 'Prezados/as' nao vira nome de live")
+checa(any(p["quando"] == "2026-08-20T20:00:00-03:00" for p in pz_troca),
+      "a unica frase que traz a hora ('as 20h') e lida com a hora certa")
+
+checa(eh_saudacao("Prezados/as") and eh_saudacao("Prezados(as)")
+      and eh_saudacao("prezadas,"),
+      "as tres formas de escrever a mesma saudacao sao reconhecidas")
+checa(not eh_saudacao("Olavo e Cassia"),
+      "nome proprio que comeca parecido com saudacao nao e descartado")
+
+# ---------------------------------------------------------------------------
+print("\n== As seis lives da Quinzena 3 (pagina 228101, lida ao vivo) ==")
+
+# Tres das seis dividem dia com outra, e a deducao por dia da fonte de
+# instrucoes ficava com metade delas: o guia mostrava tres opcoes onde o AVA
+# oferece seis. Participar ao vivo de uma live e um dos dez pontos da quinzena.
+LEMBRETE_Q3 = (
+    "LEMBRETE DE DATAS E DA LIVE\nGuarde estas datas\n\n"
+    "23 de agosto, domingo, às 23h59. É a data em que os Módulos 1, 2, 3 e 4 "
+    "precisam estar concluídos.\n\n"
+    "De 24 a 29 de agosto, até sábado, às 23h59. É a janela de envio no "
+    "Laboratório de Revisão.\n\n"
+    "A quinzena oferece 7 lives, em dias e horários diferentes.\n\n"
+    "LIVES\nGabrieli e Uebert\n18/08/2026 · 18h\nEntrar na live\n"
+    "Lyon e Victor\n19/08/2026 · 18h\nEntrar na live\n"
+    "Vittoria e Nicolle\n19/08/2026 · 16h\nEntrar na live\n"
+    "Cauê e participante\n19/08/2026 · 19h\nEntrar na live\n"
+    "Lívia e Cássia\n20/08/2026 · 10h\nEntrar na live\n"
+    "Carlos e Siguara\n20/08/2026 · 17h\nEntrar na live"
+)
+pz_q3 = C.extrair_prazos(LEMBRETE_Q3, datetime(2026, 8, 18, 8, 30, tzinfo=BR))
+lives_q3 = [p for p in pz_q3 if p["tipo"] == "compromisso"]
+checa(len(lives_q3) == 6, "as seis lives publicadas na pagina sao lidas")
+sobreviventes = set()
+for prazo in lives_q3:
+    chave = chave_do_prazo(prazo)
+    checa(chave not in sobreviventes,
+          f"a live de {prazo['quando'][5:16]} sobrevive a deducao da fonte")
+    sobreviventes.add(chave)
+checa(chave_do_prazo({"quando": "2026-08-23T23:59:00-03:00", "tipo": "fim"})
+      == chave_do_prazo({"quando": "2026-08-23T23:59:00-03:00", "tipo": "fim",
+                         "rotulo": "outra frase, mesmo dia"}),
+      "data de prazo repetida em varios paragrafos continua saindo uma vez")
 
 print("\n" + "=" * 62)
 if falhas:

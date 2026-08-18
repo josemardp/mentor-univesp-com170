@@ -209,6 +209,42 @@ def tem_negacao(texto):
     return bool(NEGACAO_RE.search(sem_acento(texto or "")))
 
 
+# "e não na terça-feira (18/08)". Aqui a negação não derruba o fragmento
+# inteiro: ela derruba uma data e confirma outra, na mesma frase. Em
+# 17/08/2026 o facilitador do LET110 escreveu "nossa live ocorrerá na
+# quinta-feira (20/08) e não na terça-feira (18/08)", e o guia publicou um
+# encontro para o dia que o aviso nega. Afirmar um compromisso que o próprio
+# aviso desmarca é pior do que não ter lido o aviso.
+NEGA_A_DATA_RE = re.compile(
+    r"\bnao\s+(?:e\s+|sera\s+|vai\s+ser\s+)?"
+    r"(?:na|no|em|as|no\s+dia|nesta|neste|nessa|nesse|dia)\b"
+)
+# Distância entre o "não" e a data que ele nega. Uma frase típica é
+# "e não na terça-feira (18/08)": 20 caracteres. Trinta cobre "não no
+# próximo sábado, 23/08" sem alcançar a data da oração seguinte.
+ALCANCE_DA_NEGACAO = 30
+
+
+def datas_negadas(fragmento, achados):
+    """Posições das datas que a própria frase desmarca.
+
+    ``achados`` são as tuplas de ``achar_datas``, cuja quarta posição é onde
+    a data começa no fragmento. Só cai a data que vem logo depois do "não",
+    nunca a frase toda: quem escreve "é X e não Y" está afirmando X.
+    """
+    alvo = sem_acento(fragmento or "")
+    negadas = set()
+    for negacao in NEGA_A_DATA_RE.finditer(alvo):
+        candidatas = [
+            posicao
+            for *_, posicao in achados
+            if negacao.end() <= posicao <= negacao.end() + ALCANCE_DA_NEGACAO
+        ]
+        if candidatas:
+            negadas.add(min(candidatas))
+    return negadas
+
+
 def eh_fase(fragmento):
     encontrado = ROTULO_RE.match((fragmento or "").strip())
     if not encontrado:
@@ -294,6 +330,24 @@ SAUDACOES = {
     "caros",
     "caras",
 }
+# Lista de saudação não sobrevive a variação de escrita: em 17/08/2026 o
+# aviso do LET110 abriu com "Prezados/as," e o guia batizou a live de
+# "Assista ao vivo: Prezados/as". O conjunto tinha "prezados(as)" e não
+# "prezados/as". Em vez de caçar cada forma, a comparação passa a ignorar o
+# que separa as variantes — barra, parênteses, ponto — e a raiz responde
+# pelas duas.
+SEPARADOR_DE_FLEXAO_RE = re.compile(r"[\s/()\\.\-]+")
+
+
+def eh_saudacao(trecho):
+    alvo = sem_acento(trecho or "").strip(" ,:;!")
+    if alvo in SAUDACOES:
+        return True
+    # "prezados/as" e "prezados(as)" são a mesma palavra com a flexão
+    # colada. A raiz antes do separador responde pelas duas, e comparar por
+    # igualdade evita transformar "Olavo" em saudação por causa de "olá".
+    raiz = SEPARADOR_DE_FLEXAO_RE.split(alvo, maxsplit=1)[0]
+    return bool(raiz) and raiz in SAUDACOES
 
 
 def _nome_do_evento(trechos, indice):
@@ -312,7 +366,7 @@ def _nome_do_evento(trechos, indice):
             caractere.isdigit() for caractere in anterior
         ):
             continue
-        if sem_acento(anterior) in SAUDACOES:
+        if eh_saudacao(anterior):
             continue
         return anterior
     return None
@@ -356,9 +410,11 @@ def extrair_prazos(texto, referencia):
             continue
         if tem_negacao(fragmento):
             continue
-        for quando, trecho, hora_certa, posicao in achar_datas(
-            fragmento, referencia
-        ):
+        achados = list(achar_datas(fragmento, referencia))
+        negadas = datas_negadas(fragmento, achados)
+        for quando, trecho, hora_certa, posicao in achados:
+            if posicao in negadas:
+                continue
             rotulo = (
                 fragmento.split(":")[0].strip()
                 if ":" in fragmento[:70]

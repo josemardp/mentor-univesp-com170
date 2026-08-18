@@ -237,4 +237,9 @@ checa(resultado_cheio.truncado and resultado_cheio.problemas,
 
 
 print("\n" + ("FALHOU: " + str(len(falhas)) if falhas else "TUDO OK"))
-sys.exit(1 if falhas else 0)
+# `sys.exit` no corpo do módulo derrubava a coleta do pytest inteira: quem
+# rodasse `pytest testes` levava um INTERNALERROR e nenhum dos dez arquivos
+# rodava. O CI chama cada teste como script, então ninguém via. Sob o pytest
+# o módulo só é importado, e importar não pode terminar o processo.
+if __name__ == "__main__":
+    sys.exit(1 if falhas else 0)

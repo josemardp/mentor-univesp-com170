@@ -22,6 +22,7 @@ sys.path.insert(0, str(ROOT / "automacao"))
 
 import coletar as C  # noqa: E402
 from fontes import itens  # noqa: E402
+from playwright.sync_api import Error as PlaywrightError  # noqa: E402
 
 falhas = []
 
@@ -294,6 +295,54 @@ checa(
     "M6 - Revisão entre pares (colega)" in itens_labels_nao,
     "com enviado=False (confirmado que não enviou), a ação continua na fila",
 )
+
+print("\n== o que a pagina afirma tem que chegar ao item (18/08/2026) ==")
+
+# O defeito mais caro de 18/08 nao estava em nenhuma regra: estava no
+# transporte. `estado_workshop` calculava `sem_envio_atribuido` desde 17/08, o
+# pipeline copiava campo a campo e esqueceu esse, e a regra que dependia dele
+# nunca viu um True. Resultado publicado: a fila cobrando "Avalie o trabalho
+# do colega: Q2 M7" e o placar dos dez pontos creditando o mesmo ponto como
+# feito, com a pagina dizendo "Voce nao recebeu nenhum envio para avaliar".
+#
+# Campo que o dominio le e o coletor nao entrega e defeito silencioso: nao
+# quebra nada, so responde "nao sei" para sempre. Este teste existe para que
+# o proximo campo novo nao repita isso.
+TELA_M7 = (
+    "Fase de avaliação\n"
+    "Prazo limite da avaliação: terça-feira, 18 ago. 2026, 23:59 (hoje)\n"
+    "Seu envio\nVocê não enviou seu trabalho ainda\n"
+    "Instruções para avaliação\n"
+    "O prazo de envio terminou e o sistema já atribuiu aleatoriamente a "
+    "Reflexão de uma equipe parceira ao seu grupo.\n"
+    "Envios atribuídos para avaliação\n"
+    "Você não recebeu nenhum envio para avaliar"
+)
+estado_m7 = itens.estado_workshop(PaginaFalsa(TELA_M7), "https://ava/w")
+checa(estado_m7["sem_envio_atribuido"] is True,
+      "a frase real da tela do Q2 M7 e reconhecida")
+checa(estado_m7["enviado"] is False,
+      "e o envio dele continua sendo lido como ausente")
+
+CAMPOS_QUE_O_DOMINIO_LE = {
+    "enviado", "aberto", "avaliacao_pendente", "sem_envio_atribuido",
+}
+falta = CAMPOS_QUE_O_DOMINIO_LE - set(estado_m7)
+checa(not falta, f"a leitura entrega tudo o que o dominio pergunta ({falta})")
+
+# Leitura que falhou (pagina fora do ar) responde "nao sei" em todos os
+# campos. Faltava "aberto" aqui, e quem chama le a chave direto: uma pagina de
+# Laboratorio que nao carregasse derrubava a rodada inteira com KeyError.
+class PaginaMorta(PaginaFalsa):
+    def goto(self, *args, **kwargs):
+        raise PlaywrightError("net::ERR_CONNECTION_RESET")
+
+morta = itens.estado_workshop(PaginaMorta(""), "https://ava/w")
+checa(set(morta) >= CAMPOS_QUE_O_DOMINIO_LE,
+      "leitura que falhou responde 'nao sei' em todos os campos, sem sumir")
+checa(all(morta[campo] is None for campo in CAMPOS_QUE_O_DOMINIO_LE),
+      "e nenhum deles vira afirmacao")
+
 
 print("\n" + "=" * 66)
 if falhas:
