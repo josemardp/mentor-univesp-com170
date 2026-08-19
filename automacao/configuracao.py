@@ -69,4 +69,10 @@ VALIDADE_AUTOR_DIAS = 90
 # veio do cache, e continuou marcando a live no dia que o aviso desmarca. A
 # correção estava no ar e não alcançava o defeito que ela existia para
 # corrigir.
-VERSAO_CACHE = 4
+# 5: data sem gatilho nenhum na frase nem no contexto deixou de nascer como
+# prazo seguro. Era ela que fazia "Na semana que vem, a de nº 6, voltamos pra
+# terça-feira (25/08)" — frase sobre a live da semana seguinte — virar
+# "Conclua: Semana 5 · conclusão, vence 25/08" com etiqueta de aviso oficial.
+# Os dois fóruns do LET110 têm o mesmo texto, e sem o incremento o de "Avisos"
+# seguiria servindo o prazo velho do cache.
+VERSAO_CACHE = 5

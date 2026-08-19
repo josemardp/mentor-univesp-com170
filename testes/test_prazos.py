@@ -662,6 +662,43 @@ checa(consequencia_do_prazo(TEXTO_Q3, 29) is None,
 checa(consequencia_do_prazo("Entregue ate o dia 23 de agosto.", 23) is None,
       "frase que so repete a data nao vira aviso de perda")
 
+# ---------------------------------------------------------------------------
+print("\n== Data sem gatilho nenhum não vira prazo firme (19/08/2026) ==")
+
+# Texto real do aviso do LET110 de 17/08/2026, publicado em dois fóruns. A
+# frase do dia 25 fala da live da semana seguinte, e o guia publicou
+# "Conclua: Semana 5 · conclusão, vence 25/08" com etiqueta de aviso oficial,
+# contra os itens da mesma semana que o cronograma oficial dá para 26/08.
+AVISO_LIVE_LET110 = (
+    "Prezados/as,\n"
+    "Conforme comentei anteriormente, nesta semana 5, nossa live ocorrerá na "
+    "quinta-feira (20/08) e não na terça-feira (18/08).\n"
+    "Na semana que vem, a de nº 6, voltamos pra terça-feira (25/08).\n"
+    "Portanto, a live desta semana será na quinta-feira (20/08), às 20h.\n"
+    "Tragam as dúvidas de vocês."
+)
+pz_let = C.extrair_prazos(
+    AVISO_LIVE_LET110, datetime(2026, 8, 17, 20, tzinfo=BR)
+)
+dia_25 = [p for p in pz_let if p["quando"][:10] == "2026-08-25"]
+checa(bool(dia_25) and all(p["confianca"] == "baixa" for p in dia_25),
+      "data sem gatilho de prazo nem de abertura nasce duvidosa, nao firme")
+checa(C.casar_prazos("Semana 5", pz_let) == [],
+      "e por isso nao vira conclusao da Semana 5 na fila")
+checa(any(p["quando"] == "2026-08-20T20:00:00-03:00"
+          and p["tipo"] == "compromisso" for p in pz_let),
+      "a live com hora escrita continua sendo lida")
+checa(all(p["quando"][:10] != "2026-08-18" for p in pz_let),
+      "e a data que o aviso desmarca continua fora")
+
+# A correcao nao pode calar prazo que a frase declara: a confianca alta pede
+# escopo forte E palpite seguro, e quem tem gatilho na frase segue seguro.
+pz_firme = C.extrair_prazos("Semana 5: a entrega vai até 30/07.", REF)
+checa(bool(pz_firme) and pz_firme[0]["confianca"] == "alta",
+      "frase com escopo e 'ate' segue publicando prazo firme")
+checa([p["quando"][:10] for p in C.casar_prazos("Semana 5", pz_firme)]
+      == ["2026-07-30"], "e continua casando com a secao da semana")
+
 print("\n" + "=" * 62)
 if falhas:
     print(f"{len(falhas)} FALHA(S):")

@@ -216,7 +216,13 @@ def topo_decisorio(data, acoes):
 
     # Live tem hora e não tem carência: se listar junto de entrega, some no
     # meio e vira exatamente o que já aconteceu, ele perder por não ver.
-    lives = [a for a in acoes if a.get("tipo") == "compromisso"][:6]
+    # Os dois blocos abaixo mostram no máximo seis e calavam o resto. Em
+    # 19/08/2026 o topo listou 6 dos 17 prazos e não disse nada dos 11 que
+    # ficaram de fora, entre eles a entrega da Quinzena 3. É o defeito que a
+    # LISTA COMPLETA teve corrigido em 18/08, vivo no bloco que ele lê no
+    # celular às 8h: corte não declarado é lido como "é só isso".
+    todas_lives = [a for a in acoes if a.get("tipo") == "compromisso"]
+    lives = todas_lives[:6]
     if lives:
         linhas.append("COM HORA MARCADA")
         for a in lives:
@@ -225,13 +231,19 @@ def topo_decisorio(data, acoes):
                 f"- {quando:%d/%m} às {quando:%H:%M}: {a['curso']} "
                 f"live ({curto(a['o_que'], 40)})"
             )
+        if len(todas_lives) > len(lives):
+            linhas.append(
+                f"  ... e mais {len(todas_lives) - len(lives)} com hora "
+                f"marcada, no site."
+            )
         linhas.append("")
 
-    duros = [
+    todos_duros = [
         a
         for a in acoes
         if a.get("prazo") and a.get("tipo") != "compromisso"
-    ][:6]
+    ]
+    duros = todos_duros[:6]
     if duros:
         linhas.append("PRAZOS FIRMES")
         por_data = {}
@@ -244,6 +256,10 @@ def topo_decisorio(data, acoes):
             if len(itens) > 3:
                 nomes += f" e mais {len(itens) - 3}"
             linhas.append(f"- {quando:%d/%m} às {quando:%H:%M}: {nomes}")
+        if len(todos_duros) > len(duros):
+            linhas.append(
+                f"  ... e mais {len(todos_duros) - len(duros)} prazos, no site."
+            )
         linhas.append("")
 
     pendentes_confirmar = data.get("confirmar") or []

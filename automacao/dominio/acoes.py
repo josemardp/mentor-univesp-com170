@@ -410,11 +410,101 @@ def _agrupar_compromissos(acoes):
             }
         )
     for acao in saida:
-        if len(acao.get("opcoes") or []) < 2:
+        if not acao.get("opcoes"):
             acao.pop("opcoes", None)
             continue
+        acao["opcoes"] = _sem_leituras_repetidas(acao["opcoes"])
+        # Promove antes de decidir se a caixa de opções aparece: quando a
+        # limpeza deixa uma opção só, ela pode ser justamente a leitura boa,
+        # e sair sem promover devolveria o cartão às 23:59 que a limpeza
+        # acabou de descartar.
         _promover_melhor_opcao(acao)
+        if len(acao["opcoes"]) < 2:
+            acao.pop("opcoes", None)
     return saida
+
+
+def _sem_leituras_repetidas(opcoes):
+    """Duas leituras do mesmo encontro não são dois horários para escolher.
+
+    Em 19/08/2026 o cartão do LET110 dizia "Mesmo encontro, vários horários.
+    Participe do que couber na sua agenda" e listava "20/08 (horário não
+    informado)" e "20/08 às 20:00" — a mesma live, lida duas vezes no mesmo
+    aviso, uma delas sem a hora. Oferecer escolha entre uma leitura boa e
+    uma leitura pior é pior que não oferecer escolha nenhuma.
+
+    Só cai a leitura sem hora, e só quando existe outra do mesmo dia com hora
+    vinda da fonte. Dois horários de verdade no mesmo dia (a Quinzena 3 tem
+    16h, 18h e 19h no dia 19/08) continuam sendo duas opções.
+    """
+    com_hora = {
+        (opcao.get("quando") or "")[:10]
+        for opcao in opcoes
+        if (opcao.get("quando") or "")[11:16] not in ("", "23:59")
+    }
+    return [
+        opcao
+        for opcao in opcoes
+        if (opcao.get("quando") or "")[11:16] not in ("", "23:59")
+        or (opcao.get("quando") or "")[:10] not in com_hora
+    ]
+
+
+def _fundir_live_do_calendario(acoes):
+    """A mesma live anunciada no fórum e marcada no calendário é uma live só.
+
+    Em 19/08/2026 a fila do LET110 mostrou dois cartões para o encontro de
+    20/08 às 20h: "Assista ao vivo: Re: Fórum de dúvidas gerais", vindo do
+    aviso do facilitador, e "Assista ao vivo: Live 3", vindo do calendário do
+    AVA. O e-mail listou os dois debaixo de COM HORA MARCADA, na mesma linha
+    do relógio. A dedupe existente é por cmid, e o cartão do aviso aponta
+    para o fórum, então os dois nunca se encontravam.
+
+    Fica o do calendário: ele traz o nome real do encontro e o link que abre
+    a sala. O cartão do aviso só sai quando **todos** os seus horários já
+    estão cobertos pelo calendário — a agenda de lives da quinzena tem seis
+    horários no mesmo post, e perder cinco para casar um seria pior que a
+    duplicata.
+    """
+    do_calendario = {
+        (acao.get("curso"), acao.get("prazo"))
+        for acao in acoes
+        if acao.get("tipo") == "compromisso"
+        and acao.get("prazo_fonte") == "calendário do AVA"
+    }
+    if not do_calendario:
+        return acoes
+
+    def coberta(acao):
+        if acao.get("tipo") != "compromisso" or not acao.get("fonte_url"):
+            return False
+        instantes = [acao.get("prazo")] + [
+            opcao.get("quando") for opcao in acao.get("opcoes") or []
+        ]
+        return all(
+            (acao.get("curso"), instante) in do_calendario
+            for instante in instantes
+        )
+
+    return [acao for acao in acoes if not coberta(acao)]
+
+
+def _titulo_util(aviso):
+    """O título do post, quando ele nomeia alguma coisa.
+
+    Resposta em tópico herda o nome do fórum: em 19/08/2026 o cartão saiu
+    "Assista ao vivo: Re: Fórum de dúvidas gerais", que é o lugar onde o
+    aviso foi postado, não o encontro que ele marca. É a mesma família do
+    "Assista ao vivo: Prezados/as" de 18/08 — nome que não nomeia nada.
+    "Alteração de dia de live - semana 5", postado no mesmo dia no fórum
+    "Avisos", continua servindo.
+    """
+    titulo = (aviso.get("titulo") or "").strip()
+    forum = (aviso.get("forum") or "").strip()
+    nu = sem_acento(titulo)
+    if nu.startswith("re:"):
+        nu = nu[3:].strip()
+    return None if not nu or (forum and nu == sem_acento(forum)) else titulo
 
 
 def _promover_melhor_opcao(acao):
@@ -1058,6 +1148,20 @@ def montar_acoes(dados, hoje, agora=None):
         for prazo in prazos_aviso:
             if prazo.get("confianca", "alta") == "alta":
                 continue
+            # Compromisso não passa por este filtro: ele entra na fila logo
+            # abaixo com qualquer confiança, porque encontro com hora marcada
+            # é publicado pela trilha própria. Em 19/08/2026 as cinco lives da
+            # Quinzena 3 saíam ao mesmo tempo como certeza na fila ("acontece
+            # hoje às 18:00", com nome e etiqueta de aviso oficial) e como
+            # dúvida na aba ao lado ("prazo 19/08 às 16:00?"). A leitura da
+            # página de instruções nasce com confiança baixa por regra, e a
+            # regra existe para data solta no texto, não para agenda de live.
+            # De quebra some o "vence hoje às 16:00" de uma live que começou
+            # às 16h: aqui a urgência é calculada sem `agora` e sem
+            # `evento`, então encontro que passou não vencia nem virava
+            # "aconteceu".
+            if prazo.get("tipo") == "compromisso":
+                continue
             urgencia, texto = urgencia_de(
                 prazo["quando"], hoje, prazo.get("hora_certa", True)
             )
@@ -1113,7 +1217,7 @@ def montar_acoes(dados, hoje, agora=None):
                 continue
             vistos_compromisso.add(chave)
             aviso = prazo["aviso"]
-            nome = prazo.get("titulo_evento") or aviso.get("titulo")
+            nome = prazo.get("titulo_evento") or _titulo_util(aviso)
             acoes.append(
                 {
                     "curso": curso["code"],
@@ -1401,6 +1505,7 @@ def montar_acoes(dados, hoje, agora=None):
     # com nada que já esteja na fila.
     acoes.extend(provas_do_portal(dados, hoje, agora))
     acoes = _agrupar_compromissos(acoes)
+    acoes = _fundir_live_do_calendario(acoes)
     acoes = _suprimir_avisos_redundantes(acoes)
 
     propagar_urgencia(acoes, dados, hoje)

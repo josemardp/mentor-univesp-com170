@@ -417,6 +417,134 @@ checa(len(compromissos[0].get("opcoes") or []) == 3,
 checa(compromissos[0]["prazo"].startswith("2026-08-05T11:00"),
       "o horário que abre o cartão é o próximo a acontecer")
 
+print("\n== Uma live, um cartão (19/08/2026) ==")
+
+# Caso real do LET110: o mesmo encontro de 20/08 às 20h saiu duas vezes na
+# fila e duas vezes no e-mail, na mesma linha do relógio — um cartão vindo do
+# aviso do facilitador ("Re: Fórum de dúvidas gerais") e outro do calendário
+# ("Live 3"). A dedupe existente é por cmid, e o cartão do aviso aponta pro
+# fórum, então os dois nunca se encontravam.
+HOJE_LT = date(2026, 8, 19)
+AGORA_LT = datetime(2026, 8, 19, 17, 30, tzinfo=timezone(timedelta(hours=-3)))
+
+
+def _prazo_live(quando, hora_certa=True):
+    return {"rotulo": "Re: Fórum de dúvidas gerais", "quando": quando,
+            "tipo": "compromisso", "hora_certa": hora_certa,
+            "confianca": "alta", "frase": "nossa live ocorrerá",
+            "titulo_evento": None, "escopo": None}
+
+
+aviso_live = {
+    "autor": "colega",
+    "url": "https://ava.univesp.br/mod/forum/view.php?id=165165",
+    "autoridade": "institucional",
+    "titulo": "Re: Fórum de dúvidas gerais",
+    "forum": "Fórum de dúvidas gerais",
+    "prazos": [_prazo_live("2026-08-20T23:59:00-03:00", hora_certa=False),
+               _prazo_live("2026-08-20T20:00:00-03:00")],
+}
+dados_lt = {
+    "courses": [{"code": "LET110", "modelo": "regular", "id": 17,
+                 "avisos": [aviso_live], "sections": []}],
+    "eventos": [{"nome": "Live 3", "curso_id": 17, "cmid": "165163",
+                 "quando": "2026-08-20T20:00:00-03:00", "tipo": "course",
+                 "url": "https://ava.univesp.br/mod/lti/view.php?id=165163"}],
+}
+acoes_lt, *_ = C.montar_acoes(dados_lt, HOJE_LT, agora=AGORA_LT)
+lives_lt = [a for a in acoes_lt if a["tipo"] == "compromisso"]
+checa(len(lives_lt) == 1,
+      "a live anunciada no fórum e marcada no calendário vira um cartão só")
+checa(lives_lt and lives_lt[0]["o_que"] == "Live 3",
+      "e fica a do calendário, que traz o nome real do encontro")
+checa(lives_lt and lives_lt[0]["prazo"] == "2026-08-20T20:00:00-03:00",
+      "no horário que a fonte marcou, não no fim do dia")
+
+# Sem o evento no calendário o cartão do aviso continua, mas não pode se
+# chamar pelo fórum onde foi postado, nem oferecer a leitura sem hora como se
+# fosse um segundo horário à escolha.
+dados_so_aviso = {"courses": dados_lt["courses"], "eventos": []}
+acoes_sa, *_ = C.montar_acoes(dados_so_aviso, HOJE_LT, agora=AGORA_LT)
+lives_sa = [a for a in acoes_sa if a["tipo"] == "compromisso"]
+checa(len(lives_sa) == 1, "sem calendário, sobra o cartão do aviso")
+checa(lives_sa and lives_sa[0]["o_que"] != "Re: Fórum de dúvidas gerais",
+      "e ele não se chama pelo nome do fórum onde o aviso foi postado")
+checa(lives_sa and lives_sa[0]["prazo"] == "2026-08-20T20:00:00-03:00",
+      "a leitura com hora é a que abre o cartão")
+checa(lives_sa and not lives_sa[0].get("opcoes"),
+      "duas leituras do mesmo dia não viram dois horários para escolher")
+
+# Horários de verdade no mesmo dia continuam sendo opções: a agenda da
+# Quinzena 3 tem 16h, 18h e 19h no dia 19/08.
+aviso_tres = {**aviso_live, "titulo": "Agenda de lives", "forum": "Avisos",
+              "prazos": [_prazo_live("2026-08-20T16:00:00-03:00"),
+                         _prazo_live("2026-08-20T18:00:00-03:00"),
+                         _prazo_live("2026-08-20T19:00:00-03:00")]}
+acoes_3, *_ = C.montar_acoes(
+    {"courses": [{"code": "LET110", "modelo": "regular", "id": 17,
+                  "avisos": [aviso_tres], "sections": []}], "eventos": []},
+    HOJE_LT, agora=AGORA_LT)
+lives_3 = [a for a in acoes_3 if a["tipo"] == "compromisso"]
+checa(lives_3 and len(lives_3[0].get("opcoes") or []) == 3,
+      "três horários reais no mesmo dia seguem sendo três opções")
+
+# A pagina de instrucoes nasce com confianca baixa por regra, e a regra vale
+# para data solta no texto, nao para agenda de live. Em 19/08/2026 as lives
+# da Quinzena 3 saiam ao mesmo tempo como certeza na fila ("acontece hoje as
+# 18:00") e como duvida na aba ao lado ("prazo 19/08 as 16:00?"), e a que ja
+# tinha comecado as 16h continuava listada porque ali a urgencia e calculada
+# sem `agora`.
+pagina_lives = {
+    "autor": "Q3 - Lembrete de datas e live",
+    "titulo": "Q3 - Lembrete de datas e live",
+    "url": "https://ava/p=228101", "autoridade": "institucional",
+    "prazos": [
+        {**_prazo_live("2026-08-19T16:00:00-03:00"), "confianca": "baixa",
+         "rotulo": "Entrar na live Vittoria e Nicolle", "titulo_evento":
+         "Vittoria e Nicolle"},
+        {**_prazo_live("2026-08-19T19:00:00-03:00"), "confianca": "baixa",
+         "rotulo": "Entrar na live Cauê e participante", "titulo_evento":
+         "Cauê e participante"},
+    ],
+}
+_, _, _, conf = C.montar_acoes(
+    {"courses": [{"code": "COM170", "modelo": "quinzenal", "id": 18922,
+                  "avisos": [], "paginas_instrucao": [pagina_lives],
+                  "sections": []}], "eventos": []},
+    HOJE_LT, agora=AGORA_LT)
+checa(conf == [],
+      "live nao sai como duvida na aba ao lado do cartao que a afirma")
+
+print("\n== A aba 'Chegou novo' nao promete novidade que nao tem ==")
+
+DADOS_NOVO = {
+    "courses": [
+        {"code": "LET110", "sections": [{"items": [
+            {"cmid": "165208", "label": "S5 - Atividade Avaliativa",
+             "url": "https://ava/mod/quiz/view.php?id=165208"}]}]},
+        {"code": "SOC100", "sections": [{"items": [
+            {"cmid": "168836", "label": "S5 - Atividade Avaliativa",
+             "url": "https://ava/mod/quiz/view.php?id=168836"}]}]},
+    ],
+    "acoes": [], "notas_novas": [], "prazos_novos": [],
+    "notificacoes": [
+        {"assunto": "Abre em segunda-feira, 17 ago. 2026, 00:00: S5 - "
+                    "Atividade Avaliativa", "lida": False,
+         "url": "https://ava/mod/quiz/view.php?id=165208"},
+        {"assunto": "Abre em segunda-feira, 17 ago. 2026, 00:00: S5 - "
+                    "Atividade Avaliativa", "lida": False,
+         "url": "https://ava/mod/quiz/view.php?id=168836"},
+    ],
+    "mensagens": [],
+}
+html_novo = R.render_novidades(DADOS_NOVO)
+checa("apareceram desde a última leitura" not in html_novo,
+      "notificacao nao lida nao e anunciada como novidade da ultima leitura")
+checa("ainda não lidas" in html_novo,
+      "ela ganha a frase que descreve o que ela e de verdade")
+checa("LET110" in html_novo and "SOC100" in html_novo,
+      "e duas notificacoes de texto identico dizem de qual disciplina sao")
+
 print("\n== Quinzena que já passou ==")
 
 curso_q = {
@@ -2156,6 +2284,26 @@ checa("Compareça" not in depois,
       "a prova nao se repete na lista: ela ja tem bloco proprio no topo")
 checa("... e mais 2, no site." in depois,
       "e o corte da lista passa a ser declarado, como nos outros blocos")
+
+# O topo tinha o mesmo defeito, no bloco que ele le no celular as 8h: em
+# 19/08/2026 PRAZOS FIRMES mostrou 6 dos 17 e nao disse nada dos 11 que
+# ficaram de fora, entre eles a entrega da Quinzena 3.
+topo = texto[:texto.index("LISTA COMPLETA")]
+checa("... e mais 11 prazos, no site." in topo,
+      "PRAZOS FIRMES declara quantos prazos ficaram de fora do topo")
+
+DADOS_LIVES = {
+    "snapshot_at": "2026-08-18T11:30:00+00:00", "status": "ok", "courses": [],
+    "acoes": [
+        {**_acao("semana", "compromisso", f"live {i}"),
+         "prazo": f"2026-08-2{i}T20:00:00-03:00"}
+        for i in range(8)
+    ],
+}
+topo_lives = E.montar_texto(DADOS_LIVES)
+topo_lives = topo_lives[:topo_lives.index("LISTA COMPLETA")]
+checa("... e mais 2 com hora marcada, no site." in topo_lives,
+      "e COM HORA MARCADA tambem declara o corte")
 
 print("\n" + "=" * 66)
 if falhas:

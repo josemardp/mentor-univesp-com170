@@ -44,6 +44,23 @@ def esc(s):
     return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
+def cmid_da_url(url):
+    encontrado = re.search(r"[?&]id=(\d+)", url or "")
+    return encontrado.group(1) if encontrado else None
+
+
+def _cursos_por_cmid(data):
+    """De qual disciplina é cada atividade, pelo cmid que já está na URL."""
+    mapa = {}
+    for curso in data.get("courses") or []:
+        for secao in curso.get("sections") or []:
+            for item in secao.get("items") or []:
+                cmid = item.get("cmid") or cmid_da_url(item.get("url"))
+                if cmid:
+                    mapa.setdefault(str(cmid), curso.get("code"))
+    return mapa
+
+
 def _sem_acento(s):
     return "".join(c for c in unicodedata.normalize("NFD", s or "")
                    if unicodedata.category(c) != "Mn").lower()
@@ -757,12 +774,20 @@ def render_novidades(data):
     avisos_html = "".join(total)
 
     extras = []
+    # A notificação não diz de qual disciplina é, e as três disciplinas
+    # publicam a mesma atividade na mesma semana: em 19/08/2026 a aba mostrou
+    # "Abre em segunda-feira, 17 ago. 2026, 00:00: S5 - Atividade Avaliativa"
+    # três vezes, idênticas, parecendo repetição de um aviso só. O curso está
+    # no cmid da URL, que o guia já lê para tudo o mais.
+    curso_do_cmid = _cursos_por_cmid(data)
     nao_lidas = [n for n in data.get("notificacoes", []) if not n.get("lida")]
     for n in nao_lidas[:6]:
         alvo = esc(n.get("assunto") or "")
         if n.get("url"):
             alvo = f'<a href="{esc(n["url"])}" target="_blank" rel="noopener">{alvo}</a>'
-        extras.append(f'<li><span class="status lock">notificação</span>'
+        curso = curso_do_cmid.get(cmid_da_url(n.get("url")))
+        marca = f'<span class="status brick">{esc(curso)}</span>' if curso else ""
+        extras.append(f'<li><span class="status lock">notificação</span>{marca}'
                       f'<span class="tlabel">{alvo}</span></li>')
     for m in data.get("mensagens", [])[:5]:
         extras.append(
@@ -784,15 +809,25 @@ def render_novidades(data):
                 'post, notificação ou mensagem nova desde a última checagem.'
                 '</p></div>')
 
-    extras_html = f'<ul class="tasklist">{"".join(extras)}</ul>' if extras else ""
+    # Notificação e mensagem não são filtradas por novidade: a lista é o que
+    # está **não lido** no AVA, e ele não abre o sininho. Em 19/08/2026 a aba
+    # anunciava "apareceram desde a última leitura" e mostrava aviso de
+    # atividade que abriu em 10/08. Post de fórum ali em cima é novidade de
+    # verdade (vem com a marca `novo`); estes dois têm frase própria.
+    extras_html = (
+        '<p class="sub secao-novidade">Notificações e mensagens do AVA ainda '
+        'não lidas. Podem ser antigas: elas ficam aqui até você abrir.</p>'
+        f'<ul class="tasklist">{"".join(extras)}</ul>'
+    ) if extras else ""
     # Prazo, nota, atividade e fórum são assuntos diferentes: colados, o olho
     # lê a lista de posts como se fosse continuação do bloco de cima. O respiro
     # sai do CSS, que também tira a margem do primeiro bloco da aba.
-    return ('<div class="bloco">'
-            f'{topo}'
-            '<p class="sub secao-novidade">Fóruns, notificações e mensagens que '
-            'apareceram desde a última leitura.</p>'
-            f'<ul class="acoes">{avisos_html}</ul>{extras_html}</div>')
+    posts_html = (
+        '<p class="sub secao-novidade">Publicações de fórum que '
+        'apareceram desde a última leitura.</p>'
+        f'<ul class="acoes">{avisos_html}</ul>'
+    ) if avisos_html else ""
+    return f'<div class="bloco">{topo}{posts_html}{extras_html}</div>'
 
 
 # ---------------------------------------------------------------------------

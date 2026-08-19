@@ -4,7 +4,7 @@
 > Site: https://esdraaline.github.io/mentor-univesp-com170/ (conta GitHub `esdraaline`)
 > Histórico completo de sessões, auditorias e etapas concluídas: [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
-## Estado atual (18/08/2026)
+## Estado atual (19/08/2026)
 
 Funcionando e verificado na nuvem. O robô roda sozinho em cinco janelas do dia (8h de Brasília com site + e-mail; 11h, 14h, 17h e 20h só o site), entra no AVA, lê as 8 fontes (`disciplinas`, `itens`, `calendario`, `cronograma`, `foruns`, `notificacoes`, `boletim`, `participacao`), monta a agenda e manda o resumo por e-mail.
 
@@ -44,6 +44,41 @@ O alerta de prazo só dispara com prazo **novo** (comparação entre dois retrat
 **Residual coberto em 13/08, em duas camadas.** Dentro deste repositório, [`vigia.yml`](.github/workflows/vigia.yml) roda às 12h30 e 21h30, não lê o AVA e não depende do robô: pergunta ao site público qual `snapshot_at` está sendo servido e manda e-mail se passar de 16h. Site que não responde também o acorda — silêncio do próprio guia é falha, não sono.
 
 Fora daqui, o alarme de verdade: **`josemardp/vigia-univesp`** (privado, outra conta), rodando 09h e 19h. Faz a mesma pergunta e avisa **falhando**, para o GitHub mandar a notificação nativa de workflow quebrado. Sem SMTP de propósito: alarme que depende de cinco segredos bem configurados tem cinco jeitos novos de quebrar em silêncio. Se o Actions desta conta parar por inteiro, o vigia interno para junto e o externo continua — que era exatamente o buraco anotado aqui desde 10/08.
+
+## Auditoria de 19/08/2026 (noite): um prazo inventado e a mesma live duas vezes
+
+Varredura sobre o retrato das 17:29 (o das 20h29 UTC), com o site publicado conferido contra o `data.json` e o e-mail renderizado à mão. A mecânica estava impecável: `status: ok`, as dez fontes lidas ao vivo sem cache, o Pages servindo exatamente o artefato do último commit, dez suítes passando, nada quebrado em mobile nem em tema escuro. Os cinco defeitos são todos de conteúdo, e quatro deles são o guia afirmando mais do que leu.
+
+**O guia inventou um prazo a partir de uma frase sobre live.** A fila publicava "Conclua: Semana 5 · conclusão, vence 25/08", com etiqueta de aviso oficial, e a fonte era esta frase do facilitador do LET110: *"Na semana que vem, a de nº 6, voltamos pra terça-feira (25/08)"*. É a data da live da semana **6**, dita numa frase que não tem gatilho de prazo nenhum — nem "até", nem "entrega", nem "encerra", nem "abre". Os itens da própria Semana 5 vencem 26/08 pelo cronograma oficial, três linhas abaixo no mesmo site.
+
+Dois erros se somaram. O escopo continuava marcando "semana 5", porque "a de nº 6" não casa com nenhum padrão de escopo (que exige a palavra *semana/módulo/quinzena* seguida do número). E `_tipo_prazo` terminava com `return "fim", True`: data que não casou com gatilho nenhum saía como prazo **e** como palpite seguro, e escopo forte + palpite seguro é exatamente a receita de confiança alta. O palpite continua sendo "fim" — mudou o `seguro`, que é o que decide entre cobrar com etiqueta oficial e mostrar em "confirme se é prazo" com a frase original. Só três fragmentos de todo o retrato caíam nesse caminho, e um deles era este.
+
+`VERSAO_CACHE` subiu para 5 pelo motivo registrado em 18/08: o mesmo aviso está em dois fóruns do LET110, o de "Avisos" não teve post novo e seria servido do cache, com o prazo velho já extraído dentro.
+
+**A mesma live saiu duas vezes, e uma delas se chamava pelo fórum.** O encontro do LET110 de 20/08 às 20h tinha dois cartões na fila e duas linhas no e-mail, uma embaixo da outra em COM HORA MARCADA: "Assista ao vivo: **Re: Fórum de dúvidas gerais**" (do aviso) e "Assista ao vivo: **Live 3**" (do calendário). A dedupe de compromisso é por cmid, e o cartão do aviso aponta para o fórum, então os dois nunca se encontravam. Agora, quando **todos** os horários de um cartão de aviso já estão no calendário, fica o do calendário — que traz o nome real e o link que abre a sala. Só quando todos: a agenda da quinzena tem seis horários num post só, e perder cinco para casar um seria pior que a duplicata.
+
+O nome era a família do "Assista ao vivo: Prezados/as" de 18/08. Resposta em tópico herda o nome do fórum, e o cartão passou a batizar o encontro com o lugar onde o aviso foi postado. Título que, tirado o "Re:", é igual ao nome do fórum deixou de servir como nome de evento.
+
+**E o cartão oferecia escolha entre a leitura boa e a leitura pior.** A caixa "Mesmo encontro, vários horários. Participe do que couber na sua agenda" listava "20/08 (horário não informado)" e "20/08 às 20:00" — a mesma live, lida duas vezes no mesmo aviso. A correção de 18/08 promove a leitura com hora e deixava a outra na lista como se fosse alternativa. Agora a leitura sem hora cai quando existe outra do mesmo dia com hora vinda da fonte; três horários de verdade no mesmo dia (16h, 18h e 19h da Quinzena 3) seguem sendo três opções.
+
+**As cinco lives da Quinzena 3 saíam como certeza e como dúvida na mesma página.** A fila dizia "Assista ao vivo: Lyon e Victor · acontece hoje às 18:00 · aviso oficial", e a aba ao lado dizia "COM170 prazo 19/08 às 18:00? · não tenho certeza a que atividade pertence". As duas do mesmo aviso, no mesmo retrato. A página de instruções nasce com confiança baixa por regra, e a regra existe para data solta no texto corrido, não para agenda de live: compromisso entra na fila por trilha própria, sem passar pelo filtro de confiança. Agora ele também não entra no "confirme se é prazo". De quebra some o "**vence** hoje às 16:00" de uma live que começou às 16h — ali a urgência era calculada sem `agora` e sem `evento`, então encontro que passou não vencia nem virava "aconteceu". O bloco caiu de 16 para 11 itens, todos legítimos.
+
+**O topo do e-mail cortava calado.** PRAZOS FIRMES mostrou 6 dos 17 prazos e não disse nada dos 11 que ficaram de fora, entre eles a entrega da Quinzena 3. É o defeito corrigido em 18/08 na LISTA COMPLETA, vivo no bloco que ele lê no celular às 8h — o corte acontecia antes do agrupamento por dia, então o "e mais N" que já existia só contava dentro dos seis que sobreviveram. Os dois blocos do topo declaram o corte agora.
+
+**"Chegou novo" chamava de novidade notificação de 08/08.** A frase da aba era "Fóruns, notificações e mensagens que apareceram desde a última leitura", e a lista de notificações não é filtrada por novidade: é o que está **não lido** no AVA, e ele não abre o sininho. Post de fórum ali em cima é novidade de verdade (vem com a marca `novo`); notificação e mensagem ganharam frase própria, que diz o que elas são. Junto: as três disciplinas publicam "S5 - Atividade Avaliativa" na mesma semana, e as três notificações saíam idênticas, parecendo repetição de um aviso só — o curso está no cmid da URL, que o guia já lê para todo o resto, e agora aparece na linha.
+
+### Conferido ao vivo e correto
+
+- O placar dos dez pontos ("6 de 10 já contaram") bate item a item com o painel oficial, inclusive o "Módulo 1 ainda não contou" que a ferramenta reporta e o "Feedback ao colega: já contou" que veio da revisão feita em 18/08.
+- A prova presencial, a matrícula em MMB002/INT100 e os 7 recados não lidos seguem corretos na aba Secretaria.
+- Os prazos 23/08 e 29/08 da Quinzena 3 continuam batendo com a página de instruções, com a hora e a frase do que se perde.
+- O Pages servia o mesmo `publication_id` do último commit — push e deploy em dia.
+
+### Fica anotado, sem código ainda
+
+- **`pytest testes` diz "no tests ran".** Os dez arquivos são scripts com asserções no corpo do módulo, então a coleta os importa e as asserções rodam de verdade — mas o relatório final é "nenhum teste", que num dia ruim se lê como "passou". O CI chama cada um como script e está correto; o risco é quem rodar `pytest` na mão e acreditar no verde.
+- **O corte de "PRAZOS FIRMES" continua em 6.** Agora ele é declarado, mas seis linhas para dezessete prazos é pouco quando uma semana acumula (26/08 sozinho tem nove).
+- **O passo de deploy continua sem repetição** (pendência de 17/08), e o aviso de falha ainda não distingue "o AVA me barrou" de "o Pages estava fora".
 
 ## Auditoria de 18/08/2026 (manhã): a correção de ontem estava morta em produção
 

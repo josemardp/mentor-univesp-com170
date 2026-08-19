@@ -154,7 +154,17 @@ def _tipo_prazo(
         if pos_inicio >= 0 and (pos_fim < 0 or pos_inicio < pos_fim):
             return "inicio", True
         return "fim", True
-    return "fim", True
+    # Nenhuma palavra da frase nem do contexto diz o que essa data é. Tratar
+    # como prazo é o palpite mais provável, mas *seguro* ele não é, e é o
+    # `seguro` que decide se a data sai como cobrança com etiqueta oficial ou
+    # como "confirme se é prazo". Em 19/08/2026 o LET110 escreveu "Na semana
+    # que vem, a de nº 6, voltamos pra terça-feira (25/08)" — uma frase sobre
+    # a live da semana seguinte — e o guia publicou "Conclua: Semana 5 ·
+    # conclusão, vence 25/08", contra os itens da mesma semana que o
+    # cronograma oficial dá para 26/08. O escopo ainda dizia "semana 5" (a
+    # frase troca de unidade com "a de nº 6", que não casa com nenhum padrão
+    # de escopo), e escopo forte + palpite seguro virava confiança alta.
+    return "fim", False
 
 
 ESCOPO_RE = re.compile(
