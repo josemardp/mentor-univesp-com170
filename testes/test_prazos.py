@@ -18,9 +18,11 @@ from dominio.datas import sem_acento  # noqa: E402
 from dominio.prazos import eh_saudacao  # noqa: E402
 from fontes.instrucoes import (  # noqa: E402
     _chave_do_prazo as chave_do_prazo,
+    _como_aviso as como_aviso,
     _completar_pelo_texto,
     consequencia_do_prazo,
     hora_declarada,
+    lives_anunciadas,
 )
 
 BR = timezone(timedelta(hours=-3))
@@ -698,6 +700,35 @@ checa(bool(pz_firme) and pz_firme[0]["confianca"] == "alta",
       "frase com escopo e 'ate' segue publicando prazo firme")
 checa([p["quando"][:10] for p in C.casar_prazos("Semana 5", pz_firme)]
       == ["2026-07-30"], "e continua casando com a secao da semana")
+
+# ---------------------------------------------------------------------------
+print("\n== A pagina promete mais lives do que publica (19/08/2026) ==")
+
+# Texto real da "Q3 - Lembrete de datas e live": a pagina escreve 7 e lista
+# seis, todas em 18, 19 e 20/08. Participar ao vivo de uma delas e um dos dez
+# pontos da quinzena, entao mostrar seis como se fossem todas transforma
+# leitura parcial em oferta completa.
+checa(lives_anunciadas(
+    "A quinzena oferece 7 lives, em dias e horários diferentes.") == 7,
+    "o numero escrito em algarismo e lido")
+checa(lives_anunciadas(
+    "A quinzena oferece sete lives, em dias diferentes.") == 7,
+    "e o numero escrito por extenso tambem")
+checa(lives_anunciadas("Participe da live da quinzena.") is None,
+      "pagina que nao promete numero nenhum nao gera alerta")
+
+_pz_live = {"quando": "2026-08-19T18:00:00-03:00", "tipo": "compromisso"}
+_item = {"label": "Q3 - Lembrete de datas e live", "url": "https://ava/p=1"}
+com_falta = como_aviso(_item, [_pz_live] * 6, "A quinzena oferece 7 lives.")
+checa(com_falta.get("lives_anunciadas") == 7
+      and com_falta.get("lives_lidas") == 6,
+      "sete anunciadas e seis lidas viram alerta no cartao")
+completo = como_aviso(_item, [_pz_live] * 7, "A quinzena oferece 7 lives.")
+checa("lives_anunciadas" not in completo,
+      "quando o guia acha todas, nao ha o que avisar")
+sobrando = como_aviso(_item, [_pz_live] * 8, "A quinzena oferece 7 lives.")
+checa("lives_anunciadas" not in sobrando,
+      "achar mais que o anunciado nao e falta e nao vira alerta")
 
 print("\n" + "=" * 62)
 if falhas:

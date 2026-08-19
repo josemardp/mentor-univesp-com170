@@ -515,6 +515,64 @@ _, _, _, conf = C.montar_acoes(
 checa(conf == [],
       "live nao sai como duvida na aba ao lado do cartao que a afirma")
 
+print("\n== O prazo da unidade alcanca quem esta dentro dela (19/08/2026) ==")
+
+# Caso real do COM170: "Quinzena 3 · Prazo módulos 1 a 4, vence 23/08" — com
+# a página avisando que quem passa da data fica fora do trabalho em grupo —
+# e os dois quizzes do Q3 Módulo 1 em "sem prazo definido". O AVA escreve que
+# o Módulo 2 só abre com "Da manchete à competência" concluída.
+def _q3(cmid, rotulo):
+    return {"cmid": cmid, "label": rotulo, "type": "scorm", "status": "Pendente",
+            "conta_nota": True, "aberto": True, "prazo": None,
+            "url": f"https://ava/mod/scorm/view.php?id={cmid}"}
+
+
+curso_q3 = {
+    "code": "COM170", "modelo": "quinzenal", "id": 18922, "avisos": [
+        {"autor": "Q3 - Instruções da Quinzena 3",
+         "titulo": "Q3 - Instruções da Quinzena 3", "forum": None,
+         "url": "https://ava/p=228099", "autoridade": "institucional",
+         "prazos": [{"rotulo": "Prazo módulos 1 a 4",
+                     "quando": "2026-08-23T23:59:00-03:00", "tipo": "fim",
+                     "hora_certa": True, "confianca": "alta",
+                     "frase": "23 PRAZO MÓDULOS 1 A 4",
+                     "escopo": {"familia": "quinzena", "numeros": [3],
+                                "txt": "PRAZO MÓDULOS 1 A 4"}}]},
+    ],
+    "sections": [
+        {"id": "s5", "title": "Quinzena 3", "parent": None, "fase": "regular",
+         "locked": None, "items": []},
+        {"id": "s12", "title": "Q3 Módulo 1", "parent": "s5", "fase": "regular",
+         "locked": None, "items": [
+             _q3("1", "Q3 M1 - Atividade: Da manchete à competência"),
+             _q3("2", "Q3 M1 - Atividade: Qual é o critério da taxonomia?")]},
+        {"id": "s11", "title": "Q3 Módulo 2", "parent": "s5", "fase": "regular",
+         "locked": "Disponível se: A atividade Q3 M1 - Atividade: Da manchete "
+                   "à competência esteja marcada como concluída",
+         "items": []},
+        {"id": "s8", "title": "Q3 Módulo 5", "parent": "s5", "fase": "regular",
+         "locked": None, "items": [_q3("3", "Q3 M5 - Caso")]},
+    ],
+}
+acoes_q3, *_ = C.montar_acoes({"courses": [curso_q3]}, date(2026, 8, 19),
+                              agora=AGORA_LT)
+por_nome = {a["o_que"]: a for a in acoes_q3}
+portao = por_nome.get("Q3 M1 - Atividade: Da manchete à competência")
+irmao = por_nome.get("Q3 M1 - Atividade: Qual é o critério da taxonomia?")
+fora = por_nome.get("Q3 M5 - Caso")
+checa(portao and portao["urgencia"] == "semana",
+      "o portao do modulo trancado sobe para a urgencia do prazo da unidade")
+checa(portao and portao.get("destrava") == "Q3 Módulo 2",
+      "e o cartao diz qual secao ele destrava")
+checa(irmao and irmao["urgencia"] == "semana",
+      "o irmao dentro do mesmo modulo sobe junto: o prazo nomeia 'modulos 1 a 4'")
+checa(irmao and irmao.get("cobrado_por") == "Quinzena 3 · Prazo módulos 1 a 4",
+      "com o motivo certo, sem dizer que ele destrava o modulo onde mora")
+checa(irmao and not irmao.get("prazo") and not irmao.get("prazo_txt"),
+      "nenhum dos dois ganha prazo proprio: a tela nao escreveu prazo para eles")
+checa(fora and fora["urgencia"] == "sem_prazo",
+      "o Modulo 5 fica fora: o prazo diz 'modulos 1 a 4' e nao inventa alcance")
+
 print("\n== A aba 'Chegou novo' nao promete novidade que nao tem ==")
 
 DADOS_NOVO = {

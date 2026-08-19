@@ -1239,6 +1239,17 @@ def montar_acoes(dados, hoje, agora=None):
                     "carencia": None,
                     "hora_certa": prazo.get("hora_certa", True),
                     "urgencia": urgencia,
+                    # A página que anuncia mais lives do que publica não pode
+                    # virar oferta completa na tela do guia: participar de uma
+                    # ao vivo é um dos dez pontos da quinzena.
+                    **(
+                        {
+                            "lives_anunciadas": aviso["lives_anunciadas"],
+                            "lives_lidas": aviso.get("lives_lidas"),
+                        }
+                        if aviso.get("lives_anunciadas")
+                        else {}
+                    ),
                 }
             )
         for secao in curso["sections"]:

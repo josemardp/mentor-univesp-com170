@@ -383,15 +383,49 @@ def ler(page, secoes, referencia):
             vistos.add(chave)
             prazos.append({**prazo, "confianca": "baixa"})
         if prazos:
-            saida.append(_como_aviso(item, prazos))
+            saida.append(_como_aviso(item, prazos, texto))
     return saida
 
 
-def _como_aviso(item, prazos):
-    return {
+NUMERO_ESCRITO = {
+    "uma": 1, "duas": 2, "tres": 3, "quatro": 4, "cinco": 5,
+    "seis": 6, "sete": 7, "oito": 8, "nove": 9, "dez": 10,
+}
+LIVES_ANUNCIADAS_RE = re.compile(
+    r"\b(\d{1,2}|uma|duas|tr[êe]s|quatro|cinco|seis|sete|oito|nove|dez)\s+"
+    r"lives\b", re.IGNORECASE
+)
+
+
+def lives_anunciadas(texto):
+    """Quantas lives a página diz que existem, ou ``None``.
+
+    Em 19/08/2026 a página da Quinzena 3 escrevia "A quinzena oferece 7
+    lives" e listava seis, todas em 18, 19 e 20/08 — e participar ao vivo de
+    uma delas é um dos dez pontos da quinzena. Se o guia mostra seis opções
+    sem dizer que a própria página promete sete, ele transforma a leitura
+    parcial em oferta completa.
+    """
+    achado = LIVES_ANUNCIADAS_RE.search(texto or "")
+    if not achado:
+        return None
+    bruto = sem_acento(achado.group(1)).lower()
+    return int(bruto) if bruto.isdigit() else NUMERO_ESCRITO.get(bruto)
+
+
+def _como_aviso(item, prazos, texto=None):
+    aviso = {
         "autor": item["label"],
         "titulo": item["label"],
         "url": item["url"],
         "autoridade": "institucional",
         "prazos": prazos,
     }
+    anunciadas = lives_anunciadas(texto)
+    lidas = sum(1 for prazo in prazos if prazo.get("tipo") == "compromisso")
+    # Só quando falta: página que anuncia menos do que o guia leu não é
+    # problema dele, e pode ser a mesma live contada de duas formas.
+    if anunciadas and lidas and anunciadas > lidas:
+        aviso["lives_anunciadas"] = anunciadas
+        aviso["lives_lidas"] = lidas
+    return aviso

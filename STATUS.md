@@ -67,8 +67,29 @@ O nome era a família do "Assista ao vivo: Prezados/as" de 18/08. Resposta em t�
 
 **"Chegou novo" chamava de novidade notificação de 08/08.** A frase da aba era "Fóruns, notificações e mensagens que apareceram desde a última leitura", e a lista de notificações não é filtrada por novidade: é o que está **não lido** no AVA, e ele não abre o sininho. Post de fórum ali em cima é novidade de verdade (vem com a marca `novo`); notificação e mensagem ganharam frase própria, que diz o que elas são. Junto: as três disciplinas publicam "S5 - Atividade Avaliativa" na mesma semana, e as três notificações saíam idênticas, parecendo repetição de um aviso só — o curso está no cmid da URL, que o guia já lê para todo o resto, e agora aparece na linha.
 
+### Varredura no AVA ao vivo, na mesma noite
+
+Josemar logou e eu conferi tela a tela contra o retrato das 17:29. **Os dois defeitos de conteúdo da auditoria se confirmaram na fonte**, e a checagem trouxe dois achados novos, os dois já corrigidos.
+
+**O prazo inventado é inventado mesmo.** O post do facilitador diz só *"Na semana que vem, a de nº 6, voltamos pra terça-feira (25/08)"*, sem uma palavra sobre concluir a Semana 5, e a página do curso mostra a Semana 6 abrindo em **24/08**. Não existe prazo em 25/08 em lugar nenhum do LET110. O quiz da Semana 5 abre 17/08 e fecha 30/08, o que casa com o modelo do guia (26/08 do cronograma, carência 30/08).
+
+**A live duplicada é o mesmo encontro.** O calendário do AVA registra "Live 3 — Amanhã, 20:00 » 21:00 — Live com facilitador — LET110", que é a live que o aviso anuncia. Dois cartões, um evento.
+
+**Achado novo: o prazo da unidade não alcançava quem está dentro dela.** O COM170 cobrava "Quinzena 3 · Prazo módulos 1 a 4, vence 23/08" — com a página avisando que quem passa da data fica fora do trabalho em grupo — e os dois quizzes do Q3 Módulo 1 ficavam em **"sem prazo definido"**, no fim da fila. São eles que respondem pela data, e o primeiro é o portão: o AVA escreve na tela que o Módulo 2 só abre com "Q3 M1 - Atividade: Da manchete à competência" concluída.
+
+O mecanismo existia (`propagar_urgencia`) e não alcançava o caso: ele só caminhava quando o item com prazo estava **dentro** da cadeia travada. Aqui o prazo é da seção-mãe e a cadeia pendura embaixo dela. Duas entradas novas, e nenhuma delas inventa prazo: o portão sobe por destravar a seção trancada, e os demais sobem porque o próprio rótulo do prazo diz quais módulos ele cobra ("Prazo módulos 1 a 4"). Sem faixa escrita não sobe ninguém — os Módulos 5 e 6 da mesma quinzena respondem ao prazo de entrega, e herdar a data errada seria pior que deixar sem prazo. Os dois motivos têm frase própria no cartão: dizer "destrava Q3 Módulo 1" de uma atividade que mora dentro do Módulo 1 seria explicação errada com cara de certa.
+
+**Achado novo: a página promete 7 lives e publica 6.** "A quinzena oferece 7 lives", escreve a "Q3 - Lembrete de datas e live", e a lista tem seis — todas em 18, 19 e 20/08, numa quinzena que vai até 01/09. Participar ao vivo de uma delas é um dos dez pontos. O guia oferecia as seis como se fossem todas, que é leitura parcial virando oferta completa. O cartão passa a dizer quando a página promete mais do que ele encontrou. Fica em aberto para o Josemar: **perguntar ao facilitador se falta uma live na página** `[VERIFICAR: 7 anunciadas, 6 publicadas]`.
+
 ### Conferido ao vivo e correto
 
+- A página da Quinzena 3 escreve "23 de agosto, domingo, às 23h59" e "De 24 a 29 de agosto, até sábado, às 23h59" — é o que o guia publica, hora e tudo.
+- As seis lives, nome e horário, uma a uma.
+- O painel de participação: Q2 provisório, Módulo 1 "Critério ainda não identificado", M2/M3/M4 e Qualidade atendidos, atualizado 12/08 às 23:25. E ele segue desenhando os **dois** cartões "Quinzena atual", com o guia pegando o certo.
+- O boletim do COM170 na tela: Média AVA 0,51 em `NOTA CALCULADA`, Quinzena 1 total 2,00 e Quinzena 2 total 1,60 em `FORMA DE AGREGAÇÃO`. A regra de 10/08 continua separando os dois.
+- As 15 notificações, idênticas, a mais nova de 15/08 — a prova viva do defeito da aba "Chegou novo".
+- O SOC100 S4 – Vídeo-base segue sem conclusão: a cobrança de hoje às 23:59 é legítima.
+- Nada novo no AVA depois das 17:29. O retrato no ar não estava velho.
 - O placar dos dez pontos ("6 de 10 já contaram") bate item a item com o painel oficial, inclusive o "Módulo 1 ainda não contou" que a ferramenta reporta e o "Feedback ao colega: já contou" que veio da revisão feita em 18/08.
 - A prova presencial, a matrícula em MMB002/INT100 e os 7 recados não lidos seguem corretos na aba Secretaria.
 - Os prazos 23/08 e 29/08 da Quinzena 3 continuam batendo com a página de instruções, com a hora e a frase do que se perde.

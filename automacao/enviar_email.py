@@ -210,6 +210,9 @@ def topo_decisorio(data, acoes):
         if primeira.get("destrava"):
             linhas.append(f"  Não tem prazo próprio. Está no topo porque destrava "
                           f"{primeira['destrava']}.")
+        elif primeira.get("cobrado_por"):
+            linhas.append(f"  Não tem prazo próprio. Está no topo porque entra no "
+                          f"prazo de {primeira['cobrado_por']}.")
         elif primeira.get("prazo_txt"):
             linhas.append(f"  {primeira['prazo_txt']}.")
         linhas.append("")

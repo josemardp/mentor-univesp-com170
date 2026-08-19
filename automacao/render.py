@@ -388,6 +388,15 @@ def render_acao(a):
                  f'destrava <b>{esc(a["destrava"])}</b>'
                  + (f', que vence {esc(quando)}' if quando else "")
                  + '. Por isso está aqui em cima.</div>')
+    elif a.get("cobrado_por"):
+        # Não é portão de nada: é item que o prazo da unidade nomeia. Em
+        # 19/08/2026 os dois quizzes do Q3 Módulo 1 ficavam em "sem prazo
+        # definido" com "Prazo módulos 1 a 4, vence 23/08" logo acima.
+        quando = fmt_dm(a.get("destrava_em")) if a.get("destrava_em") else ""
+        trava = ('<div class="trava">🔑 Este não tem prazo próprio, mas entra '
+                 f'no prazo de <b>{esc(a["cobrado_por"])}</b>'
+                 + (f', que vence {esc(quando)}' if quando else "")
+                 + '. Por isso está aqui em cima.</div>')
     if a.get("bloqueio"):
         trava = (f'<div class="trava">🔒 Ainda não abriu: {esc(a["bloqueio"])}. '
                  'Corra os módulos anteriores pra destravar a tempo.</div>')
@@ -426,6 +435,14 @@ def render_acao(a):
         trava += ('<div class="trava">🗓️ Mesmo encontro, vários horários. '
                   'Participe do que couber na sua agenda:'
                   f'<ul class="tasklist">{linhas}</ul></div>')
+    if a.get("lives_anunciadas"):
+        # A página da Quinzena 3 escrevia "A quinzena oferece 7 lives" e
+        # listava seis. Mostrar as seis sem dizer isso transforma leitura
+        # parcial em oferta completa, e a presença ao vivo vale ponto.
+        trava += ('<div class="trava">⚠️ A página anuncia '
+                  f'<b>{a["lives_anunciadas"]} lives</b> e eu só encontrei '
+                  f'{a.get("lives_lidas")}. Confira na página se falta '
+                  'alguma antes de escolher a sua.</div>')
     if a.get("repete", 1) > 1:
         restantes = a["repete"] - 1
         trava += ('<div class="trava">🔁 Se repete: mais '
