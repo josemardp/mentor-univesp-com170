@@ -374,7 +374,8 @@ def ler(page, secoes, referencia):
         for prazo in prazos:
             _completar_pelo_texto(prazo, texto)
         vistos = {_chave_do_prazo(prazo) for prazo in prazos}
-        for prazo in extrair_prazos(texto, referencia):
+        do_texto = extrair_prazos(texto, referencia)
+        for prazo in do_texto:
             if prazo["quando"][:10] < referencia.isoformat():
                 continue
             chave = _chave_do_prazo(prazo)
@@ -383,7 +384,12 @@ def ler(page, secoes, referencia):
             vistos.add(chave)
             prazos.append({**prazo, "confianca": "baixa"})
         if prazos:
-            saida.append(_como_aviso(item, prazos, texto))
+            # A conta das lives sai da leitura inteira, antes do corte por
+            # data: a página publica seis e o guia guarda só as que ainda vão
+            # acontecer. Dizer "anuncia 7 e encontrei 5" com seis à vista na
+            # tela faz o alerta parecer defeito do guia, e o que ele precisa
+            # comparar é promessa da página contra lista da página.
+            saida.append(_como_aviso(item, prazos, texto, do_texto))
     return saida
 
 
@@ -413,7 +419,7 @@ def lives_anunciadas(texto):
     return int(bruto) if bruto.isdigit() else NUMERO_ESCRITO.get(bruto)
 
 
-def _como_aviso(item, prazos, texto=None):
+def _como_aviso(item, prazos, texto=None, todos_os_prazos=None):
     aviso = {
         "autor": item["label"],
         "titulo": item["label"],
@@ -422,7 +428,11 @@ def _como_aviso(item, prazos, texto=None):
         "prazos": prazos,
     }
     anunciadas = lives_anunciadas(texto)
-    lidas = sum(1 for prazo in prazos if prazo.get("tipo") == "compromisso")
+    lidas = sum(
+        1
+        for prazo in (todos_os_prazos if todos_os_prazos is not None else prazos)
+        if prazo.get("tipo") == "compromisso"
+    )
     # Só quando falta: página que anuncia menos do que o guia leu não é
     # problema dele, e pode ser a mesma live contada de duas formas.
     if anunciadas and lidas and anunciadas > lidas:

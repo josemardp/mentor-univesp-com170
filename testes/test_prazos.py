@@ -730,6 +730,14 @@ sobrando = como_aviso(_item, [_pz_live] * 8, "A quinzena oferece 7 lives.")
 checa("lives_anunciadas" not in sobrando,
       "achar mais que o anunciado nao e falta e nao vira alerta")
 
+# A pagina publica seis e o guia guarda so as que ainda vao acontecer. A
+# conta tem que sair da leitura inteira: "anuncia 7 e encontrei 5" com seis a
+# vista na tela faz o alerta parecer defeito do guia.
+so_futuras = como_aviso(_item, [_pz_live] * 5, "A quinzena oferece 7 lives.",
+                        [_pz_live] * 6)
+checa(so_futuras.get("lives_lidas") == 6,
+      "a conta compara promessa da pagina com lista da pagina, nao com a fila")
+
 print("\n" + "=" * 62)
 if falhas:
     print(f"{len(falhas)} FALHA(S):")
