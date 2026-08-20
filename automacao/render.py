@@ -435,6 +435,11 @@ def render_acao(a):
         trava += ('<div class="trava">🗓️ Mesmo encontro, vários horários. '
                   'Participe do que couber na sua agenda:'
                   f'<ul class="tasklist">{linhas}</ul></div>')
+    if a.get("sem_rastreio"):
+        trava += ('<div class="trava">👁️ O AVA não acompanha a conclusão deste '
+                  'item: ele não tem a marca "Concluído" que os vizinhos têm, '
+                  'e por isso não vai sair da fila sozinho. Se você já fez, '
+                  'ignore — não adianta clicar de novo à procura da marca.</div>')
     if a.get("lives_anunciadas"):
         # A página da Quinzena 3 escrevia "A quinzena oferece 7 lives" e
         # listava seis. Mostrar as seis sem dizer isso transforma leitura

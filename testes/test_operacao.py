@@ -573,6 +573,41 @@ checa(irmao and not irmao.get("prazo") and not irmao.get("prazo_txt"),
 checa(fora and fora["urgencia"] == "sem_prazo",
       "o Modulo 5 fica fora: o prazo diz 'modulos 1 a 4' e nao inventa alcance")
 
+print("\n== Item que o AVA nao acompanha (19/08/2026) ==")
+
+# O "S4 – Vídeo-base" do SOC100 era o unico dos 59 itens da disciplina sem
+# bloco de conclusao: nao ha marca para ganhar, e ele nunca sairia da fila.
+# Os outros 54 de conteudo tem "Concluído"; os 4 restantes sao os itens fixos
+# do menu (Avisos, Live, Apresentacao, Forum de duvidas).
+def _s4(cmid, rotulo, **extra):
+    return {"cmid": cmid, "label": rotulo, "type": "url", "status": None,
+            "conta_nota": True, "aberto": True, "url": f"https://ava/u={cmid}",
+            "prazo": "2026-08-19T23:59:00-03:00",
+            "prazo_fonte": "cronograma oficial da Univesp", **extra}
+
+
+curso_s4 = {"code": "SOC100", "modelo": "regular", "id": 18880, "avisos": [],
+            "sections": [{"id": "s4", "title": "Semana 4", "parent": None,
+                          "fase": "regular", "locked": None, "items": [
+                              _s4("1", "S4 - Vídeo-base", sem_rastreio=True),
+                              _s4("2", "S4 - Texto-base")]}]}
+acoes_s4, *_ = C.montar_acoes({"courses": [curso_s4]}, date(2026, 8, 19),
+                              agora=AGORA_LT)
+por_s4 = {a["o_que"]: a for a in acoes_s4}
+checa(por_s4.get("S4 - Vídeo-base", {}).get("sem_rastreio") is True,
+      "item sem bloco de conclusao e marcado como nao rastreado")
+checa("sem_rastreio" not in por_s4.get("S4 - Texto-base", {}),
+      "o vizinho, que tem a marca, nao ganha o aviso")
+checa("S4 - Vídeo-base" in por_s4,
+      "e ele continua na fila: nao saber nao e motivo para sumir com a tarefa")
+
+concluido = {**curso_s4, "sections": [{**curso_s4["sections"][0], "items": [
+    _s4("1", "S4 - Vídeo-base", sem_rastreio=True, status="Concluído")]}]}
+acoes_ok, *_ = C.montar_acoes({"courses": [concluido]}, date(2026, 8, 19),
+                              agora=AGORA_LT)
+checa(all(a["o_que"] != "S4 - Vídeo-base" for a in acoes_ok),
+      "e status lido continua mandando: quem esta concluido sai da fila")
+
 print("\n== A aba 'Chegou novo' nao promete novidade que nao tem ==")
 
 DADOS_NOVO = {

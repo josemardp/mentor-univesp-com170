@@ -1375,6 +1375,14 @@ def montar_acoes(dados, hoje, agora=None):
                 }
                 if sem_entrega:
                     base["entrega_nao_confirmada"] = True
+                # O AVA desligou o acompanhamento deste item. Em 19/08/2026 o
+                # "S4 – Vídeo-base" do SOC100 era o único dos 59 itens da
+                # disciplina sem bloco de conclusão, e o Josemar abriu o
+                # vídeo duas vezes atrás de uma marca que não existe. Ficar na
+                # fila está certo (ele precisa assistir), afirmar que está
+                # pendente não: o guia não tem como saber.
+                if item.get("sem_rastreio") and not item.get("status"):
+                    base["sem_rastreio"] = True
                 if entrega_de_grupo(item) and item.get("enviado") is not True:
                     # Sem isto, o cartão de uma entrega que não é dele fica
                     # com cara de tarefa atrasada no topo da fila, e foi o que

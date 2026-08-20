@@ -77,6 +77,11 @@ JS_CURSO = """
           status: compl
             ? (compl.innerText.split('\\n').map(t => t.trim()).filter(Boolean)[0] || null)
             : null,
+          // Sem bloco de conclusão o AVA está dizendo que NÃO acompanha este
+          // item, o que é diferente de "ainda não marcado". Os dois chegavam
+          // aqui como status nulo, e o guia cobrava para sempre um item que
+          // nunca teria como sair da fila.
+          sem_rastreio: !compl,
           nao_lidas: badge ? (badge.innerText.match(/\\d+/) || [null])[0] : null,
         };
       }).filter(x => x.label && x.type !== 'subsection'),
