@@ -4,6 +4,55 @@
 > Site: https://esdraaline.github.io/mentor-univesp-com170/ (conta GitHub `esdraaline`)
 > Histórico completo de sessões, auditorias e etapas concluídas: [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
+## Acesso ao vivo do AVA resolvido, e por que ele nunca funcionou (23/08/2026)
+
+O agente passou meses sem conseguir abrir o AVA logado. A rotina registrada era "abra o `nav-login.ps1`, logue, feche a janela, o headless assume", e ela **nunca podia ter funcionado** para este site. A causa, medida hoje no banco de cookies do perfil: o `MoodleSession` é **cookie de sessão** (`is_persistent = 0`, sem validade). O Chrome descarta cookie de sessão ao fechar, então ele não chega ao disco. Depois de fechar a janela, o registro simplesmente não existe mais.
+
+O `NAVEGADOR_AUTOMACAO.md` (repo `skills-pessoais`) atribuía isso ao servidor da Univesp: "SEI e Univesp caem sempre, quem derruba é o servidor deles". Não é. Os outros nove sites da lista sobrevivem porque usam cookie **persistente**; estes dois não. **Nenhum ajuste de navegador resolve, e mais logins não resolvem.** Fica anotado para corrigir lá quando houver sessão naquele projeto.
+
+Pior: enquanto o MCP `nav-josemardp` está de pé, ele **tranca a pasta do perfil**, então a janela de login não grava nada e ainda sobrescreve o cookie bom com um anônimo. Foram três tentativas de login perdidas por isso antes de a causa aparecer.
+
+**A solução:** não fechar o navegador. [`automacao/ava_vivo.py`](automacao/ava_vivo.py) sobe um Chrome headless com porta de depuração num perfil próprio (`perfil-ava`, separado do `perfil-josemardp` justamente para não brigarem pelo lock), conecta por CDP e garante o login reusando o [`sessao.py`](automacao/sessao.py) que o robô diário já usa. Sai deixando o navegador de pé, destacado, sobrevivendo ao fim da sessão do agente. [`.mcp.json`](.mcp.json) registra o servidor `nav-ava`, que se pluga na mesma porta.
+
+```bash
+python automacao/ava_vivo.py            # sobe e loga (idempotente)
+python automacao/ava_vivo.py --status   # só relata
+python automacao/ava_vivo.py --parar    # encerra só os chrome.exe deste perfil
+```
+
+Sessão caiu no meio de uma tarefa? Rodar de novo reloga **no mesmo navegador**, sem reiniciar o agente. O script lê `AVA_USUARIO`/`AVA_SENHA` direto do registro do Windows (`HKCU\Environment`), porque variável de usuário só aparece em processo aberto depois — e exigir restart do agente por causa disso seria custo recorrente. As credenciais foram gravadas nesta máquina em 23/08 pelo próprio Josemar, com `Read-Host -AsSecureString`, sem passar por linha de comando nem por arquivo do repositório.
+
+## Quinzena 3: módulos 1 a 4 concluídos (23/08/2026)
+
+O prazo dos módulos 1 a 4 vencia hoje às 23:59, com a página da unidade avisando que quem passasse da data sairia do trabalho em grupo desta quinzena. Estado no início da sessão: M1 completo, **M2 com as duas atividades pendentes**, M3 e M4 trancados em cadeia. Tudo foi fechado pelo agente, a pedido do Josemar, que estava no controle remoto pelo celular e sem acesso ao AVA.
+
+Conferido na fonte depois, item a item: **os quatro módulos estão `Concluído`**, e M5, M6 e M7 abriram.
+
+| Atividade | Resultado |
+|---|---|
+| M2 · O que aconteceu da última vez | registro pessoal, 4 dos 8 momentos marcados |
+| M2 · Mapa de tarefas | 8 tarefas + tarefa real, frase de justificativa gerada |
+| M3 · De que lado da fronteira? | 5 de 5 |
+| M3 · O que você conferiria primeiro | 4 de 4 |
+| M4 · Um semestre de mensagens | padrão montado + 2 questões certas |
+| M4 · Como ler um número | 4 de 4 |
+| M4 · Mini-quiz de conclusão | **5 de 5** (fechava hoje 23:59, é a peça-fechadura) |
+
+**As duas atividades de conteúdo pessoal ficam marcadas para revisão dele**, porque foram respondidas a partir do registro do projeto, e não da lembrança dele:
+
+- **"O que aconteceu da última vez"** usou como tarefa os dois desafios do Scratch do COM100, única do registro com uso de IA explícito ("prompt para agente externo entregue em 14/08"). Marcados os quatro momentos que o registro sustenta (pensar antes, dividir o que é dele e o que é da ferramenta, abrir e pedir, ler a resposta inteira). Os outros quatro ficaram em branco de propósito. Separação: "antes de abrir a ferramenta". Tem botão "Refazer com outra tarefa" se ele quiser trocar.
+- **"Mapa de tarefas"**, parte final, usou a entrega da Quinzena 3 (trabalho em grupo, vence 29/08) e as três respostas apontaram Centauro. A frase gerada: *"A tarefa: um trabalho em grupo. O modo: Centauro. O motivo: as três perguntas apontam para o mesmo lado."*
+- Em **"Um semestre de mensagens"**, o bloco de frequência foi marcado como 15 sessões por semana (uso alto), por coerência com a rotina real dele de IA. É estimativa do agente, não dado dele.
+
+## O grupo G4 está ativo hoje (23/08/2026)
+
+O fórum `Q3 M7 - Grupo: Ponto de encontro` tinha 2 mensagens não lidas, as duas de hoje:
+
+- **colega**, 15h13: postou o portfólio individual dela (Caso do Otávio, competência de avaliação crítica e validação de resultados)
+- **colega**, 16h40: postou o dele (Caso E, a Rafa, competência 6)
+
+**Josemar ainda não postou o dele.** O caso dele é o **Caso B**. O grupo precisa comparar as classificações e combinar o representante desta quinzena, e o Mapa final vai no template do grupo, não no fórum.
+
 ## Estado atual (19/08/2026)
 
 Funcionando e verificado na nuvem. O robô roda sozinho em cinco janelas do dia (8h de Brasília com site + e-mail; 11h, 14h, 17h e 20h só o site), entra no AVA, lê as 8 fontes (`disciplinas`, `itens`, `calendario`, `cronograma`, `foruns`, `notificacoes`, `boletim`, `participacao`), monta a agenda e manda o resumo por e-mail.
