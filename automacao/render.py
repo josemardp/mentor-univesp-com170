@@ -1347,6 +1347,144 @@ def render_encerrados(data):
             'fale com o facilitador pelo fórum de dúvidas.</p>')
 
 
+# ---------------------------------------------------------------------------
+# Quadro das materias
+# ---------------------------------------------------------------------------
+CHIP_DA_CELULA = {
+    "ok": "ok",
+    "falta": "pend",
+    "perdeu": "brick",
+    "atencao": "brick",
+    "nao_sei": "neutral",
+}
+
+
+def _celula_html(celula):
+    if celula.get("estado") == "vazio":
+        return '<td class="q-cel"><span class="q-vazio">—</span></td>'
+    texto = esc(celula.get("texto") or "")
+    if celula.get("url"):
+        texto = (f'<a href="{esc(celula["url"])}" target="_blank" '
+                 f'rel="noopener">{texto}</a>')
+    detalhe = (f'<div class="q-detalhe">{esc(celula["detalhe"])}</div>'
+               if celula.get("detalhe") else "")
+    chip = CHIP_DA_CELULA.get(celula.get("estado"), "neutral")
+    return (f'<td class="q-cel"><span class="status {chip} q-chip">{texto}'
+            f'</span>{detalhe}</td>')
+
+
+def _prazo_html(prazo, fechada=False):
+    quando = prazo.get("quando")
+    if not quando:
+        return '<td class="q-prazo"><span class="q-vazio">—</span></td>'
+    corpo = f'<b>{esc(fmt_dm(quando))}</b>'
+    # Numa semana já encerrada a data-alvo não decide nada e repetia em todas
+    # as linhas, dobrando a altura do quadro no celular por informação morta.
+    if not fechada and prazo.get("alvo") and prazo["alvo"] != quando:
+        # O cronograma oficial tem uma data-alvo e uma carência, e é na
+        # carência que o AVA fecha de verdade. Mostrar só o alvo dava quatro
+        # dias a menos do que ele tem; mostrar só a carência escondia a data
+        # que a Univesp publica. Ficam as duas, com a que fecha em destaque.
+        corpo += (f'<div class="q-detalhe">alvo '
+                  f'{esc(fmt_dm(prazo["alvo"]))}</div>')
+    return f'<td class="q-prazo">{corpo}</td>'
+
+
+def _cabecalho_do_quadro(quadro):
+    partes = []
+    media = quadro.get("media") or {}
+    if media.get("nota"):
+        valor = str(media["nota"])
+        if _sem_acento(valor).startswith("erro"):
+            partes.append('<span class="status lock">o AVA não calcula esta '
+                          'média</span>')
+        else:
+            partes.append(f'{esc(media.get("rotulo") or "média")}: '
+                          f'<span class="status ok">{esc(valor)}</span>')
+    elif quadro.get("boletim_status") == "vazio_confirmado":
+        # SOC100: o relatório do usuário abre sem nenhuma linha. Dizer "sem
+        # nota" seria mentira, as notas estão nas próprias atividades.
+        partes.append('<span class="status lock">o boletim desta disciplina '
+                      'vem vazio do AVA</span>')
+    if quadro.get("notas_do_questionario"):
+        partes.append('as notas abaixo o guia leu na página de cada '
+                      'questionário')
+    if quadro.get("atual"):
+        unidade = "Quinzena" if quadro["modelo"] == "quinzenal" else "Semana"
+        partes.append(f'você está na <b>{unidade} {quadro["atual"]}</b>')
+    linha = " · ".join(partes)
+    zeros = quadro.get("zeros_interativos") or 0
+    if zeros and quadro.get("media"):
+        linha += (f'<div class="q-detalhe" style="max-width:none;">Esta média '
+                  f'inclui {zeros} atividades interativas lançadas com 0,00 '
+                  'no boletim, mesmo concluídas, então ela não mede como você '
+                  'está. Quem mede é o painel de participação.</div>')
+    return linha
+
+
+def render_quadros(data):
+    """Aba "Quadro das matérias": uma linha por semana ou por quinzena.
+
+    Pedido dele em 25/08/2026. As outras abas respondem "o que fazer agora" e
+    "quanto tirei nesta atividade"; nenhuma respondia "onde eu estou nesta
+    matéria", que era a pergunta que ele levava para o AVA toda semana e que
+    exigia abrir quatro páginas para responder.
+    """
+    from dominio.quadro import montar
+
+    blocos = []
+    for quadro in montar(data):
+        cabecalho = _cabecalho_do_quadro(quadro)
+        colunas = "".join(f"<th>{esc(coluna)}</th>"
+                          for coluna in quadro["colunas"])
+        linhas = []
+        for linha in quadro["linhas"]:
+            classes = ["q-linha"]
+            if linha.get("atual"):
+                classes.append("q-atual")
+            if linha["situacao"] == "nao_aberta":
+                vazias = len(quadro["colunas"]) - 1
+                linhas.append(
+                    f'<tr class="q-linha q-fora"><th scope="row">'
+                    f'{esc(linha["rotulo"])}</th>'
+                    f'<td class="q-cel" colspan="{vazias}">'
+                    '<span class="q-vazio">ainda não aberta</span></td></tr>'
+                )
+                continue
+            fechada = linha["situacao"] == "fechada"
+            if fechada:
+                classes.append("q-fechada")
+            celulas = "".join(
+                _prazo_html(p, fechada) for p in linha["prazos"]
+            )
+            celulas += "".join(_celula_html(c) for c in linha["celulas"])
+            rotulo = esc(linha["rotulo"])
+            if linha.get("atual"):
+                rotulo += '<span class="q-agora">agora</span>'
+            linhas.append(
+                f'<tr class="{" ".join(classes)}"><th scope="row">{rotulo}'
+                f'</th>{celulas}</tr>'
+            )
+        blocos.append(
+            f'<h3 class="grupo">{esc(quadro["codigo"] or "")}</h3>'
+            + (f'<p class="q-cab">{cabecalho}</p>' if cabecalho else "")
+            + '<div class="q-rolagem"><table class="quadro">'
+            f'<thead><tr>{colunas}</tr></thead>'
+            f'<tbody>{"".join(linhas)}</tbody></table></div>'
+        )
+    if not blocos:
+        return ""
+    return ('<p class="sub" style="margin:0 0 10px;">Uma linha por semana, ou '
+            'por quinzena na COM170. <b>Fecha</b> é a data em que o AVA fecha '
+            'de verdade, não a do cronograma. <b>Avaliativa</b> é o '
+            'questionário da semana e <b>Fórum</b> é o temático. Na COM170, '
+            '<b>Entrega</b> e <b>Avaliar</b> são os dois prazos do '
+            'Laboratório, e os dois valem nota. Onde está escrito “não sei”, '
+            'é o guia dizendo que não conseguiu ler, nunca que você não fez. '
+            'Arraste o quadro para o lado se ele não couber na tela.</p>'
+            + "".join(blocos))
+
+
 def render_portal(data):
     """Aba "Secretaria": o que só existe no portal do aluno.
 
@@ -1479,6 +1617,12 @@ def render_tabs(data):
         abas.append(
             ("confirmar", "Confirme se é prazo", len(confirmar_itens), confirmar_html)
         )
+
+    # Logo depois da fila: a fila diz o que fazer hoje, o quadro diz de onde
+    # essa tarefa veio e o que mais está em aberto na mesma matéria.
+    quadros_html = render_quadros(data)
+    if quadros_html:
+        abas.append(("quadro", "Quadro das matérias", None, quadros_html))
 
     badge_novidades = contar_novidades(data) or None
     abas.append(("novidades", "Chegou novo", badge_novidades, render_novidades(data)))
@@ -1765,6 +1909,35 @@ TEMPLATE = """<!doctype html>
   .status.lock{background:var(--locked-bg);color:var(--locked);}
   .status.brick{background:var(--brick-soft);color:var(--brick);}
   .status.neutral{background:var(--locked-bg);color:var(--ink-soft);}
+  /* Quadro das matérias. São 4 ou 5 colunas dentro de 580px, e ele abre isto
+     no celular: a tabela rola dentro da própria caixa em vez de empurrar a
+     página inteira para o lado. */
+  .q-cab{color:var(--ink-soft);font-size:13px;margin:2px 0 8px;}
+  .q-rolagem{overflow-x:auto;-webkit-overflow-scrolling:touch;
+             border:1px solid var(--line);border-radius:12px;
+             background:var(--paper);margin-bottom:18px;}
+  table.quadro{border-collapse:collapse;width:100%;font-size:13px;}
+  table.quadro th,table.quadro td{padding:8px 10px;text-align:left;
+                                  vertical-align:top;white-space:nowrap;}
+  table.quadro thead th{font-family:inherit;font-size:11px;font-weight:700;
+                        letter-spacing:.05em;text-transform:uppercase;
+                        color:var(--ink-soft);border-bottom:1px solid var(--line);}
+  table.quadro tbody th{font-weight:700;}
+  .q-linha td,.q-linha th{border-top:1px solid var(--line);}
+  .q-linha:first-child td,.q-linha:first-child th{border-top:none;}
+  .q-atual{background:var(--brick-soft);}
+  .q-atual th{color:var(--brick);}
+  .q-fechada{color:var(--ink-soft);}
+  .q-fora th,.q-fora td{color:var(--locked);}
+  .q-agora{display:inline-block;margin-left:6px;font-size:9.5px;font-weight:700;
+           letter-spacing:.06em;text-transform:uppercase;color:var(--brick);}
+  .q-chip{display:inline-block;margin-top:0;}
+  .q-chip a{text-decoration:none;}
+  /* O detalhe é a única coisa que pode quebrar linha: sem isto, "nenhuma das
+     3 tentativas usada" faria a tabela ter o dobro da largura da tela. */
+  .q-detalhe{margin-top:3px;font-size:11px;color:var(--ink-soft);
+             white-space:normal;max-width:120px;}
+  .q-vazio{color:var(--locked);}
   .recado-antigo-tag{font-size:12px;letter-spacing:.06em;text-transform:uppercase;
                      color:var(--ink-soft);font-weight:700;margin:0 0 6px;}
   .tabbar{display:flex;flex-wrap:wrap;gap:6px;margin:18px 0 4px;}

@@ -564,6 +564,10 @@ def executar_coleta(estado, anterior=None):
                     item.update(
                         itens.estado_workshop(page, item.get("url"))
                     )
+                elif item.get("type") == "quiz":
+                    # Mesma página que ``item_aberto`` abriria, lida inteira:
+                    # traz também a nota e as tentativas usadas.
+                    item.update(itens.estado_quiz(page, item.get("url")))
                 else:
                     item["aberto"] = itens.item_aberto(page, item.get("url"))
                 # Só onde a página não afirmou nada. O calendário responde por
@@ -601,9 +605,15 @@ def executar_coleta(estado, anterior=None):
                 and not item.get("tem_nota")
             ]
             for item in suspeitos[:MAX_ENTREGAS_CONFERIDAS]:
-                item["entrega_confirmada"] = itens.entrega_feita(
-                    page, item.get("url"), item.get("type")
-                )
+                if item.get("type") == "quiz":
+                    # A mesma visita responde "entregou?" e "quanto tirou?".
+                    # É o que resolve o SOC100, cujo boletim vem vazio do AVA:
+                    # sem isto, a disciplina inteira fica sem nota no guia.
+                    item.update(itens.estado_quiz(page, item.get("url")))
+                else:
+                    item["entrega_confirmada"] = itens.entrega_feita(
+                        page, item.get("url"), item.get("type")
+                    )
                 if item["entrega_confirmada"] is False:
                     nao_entregues += 1
                     print(
@@ -617,6 +627,26 @@ def executar_coleta(estado, anterior=None):
                     f"  aviso: {sobra} entrega(s) suspeita(s) de {codigo} "
                     "ficaram sem conferência"
                 )
+
+            # A nota do questionário só entra onde o boletim não respondeu. O
+            # boletim é a nota lançada pelo facilitador e continua mandando;
+            # esta é a nota que o próprio questionário calculou, e existe para
+            # o caso em que o relatório do usuário vem sem nenhuma linha
+            # (SOC100, conferido no AVA em 25/08/2026).
+            for secao in secoes:
+                for item in secao["items"]:
+                    resumo_quiz = item.get("quiz")
+                    if not resumo_quiz:
+                        continue
+                    item["nota_fonte"] = "boletim" if item.get(
+                        "tem_nota"
+                    ) else None
+                    if item.get("tem_nota") or resumo_quiz.get("nota") is None:
+                        continue
+                    item["nota"] = resumo_quiz["nota"]
+                    item["nota_txt"] = resumo_quiz["nota_txt"]
+                    item["tem_nota"] = True
+                    item["nota_fonte"] = "página do questionário"
 
             cache_participacao = cache_fontes.setdefault("participacao", {})
             resultado_participacao = participacao.resultado(

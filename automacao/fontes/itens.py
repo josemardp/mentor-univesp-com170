@@ -5,6 +5,7 @@ import re
 from playwright.sync_api import Error as PlaywrightError
 
 from dominio.datas import sem_acento
+from fontes import questionario
 
 SINAIS_FECHADO = [
     "nao esta aberta",
@@ -200,19 +201,8 @@ SINAIS_NAO_ENVIOU_TAREFA = (
 )
 
 
-def entrega_feita(page, url, tipo):
-    """``True``/``False``/``None`` para "esta atividade foi mesmo entregue?".
-
-    ``None`` é a resposta honesta quando a página não afirma nem nega. Nunca
-    devolver ``False`` por falta de sinal: acusar entrega faltando quando ela
-    existe é pior que ficar calado.
-    """
-    if tipo not in ("quiz", "assign"):
-        return None
-    corpo = _texto_da_atividade(page, url)
-    if corpo is None or any(
-        sinal in corpo for sinal in SINAIS_INDEFINIDO
-    ):
+def _entrega_no_texto(corpo, tipo):
+    if corpo is None or any(sinal in corpo for sinal in SINAIS_INDEFINIDO):
         return None
     if tipo == "quiz":
         if any(sinal in corpo for sinal in SINAIS_TENTOU):
@@ -225,3 +215,46 @@ def entrega_feita(page, url, tipo):
     if any(sinal in corpo for sinal in SINAIS_NAO_ENVIOU_TAREFA):
         return False
     return None
+
+
+def entrega_feita(page, url, tipo):
+    """``True``/``False``/``None`` para "esta atividade foi mesmo entregue?".
+
+    ``None`` é a resposta honesta quando a página não afirma nem nega. Nunca
+    devolver ``False`` por falta de sinal: acusar entrega faltando quando ela
+    existe é pior que ficar calado.
+    """
+    if tipo not in ("quiz", "assign"):
+        return None
+    return _entrega_no_texto(_texto_da_atividade(page, url), tipo)
+
+
+def estado_quiz(page, url):
+    """Tudo o que a página de um questionário afirma, numa leitura só.
+
+    Antes eram duas visitas com objetivos separados: ``item_aberto`` para o
+    questionário ainda pendente e ``entrega_feita`` para o já marcado como
+    concluído. As duas abrem exatamente a mesma página, e essa página também
+    traz a nota e as tentativas — que o guia jogava fora. Uma leitura passa a
+    responder as quatro coisas, sem custo novo de navegação.
+
+    Todo campo é ``None`` quando a página não afirma nada sobre ele.
+    """
+    corpo = _texto_da_atividade(page, url)
+    if corpo is None:
+        return {
+            "aberto": None,
+            "entrega_confirmada": None,
+            "quiz": None,
+        }
+    if any(sinal in corpo for sinal in SINAIS_INDEFINIDO):
+        aberto = None
+    elif any(sinal in corpo for sinal in SINAIS_FECHADO):
+        aberto = False
+    else:
+        aberto = True
+    return {
+        "aberto": aberto,
+        "entrega_confirmada": _entrega_no_texto(corpo, "quiz"),
+        "quiz": questionario.resumo_do_texto(corpo),
+    }

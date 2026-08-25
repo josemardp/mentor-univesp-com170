@@ -51,6 +51,7 @@ jobs:
           python testes/test_participacao_forum.py
           python testes/test_portal.py
           python testes/test_revisao_entre_pares.py
+          python testes/test_quadro.py
 
       # A sessão salva (Secret AVA_STORAGE_STATE) saiu em 13/08/2026. Ela era
       # um atalho para pular o login, e o log da rodada mostrou que o atalho

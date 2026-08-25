@@ -4,6 +4,83 @@
 > Site: https://esdraaline.github.io/mentor-univesp-com170/ (conta GitHub `esdraaline`)
 > Histórico completo de sessões, auditorias e etapas concluídas: [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
+## Quadro das matérias no guia, e a nota que faltava do SOC100 (25/08/2026)
+
+Ele viu o levantamento feito à mão nesta sessão, gostou dos quadros e pediu que
+virassem parte do motor, com as quatro disciplinas. Virou uma aba nova,
+**"Quadro das matérias"**, logo depois da fila: uma linha por semana, ou por
+quinzena na COM170.
+
+**O buraco que apareceu ao construir.** O boletim do SOC100 abre no AVA com o
+cabeçalho "Item de nota | Nota" e **nenhuma linha** (conferido ao vivo). O
+coletor estava certo em marcar `vazio_confirmado`, mas o resultado era uma
+disciplina inteira sem nota nenhuma no guia, sem jeito de saber se era ausência
+de entrega ou de leitura. As notas existem: estão na página de cada
+questionário, em "A sua nota final neste questionário é 10,00/10,00".
+
+A resposta foi [`fontes/questionario.py`](automacao/fontes/questionario.py) e
+`itens.estado_quiz`, que lê aberto, entrega, nota, tentativas usadas e método
+numa visita só. **Custo zero de navegação:** o pipeline já abria exatamente
+essas páginas, em `pendentes` (questionário por fazer) e em `suspeitos`
+(concluído sem nota), e jogava fora tudo menos o sim/não. Na rodada real de hoje
+o SOC100 saiu com 10,00 nas quatro semanas encerradas, e apareceu de brinde que
+na S3 ele gastou as três tentativas.
+
+A nota da página é **fonte secundária**: onde o boletim responde, é o boletim
+que manda, e o quadro avisa no cabeçalho quando a nota veio do questionário.
+
+**Regras de leitura que o quadro respeita**, todas com teste em
+[`testes/test_quadro.py`](testes/test_quadro.py):
+
+- célula sem informação é "não sei", nunca "não fez" — quadro tem cara de
+  tabela, e tabela é lida como verdade;
+- prazo vencido sem nota e sem prova de entrega não vira acusação;
+- laboratório de grupo sem envio depois do prazo vira "não consta", porque quem
+  envia pelo grupo é o representante;
+- zero em Laboratório de Avaliação fica em **atenção**, nem verde nem vermelho;
+- as "Semana 1" a "Semana 4" da ambientação encerrada da COM170 não entram no
+  quadro das quinzenas.
+
+**Dois números que enganavam, agora explicados na tela.** A "Média AVA" de 7,10
+da COM100 divide por sete itens contando semanas que ainda não existem. A de
+0,51 da COM170 inclui 22 atividades interativas lançadas com 0,00 mesmo
+concluídas — a contagem sai do próprio boletim, não de regra escrita à mão.
+
+Conferido no celular (390px) e no tema escuro. As três tabelas regulares cabem
+sem rolagem; a da COM170, com cinco colunas, rola dentro da própria caixa sem
+empurrar a página.
+
+## Panorama das quatro disciplinas levantado no AVA (25/08/2026)
+
+Mapeamento completo de cronograma, notas e pendências, feito ao vivo pelo `nav-ava`.
+Descoberta de método: o calendário do Moodle esconde eventos atrás de "mais", e o jeito
+certo de puxar prazo é o web service `core_calendar_get_calendar_monthly_view` (a chamada
+está na `SKILL.md`). Também corrigido: **COM100 é Pensamento Computacional**, não
+"Algoritmos e Programação de Computadores" como a tabela de IDs dizia.
+
+**O gargalo real não era o que parecia.** As duas avaliativas de domingo (SOC100 e LET110)
+são importantes, mas a entrega mais arriscada vence **sábado, 29/08 às 23:59**: os dois
+laboratórios da Quinzena 3 da COM170, o colega (`workshop/view.php?id=228139`)
+e o Trabalho em Grupo (`workshop/view.php?id=228142`). Nenhum dos dois tem envio até
+agora, e o enunciado avisa que **o AVA não aceita envio atrasado**, porque a distribuição
+para a revisão entre pares é automática e simultânea. O texto do portfólio individual dele
+já existe, foi postado no fórum do grupo G4 em 23/08 às 18:00, só não foi submetido no
+laboratório. O grupo G4 tem um único tópico e duas mensagens, nada combinado sobre quem é
+o representante que envia o trabalho coletivo.
+
+| Disciplina | Onde está | Próximo prazo |
+|---|---|---|
+| COM100 Pensamento Computacional | S1 a S5 com 10,00, tudo concluído | S6 avaliativa, 06/09 |
+| SOC100 Ética | S1 a S4 com 10,00, fórum da S5 postado | S5 avaliativa, 30/08 |
+| LET110 Leitura e Produção | S1 a S4 feitas (S2 tirou 7,50), fórum da S5 em aberto | S5 avaliativa e fórum, 30/08 |
+| COM170 IA na Prática | Q1 e Q2 fechadas, Q3 em curso, conteúdo todo concluído | Q3 M6 e M7, 29/08 |
+
+Notas: a "Média AVA" de 7,10 da COM100 divide por sete itens contando a S6 e a S7 que
+ainda não existem, então não é nota de reprovação, é média parcial. A COM170 mostra 0,51
+porque os pacotes SCORM entram com 0,00 no boletim mesmo concluídos; o que vale ali é o
+painel `Meu Progresso de Participação` (`ativa.univesp.br/lti/progress`), que na Quinzena 2
+dá "progresso muito avançado" com só o critério do Módulo 5 não identificado.
+
 ## SOC100 Semana 5 fechada no fórum, e a skill virou operacional (25/08/2026)
 
 Primeira sessão que fez o ciclo inteiro sozinha: entrou no AVA, leu a aula, resumiu o

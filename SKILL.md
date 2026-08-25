@@ -29,7 +29,7 @@ description: >
 
 | Disciplina | Nome | ID Moodle |
 |---|---|---|
-| COM100 | Algoritmos e Programação de Computadores | `18870` |
+| COM100 | Pensamento Computacional | `18870` |
 | SOC100 | Ética, Cidadania e Sociedade | `18880` |
 | LET110 | Leitura e Produção de Textos | `18893` |
 | COM170 | Inteligência Artificial na Prática Acadêmica e Profissional | `18922` |
@@ -99,6 +99,27 @@ o textarea, com o texto em parágrafos `<p>`, e envie por `#id_submitbutton`. De
 **confira na fonte** em `mod/forum/user.php?id=134270&course=<id>&mode=posts`. Enquanto
 aparecerem os botões Editar e Excluir, ainda dá para corrigir (janela de cerca de 30
 minutos).
+
+**Pegar todos os prazos de uma disciplina de uma vez.** O calendário em HTML esconde
+eventos atrás de "mais". Use o web service do Moodle, na própria página logada:
+
+```js
+const req = [{index:0, methodname:'core_calendar_get_calendar_monthly_view',
+  args:{year:2026, month:8, courseid:18870, categoryid:0, includenavigation:false, mini:false}}];
+const r = await fetch('/lib/ajax/service.php?sesskey='+M.cfg.sesskey, {method:'POST',
+  headers:{'Content-Type':'application/json'}, body: JSON.stringify(req)});
+// (await r.json())[0].data.weeks -> days -> events {name, timestart, modulename}
+```
+
+Sai término de questionário, prazo de fórum, live e plantão, com hora. Repita por mês e
+por curso. Nunca chute `time=` em epoch no `calendar/view.php`, dá o ano errado.
+
+**Nota que o boletim não dá.** O boletim do **SOC100** abre vazio no AVA, e é
+estado real, não falha de leitura. A nota está na página de cada questionário
+("A sua nota final neste questionário é 10,00/10,00"), junto com as tentativas
+usadas e o método. O robô já lê isso sozinho (`fontes/questionario.py` e
+`itens.estado_quiz`), e o guia mostra no **Quadro das matérias**. Onde o boletim
+responde, é ele que manda.
 
 **Outros atalhos:** boletim em `grade/report/user/index.php?id=<id>`. O painel de
 participação do COM170 abre em aba nova (`ativa.univesp.br/lti/progress`) e a lista de
