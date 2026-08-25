@@ -902,8 +902,12 @@ def render_cards(data):
     cards = []
     for c in data.get("courses", []):
         pct = c.get("progress_pct")
-        pill = (f'<div class="progress-pill{" has-progress" if pct else ""}">'
-                f'{pct if pct is not None else "?"}% concluído</div>')
+        # "?% concluído" ocupava o canto do card sem dizer nada. Barra de
+        # progresso que o Moodle não publicou simplesmente não aparece.
+        pill = (
+            f'<div class="progress-pill has-progress">{pct}% concluído</div>'
+            if pct else ""
+        )
         secoes = [s for s in c.get("sections", []) if s.get("fase") != "AIA"]
         corpo = "".join(render_secao(s) for s in secoes) or (
             '<p class="sub">Não consegui ler o conteúdo agora.</p>')
@@ -915,7 +919,7 @@ def render_cards(data):
             f'<div class="card"><div class="card-head"><div>'
             f'<h3>{esc(c["name"])}</h3><div class="code">{esc(c["code"])}</div></div>'
             f'{pill}</div>{crit}<div class="sections">{corpo}</div></div>')
-    return "".join(cards)
+    return f'<div class="cards">{"".join(cards)}</div>'
 
 
 def render_confirmar(data):
@@ -1466,11 +1470,14 @@ def render_quadros(data):
                 f'</th>{celulas}</tr>'
             )
         blocos.append(
+            '<section class="quadro-bloco">'
             f'<h3 class="grupo">{esc(quadro["codigo"] or "")}</h3>'
-            + (f'<p class="q-cab">{cabecalho}</p>' if cabecalho else "")
+            + (f'<p class="q-cab">{cabecalho}</p>' if cabecalho
+               else '<p class="q-cab q-cab-vazio">&nbsp;</p>')
             + '<div class="q-rolagem"><table class="quadro">'
             f'<thead><tr>{colunas}</tr></thead>'
             f'<tbody>{"".join(linhas)}</tbody></table></div>'
+            '</section>'
         )
     if not blocos:
         return ""
@@ -1482,7 +1489,7 @@ def render_quadros(data):
             'Laboratório, e os dois valem nota. Onde está escrito “não sei”, '
             'é o guia dizendo que não conseguiu ler, nunca que você não fez. '
             'Arraste o quadro para o lado se ele não couber na tela.</p>'
-            + "".join(blocos))
+            f'<div class="quadros">{"".join(blocos)}</div>')
 
 
 def render_portal(data):
@@ -1672,9 +1679,14 @@ def render_tabs(data):
             f'<section class="tab-panel" id="panel-{chave}" role="tabpanel" '
             f'aria-labelledby="tabbtn-{chave}" hidden>{conteudo}</section>'
         )
+    # As duas partes ficam dentro de um contêiner só porque no desktop elas
+    # deixam de ser uma acima da outra: viram grid de duas colunas, com as
+    # abas em pé na lateral. No celular o contêiner não muda nada.
     return (
+        '<div class="tabs">'
         f'<div class="tabbar" role="tablist">{"".join(botoes)}</div>'
         f'<div class="tab-panels">{"".join(paineis)}</div>'
+        '</div>'
     )
 
 
@@ -1913,6 +1925,9 @@ TEMPLATE = """<!doctype html>
      no celular: a tabela rola dentro da própria caixa em vez de empurrar a
      página inteira para o lado. */
   .q-cab{color:var(--ink-soft);font-size:13px;margin:2px 0 8px;}
+  /* Cabeçalho vazio só existe para o subgrid do desktop ter sempre três
+     linhas. Fora dele seria uma linha em branco sem motivo. */
+  .q-cab-vazio{display:none;}
   .q-rolagem{overflow-x:auto;-webkit-overflow-scrolling:touch;
              border:1px solid var(--line);border-radius:12px;
              background:var(--paper);margin-bottom:18px;}
@@ -1953,16 +1968,88 @@ TEMPLATE = """<!doctype html>
   .tab-panels{margin-top:10px;}
   .tab-panel[hidden]{display:none;}
   @media (prefers-reduced-motion: reduce){.chev{transition:none;}}
+
+  /* ---------------------------------------------------------------------
+     Desktop. Tudo daqui para baixo é aditivo: o site nasceu para o celular,
+     e no celular ele está do jeito que ele aprovou. O que faltava era o
+     outro extremo — num monitor de 1920px o guia era uma coluna de 580px
+     com 1300px de vazio dos lados, as nove abas quebravam em três fileiras
+     de pílulas e as tabelas ficavam espremidas sobrando tela.
+     --------------------------------------------------------------------- */
+
+  /* Primeiro degrau: só ar. A coluna cresce e o cabeçalho vira faixa, com a
+     identidade à esquerda e a hora da leitura à direita, em vez de empilhar
+     quatro linhas antes de qualquer conteúdo. */
+  @media (min-width: 760px){
+    body{padding:26px 24px 70px;}
+    .wrap{max-width:720px;}
+    .topo{display:flex;align-items:flex-end;justify-content:space-between;
+          gap:24px;flex-wrap:wrap;}
+    .topo-meta{margin-top:0;text-align:right;flex:1 1 220px;}
+    h1{font-size:28px;}
+    .semana-line{font-size:14px;}
+  }
+
+  /* Segundo degrau: as abas ficam em pé. Nove pílulas empilhadas em três
+     fileiras não têm hierarquia nenhuma e empurram o conteúdo para baixo da
+     dobra; a mesma lista na vertical lê-se de uma olhada, e fica grudada na
+     tela enquanto ele rola o painel. */
+  @media (min-width: 1000px){
+    .wrap{max-width:1080px;}
+    .tabs{display:grid;grid-template-columns:224px minmax(0,1fr);
+          gap:0 30px;align-items:start;margin-top:22px;}
+    .tabbar{flex-direction:column;flex-wrap:nowrap;gap:2px;margin:0;
+            position:sticky;top:26px;padding-right:22px;
+            border-right:1px solid var(--line);}
+    .tab-btn{width:100%;justify-content:space-between;text-align:left;
+             background:transparent;border-color:transparent;border-radius:9px;
+             padding:9px 12px;font-size:13.5px;}
+    .tab-btn:hover{background:var(--locked-bg);}
+    .tab-btn.active{background:var(--brick-soft);border-color:transparent;}
+    .tab-badge{background:rgba(128,128,128,.18);}
+    .tab-panels{margin:0;min-width:0;}
+    /* Medida de leitura. A fila é texto corrido, e linha de mil pixels
+       cansa: o olho perde onde recomeça. O painel para em 860px e alinha à
+       esquerda, junto da lateral. Os dois painéis que são grade, e que
+       ganham de verdade com espaço, são liberados logo abaixo. */
+    .tab-panel{max-width:860px;}
+    #panel-quadro,#panel-mapa{max-width:none;}
+    .tab-panel > .sub,.tab-panel > p{max-width:70ch;}
+  }
+
+  /* Terceiro degrau: as quatro disciplinas lado a lado. É o ganho que ele
+     pediu desde o começo, ver o semestre inteiro de uma vez sem rolar. */
+  @media (min-width: 1240px){
+    .wrap{max-width:1240px;}
+    .quadros{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+             column-gap:30px;row-gap:8px;}
+    /* Sem o subgrid, o cabeçalho de duas linhas do SOC100 empurrava só a
+       tabela dele para baixo e as duas colunas ficavam desencontradas. Com
+       ele, título alinha com título e tabela com tabela. Navegador sem
+       subgrid cai no comportamento anterior, que continua legível. */
+    .quadro-bloco{min-width:0;display:grid;grid-template-rows:subgrid;
+                  grid-row:span 3;align-content:start;}
+    .quadro-bloco .grupo{margin-top:14px;align-self:end;}
+    .quadro-bloco .q-cab{align-self:start;}
+    .q-cab-vazio{display:block;visibility:hidden;}
+    .cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+           gap:0 24px;align-items:start;}
+    .cards .card{min-width:0;}
+  }
   footer{margin-top:30px;padding-top:16px;border-top:1px solid var(--line);
          font-size:12px;color:var(--ink-soft);text-align:center;}
 </style>
 </head>
 <body data-snapshot-at="{{SNAPSHOT_AT}}">
 <div class="wrap">
-  <div class="eyebrow">Univesp · BIA · Turma 001</div>
-  <h1>Guia diário do AVA</h1>
-  <p class="semana-line">{{SEMANA}}</p>
-  <p class="sub">Releio o AVA várias vezes ao dia · última leitura: {{CHECKED_AT}} (Brasília)</p>
+  <header class="topo">
+    <div class="topo-id">
+      <div class="eyebrow">Univesp · BIA · Turma 001</div>
+      <h1>Guia diário do AVA</h1>
+      <p class="semana-line">{{SEMANA}}</p>
+    </div>
+    <p class="sub topo-meta">Releio o AVA várias vezes ao dia · última leitura: {{CHECKED_AT}} (Brasília)</p>
+  </header>
   {{BANNER}}
   {{FONTES_STATUS}}
   {{TABS}}

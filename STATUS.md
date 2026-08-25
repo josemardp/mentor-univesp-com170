@@ -4,6 +4,49 @@
 > Site: https://esdraaline.github.io/mentor-univesp-com170/ (conta GitHub `esdraaline`)
 > Histórico completo de sessões, auditorias e etapas concluídas: [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
+## O guia ganhou desktop (25/08/2026)
+
+Ele abriu o site no monitor e a palavra foi "péssimo", com razão: o guia nasceu
+mobile-first e nunca teve nada além disso. Num monitor de 1920px era uma coluna
+de **580px com 1300px de vazio dos lados**, as nove abas quebravam em três
+fileiras de pílulas sem hierarquia nenhuma, e as tabelas do quadro ficavam
+espremidas sobrando tela por todo lado.
+
+Tudo o que entrou é **aditivo, dentro de `@media (min-width: ...)`**. O celular
+é onde ele usa o guia de verdade e estava aprovado; nenhuma regra nova o
+alcança, e isso foi conferido medindo a página em 390px depois de cada
+mudança.
+
+**Três degraus, cada um resolvendo um problema diferente:**
+
+- **760px, ar.** A coluna vai a 720px e o cabeçalho vira faixa: identidade à
+  esquerda, hora da última leitura à direita, em vez de quatro linhas
+  empilhadas antes de qualquer conteúdo.
+- **1000px, as abas ficam em pé.** A barra vira **navegação lateral vertical e
+  sticky**, com contador alinhado à direita e uma régua separando do conteúdo.
+  Nove pílulas em três fileiras lêem-se mal e empurram tudo para baixo da
+  dobra; a mesma lista na vertical se lê de uma olhada e acompanha a rolagem.
+- **1240px, as quatro disciplinas lado a lado.** O quadro e o mapa viram grade
+  de duas colunas. É ver o semestre inteiro sem rolar, que era o pedido
+  original.
+
+**Medida de leitura.** Painel de texto para em 860px e os parágrafos em 70ch:
+linha de mil pixels cansa, o olho perde onde recomeça. Só o quadro e o mapa,
+que são grade, usam a largura toda.
+
+**Subgrid para alinhar as colunas.** O cabeçalho de duas linhas do SOC100
+empurrava só a tabela dele para baixo, e as duas colunas ficavam desencontradas.
+Com `grid-template-rows: subgrid` cada bloco ocupa três linhas do pai, então
+título alinha com título e tabela com tabela. Navegador sem subgrid cai no
+comportamento anterior, que continua legível.
+
+Também saiu a pílula **"?% concluído"** dos cards do mapa: barra de progresso
+que o Moodle não publicou agora simplesmente não aparece, em vez de ocupar o
+canto do card com uma interrogação.
+
+Conferido em 390, 1024, 1440 e 1920px, nos dois temas. Nenhuma largura tem
+rolagem horizontal de página.
+
 ## Quadro das matérias no guia, e a nota que faltava do SOC100 (25/08/2026)
 
 Ele viu o levantamento feito à mão nesta sessão, gostou dos quadros e pediu que
