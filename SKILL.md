@@ -16,6 +16,12 @@ description: >
 
 # Mentor Univesp
 
+> **A cópia viva desta skill é `C:\projetos\skills-pessoais\mentor-univesp\SKILL.md`**,
+> que é a instalada por junction em `~/.claude/skills` e a única que o Claude carrega.
+> Esta cópia aqui é espelho, mantida junto do projeto que ela documenta. Ao editar uma,
+> copie para a outra e commite nos dois repositórios, senão a que age fica velha (foi o
+> que aconteceu entre 03/08 e 25/08/2026).
+
 ## Quem é Josemar neste curso
 - Aluno Univesp, graduação, eixos de Computação e de Negócios e Produção.
 - ID Moodle do usuário: `134270`.
