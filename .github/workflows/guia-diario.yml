@@ -23,9 +23,9 @@ jobs:
   atualizar:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -83,7 +83,26 @@ jobs:
             echo "Sem mudanças nesta leitura."
           else
             git commit -m "Atualização do guia ($(date -u +'%Y-%m-%d %H:%M') UTC)"
-            git push
+            # O checkout traz o commit que DISPAROU o evento, não o topo do
+            # branch. Se main andou desde então, este push é recusado por não ser
+            # fast-forward, e a rodada fica vermelha por uma corrida de segundos.
+            # Rebase e tenta de novo, igual ao passo que registra a data do
+            # e-mail mais abaixo. Aqui não dá para usar `exit 0` no sucesso: o
+            # resto deste mesmo passo é que confere o deploy antes de liberar o
+            # e-mail, então o laço tem que sair com `break`.
+            EMPURROU=nao
+            for TENTATIVA in 1 2 3; do
+              if git push; then
+                EMPURROU=sim
+                break
+              fi
+              echo "Push rejeitado (tentativa $TENTATIVA). Rebase e tenta de novo."
+              git pull --rebase origin main
+            done
+            if [ "$EMPURROU" != "sim" ]; then
+              echo "::error::Não consegui publicar as mudanças depois de 3 tentativas."
+              exit 1
+            fi
           fi
 
           # Push não é deploy. Só libero o e-mail quando o mesmo artefato já
