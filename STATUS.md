@@ -4,6 +4,48 @@
 > Site: https://esdraaline.github.io/mentor-univesp-com170/ (conta GitHub `esdraaline`)
 > Histórico completo de sessões, auditorias e etapas concluídas: [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
+## SOC100 Semana 5 fechada no fórum, e a skill virou operacional (25/08/2026)
+
+Primeira sessão que fez o ciclo inteiro sozinha: entrou no AVA, leu a aula, resumiu o
+vídeo pela fala real, redigiu, publicou e conferiu.
+
+O `ava_vivo.py` funcionou de primeira, sem pedir nada ao Josemar. As credenciais já
+estavam no ambiente da máquina e o login saiu automático (a sessão anterior tinha
+expirado, o script relogou sozinho). O MCP `nav-ava` se plugou na porta 9222 e dirigiu o
+AVA o tempo todo. A memória do projeto ainda mandava "peça para o Josemar logar", e foi
+corrigida.
+
+**Aprendizado do vídeo da aula.** O resumo tinha que sair da fala, não do título. Três
+caminhos falharam pelo navegador automatizado (painel "Mostrar transcrição", `fetch` no
+`baseUrl` dos `captionTracks`, endpoint `get_transcript`), todos voltando vazio. O que
+funcionou foi o `yt-dlp`, instalado nesta máquina hoje, baixando a legenda automática em
+VTT. Antes disso houve um erro que vale registrar: o vídeo foi procurado por busca no
+YouTube e o canal tinha **dois** vídeos de título quase idêntico, o palpite saiu errado e
+só se corrigiu ao ler o `iframe` na própria página do AVA. Regra nova: o vídeo se acha
+pelo iframe, nunca por busca.
+
+**Duas postagens no fórum temático da S5** (`O Valor do Trabalho: Gênero e Ética no
+Ambiente Empresarial`, 527 respostas), publicadas às 09:34 e 09:35 depois do "sim"
+explícito dele, e conferidas na página de mensagens do curso:
+
+- post principal respondendo as três questões do Desafio, ancorado no fecho do vídeo
+  (Danièle Kergoat e os princípios de separação e de hierarquia), que é o trecho que
+  quase ninguém usa por estar nos últimos trinta segundos;
+- réplica ao colega respondendo a pergunta que ele deixou para a turma, com os
+  dados da Lei 14.611/2023 conferidos na fonte antes de publicar.
+
+**Regra nova de estilo, dada por ele:** nada nos textos públicos do curso pode deixar
+transparecer que ele é policial militar. O parágrafo sobre serviço público foi reescrito
+antes de publicar. Está no `SKILL.md` com a lista de termos proibidos.
+
+A `SKILL.md` foi reescrita. Ela ainda descrevia só COM170 na fase AIA, então não disparava
+para uma pergunta de SOC100, que é o caso mais comum hoje. Agora cobre as quatro
+disciplinas, traz a tabela de IDs, o acesso ao vivo atualizado, as rotinas de Moodle já
+testadas (listar semana, achar vídeo, transcrever, publicar em fórum, conferir) e o tom de
+escrita dele.
+
+**Pendente desta semana:** a `S5 - Atividade Avaliativa` (questionário) não foi olhada.
+
 ## Acesso ao vivo do AVA resolvido, e por que ele nunca funcionou (23/08/2026)
 
 O agente passou meses sem conseguir abrir o AVA logado. A rotina registrada era "abra o `nav-login.ps1`, logue, feche a janela, o headless assume", e ela **nunca podia ter funcionado** para este site. A causa, medida hoje no banco de cookies do perfil: o `MoodleSession` é **cookie de sessão** (`is_persistent = 0`, sem validade). O Chrome descarta cookie de sessão ao fechar, então ele não chega ao disco. Depois de fechar a janela, o registro simplesmente não existe mais.
