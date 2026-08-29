@@ -96,14 +96,15 @@ feature flags), que não autentica nada — o script passou a guardar **só os
 cookies**, que é o que prova a sessão para o Entra ID. Ficou em 10.232
 caracteres, com folga.
 
-**Pendente: a fonte nunca foi exercitada de verdade.** A rodada disparada para
-conferir isso testou o código antigo, porque as mudanças ainda não estavam na
-`main` — o Actions faz checkout do remoto, não da máquina. Erro de método,
-registrado aqui para não se repetir: **verificar fonte nova na nuvem exige o
-push antes do disparo.** Depois do push desta sessão, a primeira rodada
-(agendada ou manual) é que vai dizer se a fonte `outlook` sobe como `live` em
-`fontes_status`. Enquanto ninguém olhar esse campo, a fonte está entregue, não
-verificada.
+**Verificada na nuvem em 29/08/2026, 01:07 UTC:** rodada verde de ponta a
+ponta, `status: ok`, e `outlook` em `live` com 23 mensagens lidas. A sessão
+persistida funciona no runner, sem MFA, sem janela e sem ninguém. O conserto do
+retry do push (entrada acima) passou na mesma rodada.
+
+Antes disso houve um erro de método que fica registrado para não se repetir: a
+primeira rodada disparada para conferir isso testou o **código antigo**, porque
+as mudanças ainda não estavam na `main`. O Actions faz checkout do remoto, não
+da máquina. **Verificar fonte nova na nuvem exige o push antes do disparo.**
 
 Na mesma tentativa apareceu o defeito do retry do push (entrada acima) e ficou
 registrado que a rodada agendada das 18h de 28/08 falhou por conta própria, por
@@ -111,14 +112,75 @@ instabilidade de leitura do AVA (`participacao` com TimeoutError, `foruns`
 degradado, boletim de duas disciplinas sem abrir). O robô fez o certo:
 preservou o retrato de 27/08 em vez de publicar meia leitura.
 
-**Sem amostra real de `aria-label` ainda.** A mecânica de scroll/seletor está
-confirmada (mesmo produto, mesma skill, testado na própria conta Univesp),
-mas o formato exato do texto de cada linha (ordem remetente/assunto/prévia)
-só se confirma depois do passo 1 acima. Por isso `avisos_do_outlook` roda a
-extração de prazo sobre o `aria-label` inteiro, sem tentar separar
-remetente/assunto agora — decisão deliberada de não inventar um formato não
-verificado. Depois da primeira captura real, vale reler uma amostra e, se
-compensar, refinar `msg.get("texto")` para os campos separados.
+## A fonte do Outlook lê, mas nunca vai achar prazo do jeito que está (29/08/2026)
+
+A fonte subiu `live` com 23 mensagens e produziu **zero** prazo, zero cartão na
+fila e zero item em "Confirme se é prazo". Isso tinha duas explicações
+possíveis com a mesma cara vista de fora (caixa realmente sem prazo, ou
+extração que não alcança o formato), então a caixa foi lida à mão pela skill
+`sec-hotmail`, sem abrir nenhuma mensagem. **É a segunda: é bug.**
+
+A caixa tem exatamente um e-mail com data futura viva:
+
+> "Provas Regulares - 3º Bimestre de 2026" (14/08) — "• 3º BIMESTRE - PROVAS DE
+> 14/09 A 25/09 • ... De 14 a 25 de setembro, das 18h às 22h, teremos nosso
+> ciclo de provas Regulares"
+
+Rodando `dominio.prazos.extrair_prazos` contra o texto real: ele **encontra** as
+datas dentro do fragmento (14/08, 14/09, 25/09) e **descarta o fragmento antes
+de olhar para elas**. O filtro que derruba é o gatilho: a frase precisa conter
+uma palavra da lista `GATILHOS_PRAZO`, e `prova`/`provas` não está lá. Nem
+`ciclo`, nem `bimestre`, nem `presencial`. O e-mail anuncia prova sem usar
+nenhuma palavra que o guia reconheça como prazo.
+
+**A correção não é local.** `GATILHOS_PRAZO` é usada por todas as fontes de
+texto livre (fórum, páginas de instrução), então acrescentar `prova` alcança o
+guia inteiro e pode gerar falso positivo em post que fale de prova sem marcar
+data. E mexer na leitura de prazos **obriga a incrementar `VERSAO_CACHE`** (ver
+o comentário em `configuracao.py`), senão o post velho continua servindo a
+conclusão velha do cache. Fica para uma decisão do Josemar, não para conserto
+silencioso.
+
+**Amostra real do `aria-label`, agora confirmada.** O formato é
+`[Não lidos] [Tem anexos] [Remetente externo] <remetente> <assunto> <data de
+recebimento> <prévia>`, tudo num campo só, sem quebra de linha, tipicamente 250
+a 350 caracteres. Duas consequências:
+
+- **A data de recebimento viaja junto com o texto.** Hoje isso não causou
+  problema, mas é armadilha real: se um assunto trouxer uma palavra de gatilho
+  perto dessa data, o guia pode transformar a data em que a mensagem *chegou*
+  num prazo que não existe. Vale tratar junto com a correção do gatilho,
+  separando remetente/assunto/data/prévia em vez de parsear o campo inteiro.
+- A contagem diverge de leve: a rodada do guia contou 23, a varredura à mão
+  juntou 22 de um `aria-setsize` de 23. A 23ª segue invisível, como já estava
+  documentado na `sec-hotmail`. Não trava nada.
+
+## O portal do aluno está morto desde 25/08, e a Univesp avisou por e-mail (29/08/2026)
+
+Achado ao ler a caixa institucional pela primeira vez. Um e-mail de 20/08, não
+lido, diz:
+
+> "No dia **25 de agosto**, entra no ar o seu **Novo Portal do Aluno totalmente
+> reformulado**"
+
+E o histórico da fonte `portal` no `docs/data.json`, commit a commit:
+
+| Até 24/08 23:35 | `parcial` — só o anti-robô do Sistema de Provas, estado conhecido |
+| **25/08 11:42 em diante** | **`falhou` — "a tela de login do portal mudou de formato"** |
+
+A data bate exata. Não é seletor que envelheceu nem instabilidade: **a Univesp
+trocou o sistema**, e o aviso estava parado na caixa que o guia só passou a ler
+agora. A fonte nova pagou o próprio custo explicando uma falha que já existia.
+
+O que o guia perdeu desde 25/08, e continua sem: data da prova presencial
+(individual, só existe ali), lista real de matrículas (o portal lista mais que
+o AVA) e o contador de recados da secretaria. `fontes/portal.py` precisa ser
+remapeado inteiro contra o sistema novo — login, tela inicial, notas e o
+caminho até o Sistema de Provas. É trabalho de sessão própria.
+
+Enquanto isso, o guia não mente: a fonte declara `falhou`, está em
+`FONTES_QUE_NAO_BLOQUEIAM` e a prova presencial continua saindo de
+`docs/provas.json`, conferido à mão.
 
 ## O retry do push nunca podia ter funcionado (28/08/2026)
 
