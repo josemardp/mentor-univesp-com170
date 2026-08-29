@@ -4,6 +4,39 @@
 > Site: https://esdraaline.github.io/mentor-univesp-com170/ (conta GitHub `esdraaline`)
 > Histórico completo de sessões, auditorias e etapas concluídas: [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
+## Achada e corrigida a causa da falha do portal na nuvem: falta um clique no HUB (29/08/2026)
+
+Investigação pedida na entrada anterior. A pista era "funciona no meu teste
+manual, falha na nuvem"; a hipótese óbvia (sessão SAML expira rápido) caiu
+sozinha: voltei no portal 23 minutos depois do login manual e ele
+continuava logado. A hipótese seguinte — meu teste manual se beneficiava de
+cookies antigos do perfil persistente do navegador local (`perfil-ava`),
+coisa que o runner da nuvem, sempre 100% frio, nunca tem — foi a certa.
+
+**Reproduzido local, exatamente como a nuvem faz:** script descartável em
+`tmp/diagnostico_portal_frio.py` (fora do git) abre um Chromium **sem
+nenhum cookie**, loga no AVA do zero com `AVA_USUARIO`/`AVA_SENHA`, e narra
+cada passo do `_logar()` de `fontes/portal.py`. Reproduziu o defeito na
+hora: depois de preencher o e-mail em `acesso.univesp.br` e clicar
+"Acessar", a sessão autentica **sem pedir senha**, só que devolve um **HUB**
+de atalhos ("ACESSAR O AVA", "PORTAL DO ALUNO", "SISTEMA DE PROVAS"...) —
+não o portal em si. O código voltava direto pra `TELA_INICIAL` supondo que
+a sessão já valia ali, e nunca valia: faltava clicar no atalho **"PORTAL DO
+ALUNO"** dentro do HUB pra sessão realmente se estabelecer em
+`sa.univesp.br`. Confirmado clicando esse atalho no mesmo script: a
+checagem seguinte veio `logado=True`.
+
+**Correção em [`fontes/portal.py`](automacao/fontes/portal.py) (`_logar`):**
+depois do clique em "Acessar" (e do caminho de senha, mantido pro caso raro
+de sessão realmente fria), se a página ainda estiver em `acesso.univesp.br`,
+clica no atalho "PORTAL DO ALUNO" antes de seguir. Testado com
+`portal.resultado()` de verdade, contexto 100% frio (o teste exato que a
+nuvem faz): `status: live`, seis disciplinas lidas. Doze arquivos de teste,
+`TUDO OK`.
+
+Falta: commit e push. Depois disso, a próxima rodada da nuvem (agendada ou
+manual) já deve trazer o portal `live` também.
+
 ## Verificação ao vivo pós-sessão: Outlook confirmado em produção, portal falha só na nuvem (29/08/2026)
 
 Pedido do Josemar: conferir AVA, Portal e o guia publicado depois das três

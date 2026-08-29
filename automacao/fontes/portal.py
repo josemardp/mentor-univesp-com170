@@ -201,9 +201,12 @@ def _logar(page):
        a cada rodada, dez vezes por dia, à toa.
     2. **Portão unificado (`acesso.univesp.br`).** Só quando o caminho 1
        falha. Preenche o e-mail e clica "Acessar"; a página decide sozinha se
-       a sessão SAML basta (aí volta com o menu, sem pedir senha) ou se
-       precisa dela (aí redireciona pra `login.univesp.br`, onde a senha é
-       preenchida). Os dois casos foram confirmados ao vivo.
+       a sessão SAML basta (aí volta com um HUB de atalhos, sem pedir senha)
+       ou se precisa dela (aí redireciona pra `login.univesp.br`, onde a
+       senha é preenchida). Os dois casos foram confirmados ao vivo — e no
+       caso sem senha o HUB **não é** o portal: é preciso clicar no atalho
+       "PORTAL DO ALUNO" ali dentro pra sessão valer em `sa.univesp.br`
+       (achado de 29/08/2026, reproduzindo um login frio local).
     """
     try:
         page.goto(TELA_INICIAL, wait_until="domcontentloaded", timeout=45000)
@@ -246,6 +249,19 @@ def _logar(page):
                 campo_senha.press("Enter")
             page.wait_for_timeout(3000)
             page.wait_for_load_state("domcontentloaded", timeout=30000)
+
+        # Sessão quente: o portão nem pede senha, só devolve o HUB com os
+        # atalhos (ACESSAR O AVA, PORTAL DO ALUNO, SISTEMA DE PROVAS...).
+        # Confirmado ao vivo em 29/08/2026, reproduzindo um login frio igual
+        # ao do runner: sem clicar no atalho, a sessão nunca chega a valer em
+        # sa.univesp.br, e o robô caía de volta em /index.xhtml como se o
+        # portão não tivesse feito nada — mesmo tendo autenticado de verdade.
+        if "acesso.univesp.br" in (page.url or ""):
+            atalho = page.get_by_text("PORTAL DO ALUNO", exact=False).first
+            if atalho.count():
+                atalho.click()
+                page.wait_for_timeout(1500)
+                page.wait_for_load_state("domcontentloaded", timeout=30000)
     except PlaywrightError as erro:
         return False, f"falhei ao entrar no portal ({type(erro).__name__})"
 
