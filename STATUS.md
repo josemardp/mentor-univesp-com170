@@ -4,6 +4,40 @@
 > Site: https://esdraaline.github.io/mentor-univesp-com170/ (conta GitHub `esdraaline`)
 > Histórico completo de sessões, auditorias e etapas concluídas: [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
+## Verificação ao vivo pós-sessão: Outlook confirmado em produção, portal falha só na nuvem (29/08/2026)
+
+Pedido do Josemar: conferir AVA, Portal e o guia publicado depois das três
+frentes. **AVA** e **Portal** testados à mão (via `nav-ava`, com a sessão
+do `ava_vivo.py` já quente): os dois abriram normal, portal sem pedir
+senha, RA RA_OCULTO, 6 disciplinas do período 2026/2.
+
+**Achado:** a rodada agendada das 8h (11h UTC) não disparou — nenhuma
+execução do "Guia diário" entre 01:06 UTC (a manual de ontem) e 14h de
+hoje. Disparei manualmente (`gh workflow run`, autorizado por ele antes,
+por ser ato final que envia e-mail): rodada verde, e-mail do dia saiu.
+
+**Confirmação forte das Frentes 2 e 3, com dado real de produção:** o
+e-mail do ciclo de provas agora gera exatamente **2** itens em "Confirme
+se é prazo" (14/09 e 25/09) — não mais 3. A data de recebimento sumiu, o
+gatilho de prova pegou certo. Testado ao vivo, não é mais hipótese.
+
+**Achado novo, ainda sem conserto:** nesta mesma rodada da nuvem, o portal
+**falhou** — `"o portal não abriu a tela do aluno depois do login (parou
+em /index.xhtml)"` —, mesmo o mesmo código tendo funcionado no teste manual
+minutos antes. Diferença provável: o teste manual reaproveitou a sessão
+SAML já quente do `ava_vivo.py`; a nuvem loga do zero com usuário/senha
+a cada rodada, e o caminho 2 de `_logar()`
+([`fontes/portal.py:221-248`](automacao/fontes/portal.py)) — preencher
+e-mail em `acesso.univesp.br`, esperar, preencher senha se pedir, esperar
+de novo — pode estar estourando os tempos fixos (`wait_for_timeout`
+2500/3000ms + `wait_for_load_state` 30s) num ambiente mais lento que o
+navegador local. Não é a verificação anti-robô (isso teria mensagem
+diferente, `RE_ANTIBOT`) nem sessão vencida. Não travou o resto do guia:
+portal está em `FONTES_QUE_NAO_BLOQUEIAM`. **Não investigado a fundo
+ainda** — precisaria de log mais granular dentro de `_logar()` para saber
+exatamente em qual dos dois esperas o tempo estourou, ou aumentar as
+esperas e testar de novo numa próxima rodada manual.
+
 ## Frente 3 fechada: data de recebimento do Outlook não vira prazo por engano (29/08/2026)
 
 Continuação direta da Frente 2 (entrada logo abaixo). Faltava a amostra real
