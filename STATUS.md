@@ -4,6 +4,51 @@
 > Site: https://esdraaline.github.io/mentor-univesp-com170/ (conta GitHub `esdraaline`)
 > Histórico completo de sessões, auditorias e etapas concluídas: [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
+## Portal do aluno remapeado pro sistema novo, ao vivo (29/08/2026)
+
+Frente 1 das três pendências abertas nesta sessão. O portal estava `falhou`
+desde 25/08 porque a Univesp trocou o sistema (ver entrada abaixo, "O portal
+do aluno está morto..."). Remapeado inteiro com o navegador logado
+(`ava_vivo.py` + CDP), sem contornar nada, e confirmado rodando a função real
+`portal.resultado()` contra a sessão ao vivo: `status: live`, zero problemas,
+6 disciplinas, 9 recados, 6 boletins, **3 provas presenciais lidas direto do
+Sistema de Provas** (COM100, LET110, SOC100, todas 05/11 19:40–23:50) — a
+verificação anti-robô que bloqueava esse caminho não apareceu desta vez.
+
+**O que mudou de fato, por baixo é o mesmo sistema.** Domínio novo
+(`sa.univesp.br`, era `sei.univesp.br`, que hoje só redireciona), mas os
+caminhos JSF são literalmente os mesmos
+(`/visaoAluno/telaInicialVisaoAluno.xhtml`,
+`/visaoAluno/minhasNotasAlunos.xhtml`), mesmo produto "SEI" da Otimize-TI,
+mesma sessão de 44 minutos. O login virou um portão único
+(`acesso.univesp.br`), que reúne AVA/Portal/Provas/Office 365/Google atrás de
+um campo só e decide sozinho se a sessão SAML (`login.univesp.br`, a mesma do
+AVA) já vale — testado ao vivo nos dois cenários (sessão quente, sem pedir
+senha; sessão fria, pedindo senha no SSO). Como o pipeline sempre loga no AVA
+antes de chamar o portal, no mesmo contexto do navegador, a sessão chega
+quente na prática: o login novo tenta primeiro ir direto na tela do aluno, e
+só passa pelo portão quando isso falha.
+
+**Duas armadilhas de formato na UI nova, as duas com teste cobrindo:**
+"Registro Acadêmico:" virou "RA:"; e a tabela de notas passou a colar
+"CH: Nh" no nome da disciplina (tirado antes de guardar) e a mostrar a
+situação sozinha ("(Em Recuperação)", "CURSANDO") em vez de "Cursando (Em
+Recuperação)" junto. O contador de recados agora sai de
+`#btnMsg .badge-notification`, que já vem com os últimos avisos pré-renderizados
+no HTML (assunto, autor, data) — não lidos, mas a fonte continua só lendo o
+contador, sem abrir a caixa nem consumir o aviso.
+
+`testes/test_portal.py` reescrito com os textos reais capturados nesta
+sessão (formato novo do RA, da situação e da célula com CH); `render.py`
+teve o link fixo de "Abrir o portal" trocado pra `acesso.univesp.br`. Rodada
+completa dos doze arquivos de teste, `TUDO OK`.
+
+**Pendente de conferir:** se a leitura do Sistema de Provas continuar
+saindo `live` (sem verificação anti-robô) numa rodada real do GitHub
+Actions — testado aqui só do navegador local, logado. Se a Action ainda
+bater na verificação, o guia já sabe degradar sozinho pra
+`docs/provas.json`, então não há risco, só uma folga a confirmar.
+
 ## Quinta fonte: Outlook institucional, travada no MFA até a captura manual (28/08/2026)
 
 Pedido: entrar com o Outlook institucional (`conta-academica@exemplo.edu.br`) no

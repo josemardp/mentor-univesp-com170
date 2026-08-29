@@ -30,6 +30,7 @@ from dominio.acoes import (  # noqa: E402
 from fontes import portal  # noqa: E402
 from fontes.portal import (  # noqa: E402
     RE_ATIVIDADE,
+    RE_RA,
     RE_TELA_DE_PROVAS,
     RE_TITULO_PROVA,
     _iso,
@@ -164,17 +165,19 @@ checa(sem_portal == [],
 
 print("\n== boletim da secretaria ==")
 
-# Linhas copiadas da tela em 15/08/2026, célula a célula. A primeira é a
-# tabela de coordenadas que o RichFaces deixa na página, e serve para provar
-# que linha sem disciplina não vira registro.
+# Linhas copiadas da tela nova em 29/08/2026, célula a célula. A tabela agora
+# tem só quatro colunas (Disciplina, Avaliações, Média Final, Situação; a
+# frequência saiu do boletim) e a célula da disciplina traz "CH: Nh" colado
+# no nome, na mesma célula. A primeira linha é ruído (uma tabela de
+# coordenadas que a página deixa por perto), e serve para provar que linha
+# sem disciplina não vira registro.
 LINHAS_REAIS = [
     ["X", "Y", "largura", "altura"],
-    ["Valparaiso-BIA-BIA-1-1P-NOT", "SOC100 - Ética, cidadania e Sociedade",
-     "100.0(%)", "ATIVIDADE AVA -- PROVA -- MÉDIA PARCIAL -- EXAME --", "",
-     "Cursando (Em Recuperação)"],
-    ["Valparaiso-BIA-BIA-1-1P-NOT",
-     "COM170 - Inteligência Artificial na Prática Acadêmica e Profissional",
-     "100.0(%)", "ATIVIDADE AVA --", "", ""],
+    ["SOC100 - Ética, cidadania e Sociedade CH: 40h",
+     "ATIVIDADE AVA -- PROVA -- MÉDIA PARCIAL -- EXAME --", "",
+     "(Em Recuperação)"],
+    ["COM170 - Inteligência Artificial na Prática Acadêmica e Profissional CH: 80h",
+     "ATIVIDADE AVA --", "", "Cursando"],
 ]
 
 
@@ -206,28 +209,36 @@ notas = portal.ler_notas(tela)
 checa(tela.cutucou,
       "a tabela não vem pela URL: o seletor de ano/semestre é acionado")
 checa([n["codigo"] for n in notas] == ["SOC100", "COM170"],
-      "a disciplina é achada mesmo a linha começando pela turma")
-checa(notas[0]["situacao"] == "Cursando (Em Recuperação)",
-      "a situação real é publicada, e não um 'Cursando' de reserva")
-checa(notas[0]["frequencia"] == "100.0(%)", "a frequência sai junto")
+      "a disciplina é achada mesmo com ruído na primeira linha")
+checa(notas[0]["nome"] == "Ética, cidadania e Sociedade",
+      "o 'CH: 40h' colado no nome pela tela nova não entra no nome")
+checa(notas[0]["situacao"] == "(Em Recuperação)",
+      "a situação real é publicada, mesmo vindo sozinha (sem 'Cursando' junto)")
+checa(notas[1]["situacao"] == "Cursando", "'Cursando' sozinho também é situação")
+checa(notas[0]["frequencia"] == "",
+      "a tabela nova não tem coluna de frequência: fica vazio, não inventado")
 checa(list(notas[0]["parcelas"]) ==
       ["ATIVIDADE AVA", "PROVA", "MÉDIA PARCIAL", "EXAME"],
       "as quatro parcelas do bimestre são lidas")
 checa(list(notas[1]["parcelas"]) == ["ATIVIDADE AVA"],
       "COM170 tem só a parcela do AVA, e isso é dado, não falha de leitura")
 
-COM_NOTA = [["Valparaiso-BIA-BIA-1-1P-NOT", "COM100 - Pensamento Computacional",
-             "100.0(%)",
-             "ATIVIDADE AVA 5,40 PROVA 8,50 MÉDIA PARCIAL 7,26 EXAME --", "",
-             "Aprovado"]]
-com_nota = portal.ler_notas(PaginaDeNotas(COM_NOTA))[0]
+# Layout estreito da tabela responsiva injeta "Disciplina " na frente da
+# célula (a coluna que só aparece nesse layout). A leitura não pode depender
+# do tamanho de tela do headless.
+COM_ROTULO_MOBILE = [["Disciplina COM100 - Pensamento Computacional CH: 80h",
+                      "ATIVIDADE AVA 5,40 PROVA 8,50 MÉDIA PARCIAL 7,26 EXAME --",
+                      "7,26", "Aprovado"]]
+com_nota = portal.ler_notas(PaginaDeNotas(COM_ROTULO_MOBILE))[0]
+checa(com_nota["codigo"] == "COM100" and com_nota["nome"] == "Pensamento Computacional",
+      "o rótulo 'Disciplina ' do layout estreito não impede a leitura")
 checa(com_nota["parcelas"]["PROVA"] == "8,50"
       and com_nota["parcelas"]["ATIVIDADE AVA"] == "5,40",
       "com nota preenchida, cada valor fica no seu rótulo")
 
 # O pareamento é por par rótulo/valor, não por posição: uma linha nova entre
 # os dois deixa de virar nota. Antes, "Peso 4" viraria a nota do AVA.
-RUIDO = [["Valparaiso", "COM100 - Pensamento Computacional", "100.0(%)",
+RUIDO = [["COM100 - Pensamento Computacional CH: 80h",
           "ATIVIDADE AVA Peso 4 5,40 PROVA 8,50", "", "Cursando"]]
 ruido = portal.ler_notas(PaginaDeNotas(RUIDO))[0]
 checa(ruido["parcelas"].get("ATIVIDADE AVA") is None
@@ -334,34 +345,89 @@ checa(acoes_ind[0]["verbo"] != "Confirme com o grupo",
 
 print("\n== qual usuário o portal quer ==")
 
-# A tela do SEI tem dois caminhos, com a mesma senha: "E-mail institucional"
-# quer o endereço inteiro e leva ao SSO SAML da Univesp (login.univesp.br, o
-# mesmo do AVA); "Usuário" quer só o registro acadêmico e é login local. O
-# gerenciador de senhas dele guarda as duas entradas separadas.
+# O portão único (acesso.univesp.br) tem um campo só, e o caminho confirmado
+# ao vivo em 29/08/2026 foi o e-mail institucional completo — o mesmo que o
+# SSO do AVA usa. RA sozinho ganha o domínio, pra não virar mais um segredo
+# a manter em dia.
 for chave in ("PORTAL_USUARIO", "AVA_USUARIO"):
     os.environ.pop(chave, None)
 
 os.environ["AVA_USUARIO"] = "90011122@aluno.univesp.br"
-checa(
-    portal._identidades() == [
-        (portal.CAMPO_USUARIO, "90011122"),
-        (portal.CAMPO_EMAIL, "90011122@aluno.univesp.br"),
-    ],
-    "o registro acadêmico vai no campo Usuário e o e-mail no campo E-mail",
-)
+checa(portal._identidade() == "90011122@aluno.univesp.br",
+      "e-mail institucional completo vai direto pro campo único")
 
 os.environ["AVA_USUARIO"] = "90011122"
-checa(portal._identidades() == [(portal.CAMPO_USUARIO, "90011122")],
-      "usuário já sem @ não vira duas tentativas iguais")
+checa(portal._identidade() == "90011122@aluno.univesp.br",
+      "RA sozinho ganha o domínio institucional")
 
-os.environ["PORTAL_USUARIO"] = "outro"
-checa(portal._identidades()[0] == (portal.CAMPO_USUARIO, "outro"),
+os.environ["PORTAL_USUARIO"] = "outro@aluno.univesp.br"
+checa(portal._identidade() == "outro@aluno.univesp.br",
       "PORTAL_USUARIO, quando existe, tem a palavra final")
 
 for chave in ("PORTAL_USUARIO", "AVA_USUARIO"):
     os.environ.pop(chave, None)
-checa(portal._identidades() == [],
-      "sem nada configurado não há tentativa nenhuma")
+checa(portal._identidade() == "", "sem nada configurado não há identidade")
+
+
+print("\n== tela inicial: disciplinas e RA no formato novo ==")
+
+# Copiado da tela real em 29/08/2026: o rótulo virou "RA:" (era "Registro
+# Acadêmico:") e a situação da disciplina vem sozinha na linha seguinte
+# ("CURSANDO", maiúsculo), não mais precedida de "Situação:".
+TELA_INICIAL_REAL = """JOSEMAR DE PAULA
+RA: RA_OCULTO
+Início
+COM170 - Inteligência Artificial na Prática Acadêmica e Profissional
+CURSANDO
+Período Estudo: 22/06/2026 à 19/12/2026
+Média: -
+EAD
+Conteúdo
+Moodle
+MMB002 - Matemática Básica
+CURSANDO
+Período Estudo: 22/06/2026 à 19/12/2026
+Média: -
+"""
+
+checa(RE_RA.search(TELA_INICIAL_REAL).group(1) == "RA_OCULTO",
+      "o RA é lido no formato novo ('RA: RA_OCULTO')")
+
+
+class PaginaDeTelaInicial:
+    def __init__(self, texto, contador=9):
+        self.texto = texto
+        self.contador = contador
+
+    def goto(self, *a, **k):
+        pass
+
+    def wait_for_timeout(self, *a):
+        pass
+
+    class _Corpo:
+        def __init__(self, texto):
+            self._texto = texto
+
+        def inner_text(self):
+            return self._texto
+
+    def locator(self, seletor):
+        assert seletor == "body"
+        return self._Corpo(self.texto)
+
+    def evaluate(self, js):
+        return str(self.contador)
+
+
+tela_inicial = portal.ler_tela_inicial(PaginaDeTelaInicial(TELA_INICIAL_REAL))
+checa(tela_inicial["ra"] == "RA_OCULTO", "o RA sai junto com o resto da leitura")
+checa([d["codigo"] for d in tela_inicial["disciplinas"]] == ["COM170", "MMB002"],
+      "as duas disciplinas são achadas")
+checa(all(d["situacao"] == "CURSANDO" for d in tela_inicial["disciplinas"]),
+      "'CURSANDO' maiúsculo e sozinho é reconhecido como situação")
+checa(tela_inicial["recados_nao_lidos"] == 9,
+      "o contador de recados sai do badge do ícone de mensagens")
 
 
 print("\n" + ("FALHOU: " + str(len(falhas)) if falhas else "TUDO OK"))

@@ -2,37 +2,70 @@
 """Portal do aluno (SEI), que é outro sistema, com outro login.
 
 Por que existe: até 15/08/2026 o guia só olhava o AVA, e o AVA não sabe de
-tudo. Três coisas grandes moravam só aqui:
+tudo. Três coisas grandes moram só aqui:
 
-1. **A data da prova presencial.** O STATUS registrou por semanas que ela não
-   tinha fonte alcançável. Tinha: o Sistema de Provas publica o dia e a hora
+1. **A data da prova presencial.** O Sistema de Provas publica o dia e a hora
    de cada prova *daquele aluno*, e não é o mesmo dia para todo mundo, nem o
    mesmo do calendário geral.
-2. **As disciplinas em que ele está matriculado.** O portal listava seis; o
-   AVA, quatro. Disciplina que ainda não abriu turma no Moodle não existe para
-   o guia, e mesmo assim conta carga horária e pode cair em prova.
+2. **As disciplinas em que ele está matriculado.** O portal lista mais que o
+   AVA. Disciplina que ainda não abriu turma no Moodle não existe para o
+   guia, e mesmo assim conta carga horária e pode cair em prova.
 3. **Recados da secretaria**, que trazem prazo próprio (matrícula em
    disciplina optativa, requerimento, ciclo de provas) e não passam por fórum
    nenhum.
 
 Duas regras valem para esta fonte inteira:
 
-**Ela nunca escreve.** Nem marca recado como lido, nem envia formulário. Em
-15/08 medimos: abrir ``recadoAluno.xhtml`` marca sozinho o recado mais recente
-como lido, e o contador caiu de 9 para 7. Por isso o robô não entra ali. O que
-ele lê é o contador de não lidos na tela inicial, que é informação suficiente
-para dizer "tem recado esperando" sem consumir o aviso no lugar dele.
+**Ela nunca escreve.** Nem marca recado como lido, nem envia formulário. O
+que ela lê é o contador de não lidos que já vem pronto na tela inicial
+(``.badge-notification`` do ícone de mensagens), que é informação suficiente
+para dizer "tem recado esperando" sem consumir o aviso no lugar dele. Por
+isso o robô nunca abre ``recadoAluno.xhtml``.
 
-**Ela nunca derruba o robô.** O portal é um JSF com sessão curta (44 minutos) e
-login próprio. Se qualquer etapa falhar, a fonte devolve ``falhou`` e o guia
-segue com o que o AVA deu, do mesmo jeito que já faz com boletim e
-participação.
+**Ela nunca derruba o robô.** O portal é um JSF com sessão curta (44 minutos,
+a própria tela avisa) e login próprio. Se qualquer etapa falhar, a fonte
+devolve ``falhou`` e o guia segue com o que o AVA deu, do mesmo jeito que já
+faz com boletim e participação.
 
-O caminho até o Sistema de Provas não é uma URL que se possa chamar direto:
-o botão da tela inicial dispara um ``RichFaces.ajax`` que prepara um token na
-sessão, e só depois ``/MestreGRSV`` devolve um formulário que se posta sozinho
-para ``prova.univesp.br/ws/sso/``. Chamar ``/MestreGRSV`` sem o clique devolve
-404. Por isso a leitura clica no botão e acompanha a aba que nasce.
+## A troca de 25/08/2026
+
+A Univesp avisou por e-mail em 20/08 ("No dia 25 de agosto, entra no ar o seu
+Novo Portal do Aluno totalmente reformulado") e a fonte antiga morreu no dia
+certo: a tela de login mudou de formato. Remapeado ao vivo em 29/08/2026,
+navegador logado, sem contornar nada.
+
+O que mudou de fato:
+
+- **Domínio novo.** O portal virou ``sa.univesp.br`` (era ``sei.univesp.br``,
+  que hoje só redireciona para o portal de acesso unificado). Por baixo é o
+  mesmo sistema — mesmo produto "SEI" da Otimize-TI, mesmos caminhos JSF
+  (``/visaoAluno/telaInicialVisaoAluno.xhtml``,
+  ``/visaoAluno/minhasNotasAlunos.xhtml`` são literalmente as mesmas URLs, só
+  com domínio trocado), mesma sessão de 44 minutos.
+- **Login virou um portão único.** Existe agora ``acesso.univesp.br``, que
+  reúne AVA, Portal do Aluno, Sistema de Provas, Office 365 e Google atrás de
+  um só campo de usuário. Ele decide sozinho se a sessão SAML
+  (``login.univesp.br``, a mesma do AVA) já vale: se valer, mostra o menu na
+  hora, sem pedir senha de novo; se não valer, redireciona pra
+  ``login.univesp.br/simplesaml/...`` e pede a senha lá — é o mesmo SSO que
+  ``sessao.py`` sempre usou, só o caminho até ele que mudou. Confirmado ao
+  vivo nos dois cenários (sessão quente e fria).
+- **Consequência boa para o robô:** como o `pipeline` sempre loga no AVA
+  *antes* de chamar esta fonte, no mesmo `contexto` (mesmos cookies), a
+  sessão SAML já está quente quando `portal.resultado` roda. Por isso o login
+  daqui tenta primeiro ir direto na tela do aluno; só passa pelo portão
+  unificado quando isso falha (sessão realmente fria, ou primeira vez).
+- **Duas armadilhas de leitura que a UI nova introduziu**, as duas
+  confirmadas na tela: o rótulo "RA:" trocou de "Registro Acadêmico:"; e a
+  tabela de notas passou a mostrar "CH: Nh" colado no nome da disciplina na
+  mesma célula, e "(Em Recuperação)" sozinho na coluna de situação (antes
+  vinha "Cursando (Em Recuperação)" junto).
+
+O caminho até o Sistema de Provas continua não sendo uma URL que se chame
+direto: o atalho da tela inicial dispara um ``PrimeFaces.ab`` (era
+``RichFaces.ajax`` no sistema velho) que prepara um token na sessão, e só
+depois ``prova.univesp.br`` abre numa aba nova. A leitura clica no atalho e
+acompanha a aba que nasce, como sempre.
 """
 import os
 import re
@@ -44,26 +77,18 @@ from configuracao import BR_TZ
 from dominio.datas import sem_acento
 from modelos import SourceResult
 
-PORTAL = "https://sei.univesp.br"
-LOGIN_URL = f"{PORTAL}/index.xhtml"
+# Portão único de login, na frente de AVA/Portal/Provas/Office/Google.
+ACESSO_URL = "https://acesso.univesp.br/"
+# Domínio dos dados do aluno em si (era sei.univesp.br até 25/08/2026).
+PORTAL = "https://sa.univesp.br"
 TELA_INICIAL = f"{PORTAL}/visaoAluno/telaInicialVisaoAluno.xhtml"
 NOTAS_URL = f"{PORTAL}/visaoAluno/minhasNotasAlunos.xhtml"
-# A tela "Minhas Disciplinas" (``/visaoAluno/minhasDisciplinasAluno.xhtml``)
-# não é lida: a tela inicial já traz a mesma lista de matrículas, e uma página
-# a menos por rodada é uma chance a menos de a sessão de 44 minutos vencer no
-# meio da leitura.
 
-# O formulário de acesso do SEI tem duas entradas para a mesma senha: e-mail
-# institucional, que leva ao SSO SAML da Univesp (`login.univesp.br`, o mesmo
-# do AVA), e usuário/senha local, que é o RA. As duas servem, e a automação
-# tenta as duas — a local primeiro, por não depender de redirecionamento.
-CAMPO_USUARIO = "#form\\:usuario"
-CAMPO_EMAIL = "#form\\:email"
-CAMPO_SENHA = "#form\\:senha"
-# "Entrar" é um <a> que chama RichFaces.ajax, não um submit. Apertar Enter no
-# campo da senha não envia nada, e foi assim que a primeira rodada na nuvem
-# falhou: as credenciais estavam certas e o formulário nunca saiu.
-BOTAO_ENTRAR = "#form\\:loginBtn\\:loginBtn"
+# Campo único da tela unificada. Só aceita o e-mail institucional completo
+# (confirmado ao vivo: o RA sozinho não foi testado e o e-mail é o que
+# AVA_USUARIO já traz, então não há motivo pra manter dois caminhos como a
+# versão anterior fazia).
+CAMPO_USUARIO = "#inputEmailAccess"
 
 ERROS_LOGIN = (
     "usuario ou senha",
@@ -74,9 +99,11 @@ ERROS_LOGIN = (
     "nao cadastrado",
     "inválidos",
     "invalidos",
+    "invalid login",
 )
 
-RE_RA = re.compile(r"Registro Acad[êe]mico:\s*(\d+)")
+# Trocou de "Registro Acadêmico: 90011122" pra "RA: 90011122" na tela nova.
+RE_RA = re.compile(r"\bRA:\s*(\d+)")
 RE_DISCIPLINA = re.compile(
     r"^([A-Z]{3}\d{3}|[A-Z]{3}\d{3}[A-Z]?|MMB\d{3})\s*-\s*(.+)$"
 )
@@ -113,49 +140,25 @@ def _tem_credenciais():
     )
 
 
+def _identidade():
+    """O valor único que o campo de usuário do portão unificado espera.
+
+    Precisa vir com o domínio (``ra@aluno.univesp.br``): foi o formato
+    confirmado ao vivo, é o mesmo que o SSO do AVA usa, e ``AVA_USUARIO`` já
+    chega assim. ``PORTAL_USUARIO``, quando existe, tem prioridade — mesma
+    regra da versão anterior — e ganha o domínio se vier só o RA.
+    """
+    valor = (os.environ.get("PORTAL_USUARIO") or os.environ.get("AVA_USUARIO") or "").strip()
+    if valor and "@" not in valor:
+        valor = f"{valor}@aluno.univesp.br"
+    return valor
+
+
 def _logado(page):
     try:
         return bool(RE_RA.search(page.locator("body").inner_text()[:3000]))
     except PlaywrightError:
         return False
-
-
-def _identidades():
-    """Como tentar entrar, na ordem. Cada item é ``(campo, valor)``.
-
-    A tela tem dois campos e **um só botão "Entrar"**, então os dois caminhos
-    valem com a mesma senha, e a diferença está em qual campo recebe o quê:
-
-    - ``form:usuario`` quer o **registro acadêmico** (``90011122``). É o que o
-      gerenciador de senhas dele guarda para ``sei.univesp.br``.
-    - ``form:email`` quer o **endereço inteiro**
-      (``90011122@aluno.univesp.br``), o mesmo do AVA.
-
-    Preencher o e-mail no campo do usuário não é a mesma coisa que usar o
-    caminho do e-mail, e era esse o erro da versão anterior. Agora cada valor
-    vai no campo que o espera. O registro acadêmico vem primeiro por ser o
-    caminho local, sem redirecionamento; o e-mail fica como segunda tentativa.
-
-    O registro acadêmico é derivado do e-mail em vez de virar mais um segredo
-    para manter em dia. ``PORTAL_USUARIO``, quando existe, tem prioridade.
-    """
-    vistos, ordem = set(), []
-
-    def juntar(campo, valor):
-        valor = (valor or "").strip()
-        chave = (campo, valor)
-        if valor and chave not in vistos:
-            vistos.add(chave)
-            ordem.append(chave)
-
-    juntar(CAMPO_USUARIO, os.environ.get("PORTAL_USUARIO"))
-    do_ava = (os.environ.get("AVA_USUARIO") or "").strip()
-    if "@" in do_ava:
-        juntar(CAMPO_USUARIO, do_ava.split("@", 1)[0])
-        juntar(CAMPO_EMAIL, do_ava)
-    else:
-        juntar(CAMPO_USUARIO, do_ava)
-    return ordem
 
 
 def _erro_visivel(page):
@@ -175,151 +178,106 @@ def _erro_visivel(page):
     return ""
 
 
-def _escolher_perfil_aluno(page):
-    """O SEI atende aluno, professor e coordenador na mesma porta.
-
-    Depois de autenticar, ele pode parar numa tela de escolha de perfil em vez
-    de abrir direto o painel. Quem não clica ali fica numa página que não é a
-    de login nem a do aluno, que é exatamente o estado em que as rodadas de
-    15/08 empacaram.
-
-    Silencioso de propósito: se o botão não existe, é porque não havia escolha
-    a fazer.
-    """
-    for seletor in ("#panelAlunoFirstHref", '[name="panelAlunofirstHref"]'):
-        alvo = page.locator(seletor).first
-        try:
-            if alvo.count() and alvo.is_visible():
-                alvo.click()
-                page.wait_for_timeout(3000)
-                page.wait_for_load_state("domcontentloaded", timeout=30000)
-                return True
-        except PlaywrightError:
-            continue
-    return False
-
-
 def _onde_parou(page):
     """Caminho da página atual, sem query string.
 
-    A query do SEI carrega token de sessão, então ela não entra em log. O
-    caminho basta para distinguir "parou no login", "parou na escolha de
-    perfil" e "chegou e eu não reconheci a tela".
+    A query pode carregar token de sessão, então ela não entra em log. O
+    caminho basta para distinguir "parou no login", "parou no SSO" e "chegou
+    e eu não reconheci a tela".
     """
     url = page.url or ""
     return url.split("?")[0].replace(PORTAL, "") or "(sem url)"
 
 
-def _passar_pelo_sso(page, senha):
-    """A tela do ``login.univesp.br``, quando o caminho do e-mail cai nela.
+def _logar(page):
+    """Entra no portal. Devolve ``(ok, motivo)``.
 
-    O campo "E-mail institucional" não é um login local: ele manda para o SSO
-    SAML da Univesp, o mesmo do AVA. Duas coisas podem acontecer ali, e as
-    duas são normais:
+    Dois caminhos, nesta ordem:
 
-    - a sessão SAML ainda vale, e o SSO devolve para o portal já autenticado,
-      sem pedir nada. É o caso comum quando o robô acabou de entrar no AVA
-      pelo mesmo navegador;
-    - a sessão não vale, e ele mostra o e-mail já preenchido pedindo só a
-      senha.
-
-    Devolve ``True`` quando havia uma tela de senha e ela foi preenchida.
+    1. **Direto na tela do aluno.** Quando o pipeline já logou no AVA nesta
+       mesma aba/contexto — o caso normal de toda rodada —, a sessão SAML já
+       está quente e a tela do aluno abre sem pedir nada. Testar isto primeiro
+       evita bater no portão unificado (e, por tabela, no SSO institucional)
+       a cada rodada, dez vezes por dia, à toa.
+    2. **Portão unificado (`acesso.univesp.br`).** Só quando o caminho 1
+       falha. Preenche o e-mail e clica "Acessar"; a página decide sozinha se
+       a sessão SAML basta (aí volta com o menu, sem pedir senha) ou se
+       precisa dela (aí redireciona pra `login.univesp.br`, onde a senha é
+       preenchida). Os dois casos foram confirmados ao vivo.
     """
-    if "login.univesp.br" not in (page.url or ""):
-        return False
-    campo = page.locator('input[type="password"]').first
-    if not (campo.count() and campo.is_visible()):
-        return False
-    campo.fill(senha)  # o valor não vai pra log
-    botao = page.locator(
-        'button[type="submit"], input[type="submit"], #loginbtn'
-    ).first
-    if botao.count():
-        botao.click()
-    else:
-        campo.press("Enter")
-    page.wait_for_timeout(4000)
-    page.wait_for_load_state("domcontentloaded", timeout=30000)
-    return True
-
-
-def _tentar_login(page, seletor, valor, senha):
-    """Uma tentativa completa, pelo campo indicado. Devolve (ok, motivo)."""
-    pelo_sso = seletor == CAMPO_EMAIL
     try:
-        page.goto(LOGIN_URL, wait_until="domcontentloaded", timeout=45000)
+        page.goto(TELA_INICIAL, wait_until="domcontentloaded", timeout=45000)
         page.wait_for_timeout(1000)
-        campo = page.locator(seletor).first
-        if not campo.count():
+    except PlaywrightError as erro:
+        return False, f"não consegui abrir o portal ({type(erro).__name__})"
+    if _logado(page):
+        return True, "sessão do AVA já valia para o portal"
+
+    email = _identidade()
+    senha = os.environ.get("AVA_SENHA")
+    if not (email and senha):
+        return False, "sem credenciais para entrar no portal"
+
+    try:
+        page.goto(ACESSO_URL, wait_until="domcontentloaded", timeout=45000)
+        page.wait_for_timeout(800)
+        campo = page.locator(CAMPO_USUARIO).first
+        if not (campo.count() and campo.is_visible()):
             return False, "a tela de login do portal mudou de formato"
-        campo.fill(valor)
-        # No caminho do e-mail a senha não é digitada aqui: quem pergunta por
-        # ela é o SSO, na tela seguinte, e às vezes nem pergunta.
-        if not pelo_sso:
-            page.locator(CAMPO_SENHA).first.fill(senha)
-        botao = page.locator(BOTAO_ENTRAR).first
-        if not botao.count():
-            return False, 'não achei o botão "Entrar" na tela de login do portal'
-        botao.click()
-        page.wait_for_timeout(4000)
+        campo.fill(email)
+        botao = page.get_by_role("button", name="Acessar").first
+        if botao.count():
+            botao.click()
+        else:
+            campo.press("Enter")
+        page.wait_for_timeout(2500)
         page.wait_for_load_state("domcontentloaded", timeout=30000)
-        if pelo_sso:
-            _passar_pelo_sso(page, senha)
-        if not _logado(page):
-            _escolher_perfil_aluno(page)
-        if not _logado(page):
-            # Autenticado, o SEI pode devolver para a raiz em vez da tela do
-            # aluno; sem este passo um login bem-sucedido parecia falha.
-            page.goto(TELA_INICIAL, wait_until="domcontentloaded",
-                      timeout=45000)
-            page.wait_for_timeout(1500)
+
+        # Sessão fria: o portão redireciona pro SSO e pede a senha ali.
+        campo_senha = page.locator('input[type="password"]').first
+        if campo_senha.count() and campo_senha.is_visible():
+            campo_senha.fill(senha)  # o valor não vai pra log
+            botao_senha = page.locator(
+                'button[type="submit"], input[type="submit"], #loginbtn'
+            ).first
+            if botao_senha.count():
+                botao_senha.click()
+            else:
+                campo_senha.press("Enter")
+            page.wait_for_timeout(3000)
+            page.wait_for_load_state("domcontentloaded", timeout=30000)
     except PlaywrightError as erro:
         return False, f"falhei ao entrar no portal ({type(erro).__name__})"
-    if _logado(page):
-        return True, "entrei no portal"
+
     recusa = _erro_visivel(page)
     if recusa:
         return False, recusa
+
+    try:
+        page.goto(TELA_INICIAL, wait_until="domcontentloaded", timeout=45000)
+        page.wait_for_timeout(1200)
+    except PlaywrightError as erro:
+        return False, f"não consegui abrir a tela do aluno ({type(erro).__name__})"
+
+    if _logado(page):
+        return True, "entrei no portal"
     return False, (
         "o portal não abriu a tela do aluno depois do login "
         f"(parou em {_onde_parou(page)})"
     )
 
 
-def _logar(page, ja_funcionou=None):
-    """Entra no portal. Devolve ``(ok, motivo, identidade)``.
-
-    ``ja_funcionou`` é o caminho que deu certo na rodada anterior. Existindo,
-    é o único tentado: descobrir qual campo o portal quer é trabalho de uma
-    vez só, e repetir a descoberta a cada rodada significa bater duas vezes
-    por rodada, dez vezes por dia, numa conta institucional. Senha trocada
-    passa a custar uma recusa por rodada, não duas.
-    """
-    senha = os.environ.get("AVA_SENHA")
-    identidades = _identidades()
-    if ja_funcionou:
-        conhecida = [i for i in identidades if list(i) == list(ja_funcionou)]
-        if conhecida:
-            identidades = conhecida
-    if not (identidades and senha):
-        return False, "sem credenciais para entrar no portal", None
-    motivo = ""
-    for seletor, valor in identidades:
-        ok, motivo = _tentar_login(page, seletor, valor, senha)
-        if ok:
-            return True, motivo, (seletor, valor)
-        # Só vale insistir com outro caminho quando a recusa foi de credencial
-        # ou quando a tela simplesmente não abriu o painel: pode ser o campo
-        # errado para aquele identificador. Erro de navegação se repetiria.
-        if "falhei ao entrar" in motivo or "mudou de formato" in motivo:
-            break
-    return False, motivo, None
-
-
 def _texto(page, url):
     page.goto(url, wait_until="domcontentloaded", timeout=45000)
     page.wait_for_timeout(1200)
     return page.locator("body").inner_text()
+
+
+# Estados de matrícula/nota que a tela mostra, sem acento e minúsculo. Vale
+# tanto pra "situação" do card de disciplina na tela inicial (que hoje vem
+# sozinha, tipo "CURSANDO") quanto pra coluna Situação do boletim (que hoje
+# separou "Cursando" de "(Em Recuperação)" em vez de vir junto como antes).
+SITUACOES = ("cursando", "aprovado", "reprovado", "trancad", "cancelad", "recupera")
 
 
 def ler_tela_inicial(page):
@@ -340,18 +298,16 @@ def ler_tela_inicial(page):
             continue
         situacao = ""
         for adiante in linhas[i + 1: i + 4]:
-            if adiante.startswith("Cursando") or "Situação" in adiante:
-                situacao = adiante.replace("Situação:", "").strip()
+            if sem_acento(adiante).lower().strip() in SITUACOES:
+                situacao = adiante
                 break
         vistas.add(codigo)
         disciplinas.append(
             {
                 "codigo": codigo,
                 "nome": casou.group(2).strip(),
-                # Sem "Cursando" de reserva: a situação vem da tela ou não vem.
-                # A tela de notas mostra "Cursando (Em Recuperação)" em três
-                # disciplinas, então o padrão silencioso escondia diferença
-                # real em vez de completar informação que faltava.
+                # Sem "Cursando" de reserva: a situação vem da tela ou não
+                # vem. A ausência de estado real é diferença que importa.
                 "situacao": situacao,
             }
         )
@@ -366,19 +322,20 @@ def _contador_de_recados(page):
     """Número no ícone de envelope. ``None`` quando não deu para ler.
 
     Zero e "não consegui ler" levam a frases diferentes, então não podem sair
-    com o mesmo valor.
+    com o mesmo valor. Na tela nova o número mora em
+    ``#btnMsg .badge-notification`` (confirmado ao vivo, único elemento com
+    essa classe na página); os seletores de reserva cobrem uma troca de nome
+    de classe sem exigir outra sessão de mapeamento.
     """
     try:
         bruto = page.evaluate(
             """() => {
-                // O contador tem classe própria (.text-alerta-contador). Ela
-                // vem primeiro de propósito: pegar "o primeiro .badge da
-                // página" acerta hoje e passa a errar no dia em que aparecer
-                // qualquer outro selo numérico antes dele.
-                const proprio = document.querySelector('.text-alerta-contador');
+                const proprio = document.querySelector(
+                    '#btnMsg .badge-notification, .badge-notification'
+                );
                 if (proprio) return proprio.textContent.trim();
                 const alvo = document.querySelector(
-                    '.badge, .rf-ind-stg, [class*=notifica] span, .fa-envelope + span'
+                    '.badge, .rf-ind-stg, [class*=notifica] span, .fa-envelope + span, .pi-envelope + span'
                 );
                 if (alvo) return alvo.textContent.trim();
                 const envelope = [...document.querySelectorAll('a,span,div')]
@@ -412,27 +369,30 @@ RE_PARCELA = re.compile(
     re.IGNORECASE,
 )
 RE_CODIGO_NOME = re.compile(r"^([A-Z]{3}\d{3})\s*-\s*(.+)$")
+# A tela nova cola "CH: 40h" no fim do nome, na mesma célula. Tira daqui, não
+# do nome exibido no guia.
+RE_CH_SUFIXO = re.compile(r"\s*CH:\s*\d+\s*h\s*$", re.IGNORECASE)
 RE_FREQUENCIA = re.compile(r"^[\d.,]+\s*\(%\)$")
-SITUACOES = ("cursando", "aprovado", "reprovado", "trancad", "cancelad")
 
 
 def ler_notas(page):
     """Boletim oficial da secretaria, que não é o boletim do Moodle.
 
     Aqui aparecem as quatro parcelas que formam a média do bimestre (atividade
-    no AVA, prova, média parcial e exame), a frequência e a situação da
-    matrícula. É a única fonte que enxerga a nota da prova presencial.
+    no AVA, prova, média parcial e exame) e a situação da matrícula. É a
+    única fonte que enxerga a nota da prova presencial.
 
-    Duas armadilhas, as duas confirmadas na tela em 15/08:
+    Duas armadilhas, herdadas da versão anterior e ainda válidas na tela
+    nova:
 
-    1. **A tabela não existe quando se chega pela URL.** A página carrega só o
-       cabeçalho e o seletor de ano/semestre, já preenchido, e a lista só é
-       montada quando esse seletor dispara um ``change``. Navegar e ler devolvia
-       lista vazia, que é indistinguível de "não tem nota".
-    2. **A linha não começa pelo código da disciplina**, começa pela turma
-       (``Valparaiso-BIA-BIA-1-1P-NOT``). Casar o código no início da linha
-       nunca deu certo, e como o resultado era lista vazia, o defeito ficou
-       invisível.
+    1. **A tabela não existe quando se chega pela URL.** Às vezes a página
+       carrega só o cabeçalho e a lista só é montada depois. Navegar e ler
+       devolvia lista vazia, que é indistinguível de "não tem nota" — por
+       isso o cutucão no seletor de período abaixo.
+    2. **A célula da disciplina pode trazer um rótulo escondido na frente**
+       (``"Disciplina "``, da coluna que só aparece no layout estreito da
+       tabela responsiva). Casar o código no início da linha ignorando esse
+       rótulo evita que a leitura dependa do tamanho de tela do headless.
 
     Devolve ``None`` quando a tabela não pôde ser lida. Lista vazia aqui seria
     uma afirmação, e a afirmação estaria errada.
@@ -467,7 +427,7 @@ def ler_notas(page):
                 parcelas[rotulo] = "" if valor == "--" else valor
             if RE_FREQUENCIA.match(celula):
                 frequencia = celula
-            elif any(s in sem_acento(celula) for s in SITUACOES):
+            elif any(s in sem_acento(celula).lower() for s in SITUACOES):
                 situacao = celula
         notas.append(
             {
@@ -484,17 +444,21 @@ def ler_notas(page):
 def _codigo_da_linha(celulas):
     """``(codigo, nome)`` da célula que tiver a disciplina, em qualquer coluna."""
     for celula in celulas:
-        casou = RE_CODIGO_NOME.match(celula)
+        limpa = celula[len("Disciplina "):] if celula.startswith("Disciplina ") else celula
+        casou = RE_CODIGO_NOME.match(limpa)
         if casou:
-            return casou.group(1), casou.group(2)
+            nome = RE_CH_SUFIXO.sub("", casou.group(2)).strip()
+            return casou.group(1), nome
     return None
 
 
 def _abrir_sistema_de_provas(page):
-    """Segue o caminho do botão até ``prova.univesp.br``.
+    """Segue o caminho do atalho até ``prova.univesp.br``.
 
-    Não dá para pular etapa: o clique prepara o token na sessão do SEI, e sem
-    ele ``/MestreGRSV`` responde 404. A página nasce numa aba nova.
+    Não dá para pular etapa: o clique prepara um token na sessão do portal
+    (a própria página nomeia o atalho ``botaoAcessoSistemaProvasMestreGR``,
+    mesma raiz ``MestreGR`` do sistema antigo), e a página nasce numa aba
+    nova.
     """
     contexto = page.context
     page.goto(TELA_INICIAL, wait_until="domcontentloaded", timeout=45000)
@@ -508,10 +472,8 @@ def _abrir_sistema_de_provas(page):
         aba = nova.value
     except PlaywrightError:
         return None, "o Sistema de Provas não abriu"
-    # A aba nasce em ``/MestreGRSV``, que é só a página "estamos
-    # redirecionando" com um formulário que se posta sozinho. Ler o corpo aqui
-    # devolve esse texto de espera, e foi o que aconteceu na rodada de 15/08
-    # às 13:49: o login funcionou, a aba abriu e o guia leu zero prova.
+    # A aba pode nascer numa página de espera antes do calendário aparecer.
+    # Ler o corpo aqui sem esperar devolveria esse texto de transição.
     try:
         aba.wait_for_load_state("domcontentloaded", timeout=30000)
         aba.wait_for_url("**prova.univesp.br/**", timeout=30000)
@@ -634,7 +596,7 @@ def resultado(contexto, checked_at, cache=None):
 
     page = contexto.new_page()
     try:
-        ok, motivo, identidade = _logar(page, (cache or {}).get("_login_ok"))
+        ok, motivo = _logar(page)
         if not ok:
             return degradado([motivo])
         dados, problemas = {}, []
@@ -675,11 +637,6 @@ def resultado(contexto, checked_at, cache=None):
         # tratar fonte parcial; o que ele não pode é publicar meia leitura como
         # se fosse inteira.
         dados["checked_at"] = checked_at
-        # Guardar qual caminho de login funcionou vale por segurança, não por
-        # velocidade: sem isso, senha trocada gera duas recusas por rodada e
-        # dez por dia numa conta institucional, que é como se bloqueia acesso
-        # sem querer.
-        dados["_login_ok"] = identidade
         return SourceResult(
             status="parcial" if problemas else "live",
             dados=dados,

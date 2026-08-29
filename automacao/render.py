@@ -1565,7 +1565,7 @@ def render_portal(data):
             f'{plural(nao_lidos, "recado não lido", "recados não lidos")} '
             'na secretaria. O robô não abre a caixa de propósito: abrir marca '
             'como lido e apagaria o aviso antes de você ver. '
-            '<a href="https://sei.univesp.br/visaoAluno/recadoAluno.xhtml" '
+            '<a href="https://acesso.univesp.br/" '
             'target="_blank" rel="noopener">Abrir o portal</a>.</p>'
         )
 
