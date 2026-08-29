@@ -115,6 +115,29 @@ checa(any(a["tipo"] == "compromisso" for a in acoes),
 checa(confirmar == [], "compromisso não passa pelo filtro de 'confirme se é prazo'")
 
 
+print("\n== a data de recebimento não vira prazo por engano ==")
+
+DADOS_ARIA_LABEL_REAL = {
+    "courses": [{"code": "COM100"}],
+    "outlook": [
+        {
+            "texto": (
+                "Não lidos COMUNICAÇÃO EMAIL/SMS/WHATSAPP Provas Regulares - "
+                "3º Bimestre de 2026 Sex, 14/08 • 3º BIMESTRE - PROVAS DE "
+                "14/09 A 25/09 • Olá, aluno! De 14 a 25 de setembro, das 18h "
+                "às 22h, teremos nosso ciclo de provas Regulares."
+            )
+        }
+    ],
+}
+acoes, confirmar = avisos_do_outlook(DADOS_ARIA_LABEL_REAL, HOJE, AGORA)
+datas = {item["quando"][:10] for item in acoes + confirmar}
+checa("2026-08-14" not in datas,
+      "a data de recebimento (Sex, 14/08) colada no aria-label não vira prazo")
+checa({"2026-09-14", "2026-09-25"} <= datas,
+      "as duas datas reais do ciclo de provas (14/09 e 25/09) continuam saindo")
+
+
 print("\n== prazo vencido não aparece ==")
 
 DADOS_VENCIDO = {

@@ -862,6 +862,27 @@ def disciplinas_so_no_portal(dados):
     ]
 
 
+# Confirmado em 29/08/2026 lendo o aria-label real de 6 mensagens da caixa
+# institucional: a data de recebimento que o Outlook cola no rótulo da linha
+# vem sempre como "{abreviação do dia}, {DD/MM}" — "Sex, 14/08", "Seg, 17/08",
+# "Sáb, 08/08". Testado ao vivo: um e-mail recebido em 14/08 anunciando
+# "PROVAS DE 14/09 A 25/09" gerava TRÊS prazos, não dois — o "Sex, 14/08" da
+# própria data de recebimento virava um prazo de mentira, só não aparecia na
+# prática porque calhou de já estar vencido quando a leitura rodou. Ler o
+# e-mail no mesmo dia do recebimento teria publicado o cartão errado. Único
+# padrão de data no rótulo com dia da semana abreviado colado por vírgula;
+# prazo real escrito no corpo do e-mail não se escreve assim em português.
+# Por segurança tira só a PRIMEIRA ocorrência: é sempre a mais cedo no texto
+# (vem logo após o assunto), então nunca alcança uma data real do corpo.
+DATA_RECEBIMENTO_RE = re.compile(
+    r"\b(?:Seg|Ter|Qua|Qui|Sex|S[áa]b|Dom),\s*\d{1,2}/\d{1,2}\b"
+)
+
+
+def _sem_data_recebimento(texto):
+    return DATA_RECEBIMENTO_RE.sub(" ", texto, count=1)
+
+
 def avisos_do_outlook(dados, hoje, agora=None):
     """E-mail do Outlook institucional com prazo reconhecido no texto.
 
@@ -895,7 +916,7 @@ def avisos_do_outlook(dados, hoje, agora=None):
             None,
         )
         rotulo_curso = alvo or "Secretaria"
-        for prazo in extrair_prazos(texto, hoje):
+        for prazo in extrair_prazos(_sem_data_recebimento(texto), hoje):
             chave = (
                 prazo["quando"],
                 rotulo_curso,

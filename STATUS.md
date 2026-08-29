@@ -4,6 +4,52 @@
 > Site: https://esdraaline.github.io/mentor-univesp-com170/ (conta GitHub `esdraaline`)
 > Histórico completo de sessões, auditorias e etapas concluídas: [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
+## Frente 3 fechada: data de recebimento do Outlook não vira prazo por engano (29/08/2026)
+
+Continuação direta da Frente 2 (entrada logo abaixo). Faltava a amostra real
+do `aria-label` para separar remetente/assunto/data/prévia com segurança —
+nunca tinha sido capturada, e não dá para ler o Secret `OUTLOOK_STORAGE_STATE`
+de volta (GitHub só grava, nunca devolve). Pedi ao Josemar para rodar uma
+captura ao vivo: ele aprovou o MFA numa janela visível
+(`tmp/capturar_amostra_outlook.py`, script auxiliar fora do git, só para
+esta finalidade) e o script salvou 6 `aria-label` reais em
+`tmp/amostra_outlook.json` (também fora do git — mesma regra de privacidade
+que já vale para o resto desta fonte) e, de brinde, renovou o Secret.
+
+**Formato confirmado ao vivo, diferente do que STATUS registrava antes só
+por leitura manual:** a data de recebimento vem sempre como
+`"{abreviação do dia da semana}, {DD/MM}"` — `Sex, 14/08`, `Seg, 17/08`,
+`Sáb, 08/08`. Ordem real: `[flags]* remetente assunto  {data} prévia`.
+
+**O risco descrito nas entradas anteriores não era hipotético.** Rodei
+`extrair_prazos` sobre as 6 amostras reais tal como chegam: o e-mail do
+ciclo de provas (o mesmo caso da Frente 2, recebido em 14/08) gerou **três**
+prazos, não dois — o `Sex, 14/08` da própria data de recebimento virou um
+prazo de mentira. Só não apareceu na prática porque, quando a leitura
+rodou, 14/08 já estava vencido; ler o e-mail no mesmo dia do recebimento
+teria publicado o cartão errado.
+
+**Correção:** [`dominio/acoes.py`](automacao/dominio/acoes.py) ganhou
+`DATA_RECEBIMENTO_RE` (o padrão `dia-abreviado, DD/MM`) e
+`_sem_data_recebimento()`, que tira só a **primeira** ocorrência antes de
+chamar `extrair_prazos` — a data de recebimento é sempre a mais cedo no
+texto (logo após o assunto), então a remoção nunca alcança uma data real
+escrita no corpo do e-mail, que em português não se escreve nesse formato.
+Testado contra as 6 amostras reais: a data de recebimento some, os dois
+prazos verdadeiros do ciclo de provas (14/09 e 25/09) continuam saindo
+normalmente. Teste de regressão sintético (não usa o conteúdo real
+capturado, mesma prática do resto do arquivo) em
+[`testes/test_outlook.py`](testes/test_outlook.py). Doze arquivos de
+teste, `TUDO OK`.
+
+Não mexi em `GATILHOS_PRAZO` nem em `VERSAO_CACHE` aqui — o Outlook nunca
+passa pelo cache (`docs/estado.json`), então não há leitura velha para
+invalidar.
+
+**As três frentes que abriram esta sessão estão fechadas:** portal
+remapeado (Frente 1), gatilho de prova medido e aplicado (Frente 2), data
+de recebimento isolada (Frente 3). Falta só o commit e push desta entrada.
+
 ## Frente 2 medida e aplicada: `prova`/`provas` entraram em GATILHOS_PRAZO (29/08/2026)
 
 Continuação da pausa registrada logo abaixo. Medi antes de mexer, como
