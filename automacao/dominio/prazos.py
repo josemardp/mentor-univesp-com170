@@ -45,7 +45,16 @@ GATILHOS_PRAZO = [
     "abrem",
     "fecha",
     "fecham",
+    "prova",
+    "provas",
 ]
+# "prova"/"provas" entraram em 29/08/2026: um e-mail do Outlook anunciava
+# "3º BIMESTRE - PROVAS DE 14/09 A 25/09" e a extração descartava o
+# fragmento inteiro antes de olhar as datas, porque nenhuma palavra da
+# lista batia. Medido antes de mexer: rodando as duas versões do gatilho
+# sobre os 470 posts de fórum cacheados em docs/estado.json, a palavra nova
+# não gerou nenhum prazo a mais nem falso positivo (os únicos posts que
+# citam prova falam de critério de nota, sem data por perto).
 # Live não é prazo, é compromisso: tem hora de começar e, se passou, passou.
 # O aviso que anunciou a live de 30/07 dizia "está marcada para", e nenhuma
 # palavra dessa frase estava nos gatilhos de prazo, então a data nem chegava

@@ -79,4 +79,7 @@ VALIDADE_AUTOR_DIAS = 90
 # "Conclua: Semana 5 · conclusão, vence 25/08" com etiqueta de aviso oficial.
 # Os dois fóruns do LET110 têm o mesmo texto, e sem o incremento o de "Avisos"
 # seguiria servindo o prazo velho do cache.
-VERSAO_CACHE = 5
+# 6: "prova"/"provas" entraram em GATILHOS_PRAZO (dominio/prazos.py). Post de
+# fórum ou aviso já cacheado que cite prova perto de uma data (o e-mail do
+# Outlook é o caso real) só passaria a ser lido de novo com o cache invalidado.
+VERSAO_CACHE = 6

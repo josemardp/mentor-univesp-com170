@@ -4,6 +4,34 @@
 > Site: https://esdraaline.github.io/mentor-univesp-com170/ (conta GitHub `esdraaline`)
 > Histórico completo de sessões, auditorias e etapas concluídas: [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
+## Frente 2 medida e aplicada: `prova`/`provas` entraram em GATILHOS_PRAZO (29/08/2026)
+
+Continuação da pausa registrada logo abaixo. Medi antes de mexer, como
+combinado: rodei `dominio.prazos.extrair_prazos` duas vezes sobre os 470
+posts de fórum cacheados em `docs/estado.json` (gatilhos de hoje vs. com
+`prova`/`provas` acrescentadas). **Zero prazo novo, zero falso positivo** —
+os 7 posts do cache que citam prova falam de critério de nota ("60% da
+prova final"), sem data por perto no mesmo fragmento. Testei também o
+trecho do e-mail do Outlook como string solta: hoje some (0 prazos), com a
+palavra nova acha 14/09 e 25/09, os dois tipo "fim" e confiança **baixa** —
+caem em "Confirme se é prazo", não viram cobrança automática.
+
+Risco medido zero, decisão foi aplicar. Mudei
+[`dominio/prazos.py`](automacao/dominio/prazos.py) (`prova`/`provas` em
+`GATILHOS_PRAZO`, com comentário explicando a origem e a medição) e
+incrementei `VERSAO_CACHE` de 5 para 6 em
+[`configuracao.py`](automacao/configuracao.py), senão post/aviso já
+cacheado continuaria servindo a leitura velha sem prova. Rodada completa
+dos doze arquivos de teste (são scripts standalone, `python testes/test_X.py`,
+não pytest), `TUDO OK` em todos.
+
+**Frente 3 segue sem nenhum trabalho** (separar remetente/assunto/data/prévia
+no Outlook, campo `avisos_do_outlook` em `automacao/dominio/acoes.py` — ver
+entrada "A fonte do Outlook lê, mas nunca vai achar prazo..." abaixo pro
+formato do `aria-label`). Não peguei essa frente ainda, só a 2.
+
+**Falta:** commit e push desta mudança (código + este registro).
+
 ## Pausa da sessão de 29/08/2026: portal resolvido, gatilho de prazo e Outlook seguem abertos
 
 Pedido do Josemar nesta sessão: atacar as três pendências abertas do guia, na
