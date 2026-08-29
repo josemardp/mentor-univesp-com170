@@ -342,6 +342,84 @@ checa(cmids_com_revisao_feita(sem_nada) == set(),
       "zero pendente por nada atribuido nao conta como revisao feita")
 
 
+print("\n== 29/08: questionario ja respondido nao pode voltar pela rede ==")
+
+# Achado ao vivo em 29/08/2026: LET110 e SOC100 tinham nota 10/10 desde o dia
+# anterior, e o selo "Concluido" do Moodle continuava fechado (o item ainda
+# mostrava o botao "Marcar como feito"). A rede de seguranca so olhava esse
+# selo e `cmids_com_revisao_feita` (que e so pra workshop), entao ressuscitava
+# os dois questionarios como "Conclua... Termino de S5" mesmo ja respondidos.
+EVENTOS_QUIZ = [
+    {
+        "nome": "S5 - Atividade Avaliativa - fechamento",
+        "quando": "2026-08-30T23:59:00-03:00",
+        "curso_id": "18893",
+        "atividade": "S5 - Atividade Avaliativa",
+        "url": "https://ava.univesp.br/mod/quiz/view.php?id=165208",
+        "cmid": "165208",
+        "tipo": "closesubmission",
+    },
+]
+QUIZ_RESPONDIDO = {
+    "courses": [
+        {
+            "id": "18893",
+            "code": "LET110",
+            "sections": [
+                {
+                    "title": "Semana 5",
+                    "items": [
+                        {
+                            "cmid": "165208",
+                            "type": "quiz",
+                            "label": "S5 - Atividade Avaliativa",
+                            "url": "https://ava.univesp.br/mod/quiz/"
+                                   "view.php?id=165208",
+                            "status": "Pendente",
+                            "entrega_confirmada": True,
+                        }
+                    ],
+                }
+            ],
+        }
+    ],
+    "eventos": EVENTOS_QUIZ,
+}
+resgate_quiz = tarefas_do_calendario(
+    QUIZ_RESPONDIDO, date(2026, 8, 29), set(), set(), set()
+)
+checa(not [r for r in resgate_quiz if r["url"].endswith("165208")],
+      "questionario com entrega confirmada na propria pagina nao volta "
+      "pela rede, mesmo com o selo do Moodle ainda 'Pendente'")
+
+# Sem a leitura da pagina, o resgate continua protegendo como antes.
+QUIZ_SEM_LEITURA = {
+    **QUIZ_RESPONDIDO,
+    "courses": [
+        {
+            **QUIZ_RESPONDIDO["courses"][0],
+            "sections": [
+                {
+                    "title": "Semana 5",
+                    "items": [
+                        {
+                            **QUIZ_RESPONDIDO["courses"][0]["sections"][0]
+                            ["items"][0],
+                            "entrega_confirmada": None,
+                        }
+                    ],
+                }
+            ],
+        }
+    ],
+}
+resgate_sem_leitura = tarefas_do_calendario(
+    QUIZ_SEM_LEITURA, date(2026, 8, 29), set(), set(), set()
+)
+checa([r for r in resgate_sem_leitura if r["url"].endswith("165208")],
+      "sem a confirmacao da pagina, o resgate continua cobrando como antes")
+
+
 print("\n" + ("FALHOU: " + str(len(falhas)) if falhas else "TUDO OK"))
 if __name__ == "__main__":
     sys.exit(1 if falhas else 0)

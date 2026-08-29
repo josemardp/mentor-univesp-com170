@@ -4,6 +4,34 @@
 > Site: https://esdraaline.github.io/mentor-univesp-com170/ (conta GitHub `esdraaline`)
 > Histórico completo de sessões, auditorias e etapas concluídas: [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
+## Bug achado na "parte funcional": fila cobrava questionário já respondido (29/08/2026)
+
+Josemar pediu as pendências dele até segunda (31/08); a fila do guia listava
+LET110 e SOC100 (S5 - Atividade Avaliativa) como pendentes. Fui conferir ao
+vivo antes de sentar pra responder junto com ele: **as duas já estavam
+feitas desde ontem, nota 10,00/10,00.** Bug real na fila, não erro do
+Josemar.
+
+**Causa:** `tarefas_do_calendario` (a "rede de segurança" em
+[`dominio/acoes.py`](automacao/dominio/acoes.py)) só descartava um item
+como já feito por `status == "Concluído"` (selo do Moodle, que fecha por
+conclusão manual/automática de atividade, não por ter respondido) ou por
+`cmids_com_revisao_feita` (só cobre workshop). Questionário respondido, com
+nota, mas com o selo do Moodle ainda em "Pendente" — caso real dos dois —
+não era reconhecido, e a rede reabria os dois como pendentes toda rodada.
+
+**Correção:** a mesma função agora também descarta o item quando
+`entrega_confirmada` (campo que `fontes/itens.py:estado_quiz` já lê da
+própria página do questionário, e que a Quadro das matérias já usa) vier
+`True`. Teste de regressão com o cenário exato (nota 10/10, selo ainda
+"Pendente") em
+[`testes/test_revisao_entre_pares.py`](testes/test_revisao_entre_pares.py).
+Doze arquivos de teste, `TUDO OK`.
+
+**Não verificado ainda contra uma rodada real** (só teste unitário com
+fixture fiel ao caso observado) — vale conferir na próxima leitura do site
+se LET110/SOC100 somem da fila.
+
 ## Fechamento da sessão de 29/08/2026: as três frentes fechadas, mais um bug achado e corrigido na verificação ao vivo
 
 As três pendências abertas na pausa anterior (Frente 1/2/3) foram todas

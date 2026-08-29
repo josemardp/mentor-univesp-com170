@@ -695,6 +695,19 @@ def tarefas_do_calendario(
         for item in secao.get("items") or []
         if item.get("cmid")
     }
+    # O selo "Concluído" do Moodle fecha por conclusão de atividade (às vezes
+    # manual, "Marcar como feito"), não por ter respondido. Achado real de
+    # 29/08/2026: LET110 e SOC100 tinham nota 10/10 desde o dia anterior e o
+    # selo continuava aberto, então a rede de segurança reabria as duas como
+    # pendentes. `entrega_confirmada` vem da própria página do questionário
+    # (itens.estado_quiz) e é o sinal certo de "já respondeu", com ou sem selo.
+    entrega_por_cmid = {
+        str(item.get("cmid")): item.get("entrega_confirmada")
+        for curso in dados.get("courses", [])
+        for secao in curso.get("sections") or []
+        for item in secao.get("items") or []
+        if item.get("cmid")
+    }
     novos, vistos = [], set()
     for evento in dados.get("eventos") or []:
         cmid = str(evento.get("cmid") or "")
@@ -703,6 +716,8 @@ def tarefas_do_calendario(
         if not _eh_fim_de_prazo(evento) or _eh_encontro(evento):
             continue
         if status_por_cmid.get(cmid) == "Concluído":
+            continue
+        if entrega_por_cmid.get(cmid) is True:
             continue
         # O selo "Concluído" do Moodle só fecha quando as cinco fases do
         # Laboratório terminam, então ele nunca chega a tempo de calar esta
