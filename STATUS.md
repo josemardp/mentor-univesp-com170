@@ -4,6 +4,40 @@
 > Site: https://esdraaline.github.io/mentor-univesp-com170/ (conta GitHub `esdraaline`)
 > Histórico completo de sessões, auditorias e etapas concluídas: [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
+## Fechamento da sessão de 29/08/2026: as três frentes fechadas, mais um bug achado e corrigido na verificação ao vivo
+
+As três pendências abertas na pausa anterior (Frente 1/2/3) foram todas
+fechadas nesta sessão, e a verificação ao vivo pedida depois achou e
+corrigiu um quarto problema, sem relação com as três frentes. Resumo de
+cima pra baixo (entradas detalhadas logo abaixo desta):
+
+- **Portal do aluno na nuvem**: corrigido — faltava clicar no atalho
+  "PORTAL DO ALUNO" dentro do HUB do portão único depois do login sem
+  senha. Testado com contexto 100% frio, `status: live`.
+- **Gatilho de prova** (`prova`/`provas` em `GATILHOS_PRAZO`): medido
+  antes de aplicar (zero falso positivo em 470 posts), aplicado,
+  `VERSAO_CACHE` 5→6.
+- **Data de recebimento do Outlook**: isolada antes de extrair prazo,
+  confirmada com amostra real capturada ao vivo (MFA aprovado pelo
+  Josemar).
+- **Confirmado com dado real de produção**: o e-mail do ciclo de provas
+  agora gera exatamente 2 prazos (14/09, 25/09), não mais 3.
+
+**Pendência nova, não investigada:** o cron do "Guia diário" não disparou
+sozinho nem às 8h nem às 11h de Brasília hoje (só rodou via disparo
+manual). Não sei se é falha pontual do GitHub Actions ou algo a
+investigar no workflow. Próxima sessão: conferir se voltou a rodar
+sozinho nos horários certos; se não, olhar `.github/workflows/guia-diario.yml`.
+
+**Próximo passo:** nenhuma frente aberta. Ao abrir a próxima sessão,
+conferir se o cron voltou a disparar sozinho e se o portal segue saindo
+`live` nas rodadas agendadas (a correção só foi validada localmente e numa
+chamada direta de `portal.resultado()`, ainda não numa rodada real do
+GitHub Actions — mesmo padrão de cautela da Frente 1).
+
+Doze arquivos de teste, `TUDO OK`, em todos os commits desta sessão.
+Tudo pushado na main (`esdraaline/mentor-univesp-com170`).
+
 ## Achada e corrigida a causa da falha do portal na nuvem: falta um clique no HUB (29/08/2026)
 
 Investigação pedida na entrada anterior. A pista era "funciona no meu teste
