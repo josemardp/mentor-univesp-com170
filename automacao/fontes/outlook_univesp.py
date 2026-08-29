@@ -1,0 +1,216 @@
+# -*- coding: utf-8 -*-
+"""Outlook institucional (``conta-academica@exemplo.edu.br``), quarto sistema, com
+um jeito de logar que os outros três não têm.
+
+O AVA e o Portal do aluno também passam pelo SSO da Univesp
+(``login.univesp.br``), e por isso reaproveitam ``AVA_USUARIO``/``AVA_SENHA``
+sem segredo novo — confirmado ao vivo em 28/08/2026, abrindo
+``outlook.office.com/mail/`` num contexto limpo e vendo o redirecionamento
+cair no mesmo ``login.univesp.br``. Até aí, mesma família de ``fontes/portal.py``.
+
+A diferença que muda tudo: o Outlook é produto Microsoft 365, então o
+caminho passa pelo Microsoft Entra ID antes de chegar à Univesp, e esta
+conta tem MFA por push obrigatório configurado ali (aprovação no
+Authenticator, a cada sessão nova). O AVA e o Portal nunca passam pelo Entra
+ID, e por isso nunca viram essa tela. Não existe jeito de aprovar push sem
+alguém com o celular na mão, e o robô roda sozinho, cinco vezes por dia, sem
+ninguém olhando.
+
+A saída é a mesma que este projeto já usa pro Sistema de Provas, que fica
+atrás de verificação anti-robô (ver ``fontes/portal.py``): não contornar.
+Em vez de logar do zero a cada rodada, esta fonte reaproveita uma sessão já
+aprovada por um humano uma vez, salva pelo
+``automacao/capturar_sessao_outlook.py`` no Secret ``OUTLOOK_STORAGE_STATE``.
+Sem esse Secret, ou quando a sessão salva vence, a fonte devolve
+``nao_aplicavel``/``falhou`` com a instrução de rodar a captura de novo — o
+guia segue publicando as outras fontes normalmente, do mesmo jeito que já
+segue sem o Portal quando ele cai.
+
+Precaução deliberada: esta fonte **nunca** guarda o texto das mensagens em
+cache entre rodadas (ver ``resultado``). O cache de outras fontes (boletim,
+notas do portal) vive em ``docs/estado.json``, que é commitado no repositório
+público — correto para nota e disciplina, que são dados dele sobre o próprio
+curso, mas não para o conteúdo de uma caixa de e-mail, que pode trazer dado
+de terceiro. Cada rodada lê ao vivo ou devolve vazio; nada de e-mail antigo
+fica gravado no histórico do git por causa desta fonte.
+"""
+import json
+import os
+import re
+
+from playwright.sync_api import Error as PlaywrightError
+
+from configuracao import MAX_MENSAGENS_OUTLOOK
+from modelos import SourceResult
+
+MAIL_URL = "https://outlook.office.com/mail/"
+DOMINIOS_DE_LOGIN = (
+    "login.microsoftonline.com",
+    "login.univesp.br",
+    "login.live.com",
+)
+
+# Onde a mecânica de leitura foi levantada e testada: sec-hotmail/references/
+# outlook-web-mecanica.md (skill separada, mesma família de produto — Outlook
+# web). Confirmado em 28/08/2026 que a Univesp usa o mesmo shell e os mesmos
+# seletores do Hotmail pessoal: div[role="option"] com aria-label e
+# aria-setsize, dois div.customScrollBar dos quais só um rola de verdade.
+JS_TOTAL_OPCOES = 'document.querySelectorAll(\'div[role="option"]\').length'
+JS_ROTULOS = (
+    '[...document.querySelectorAll(\'div[role="option"]\')]'
+    ".map(e => e.getAttribute('aria-label')).filter(Boolean)"
+)
+JS_ARIA_SETSIZE = """() => {
+    const el = document.querySelector('div[role="option"]');
+    return el ? parseInt(el.getAttribute('aria-setsize') || '0', 10) : 0;
+}"""
+JS_ROLAR = """() => {
+    const sc = [...document.querySelectorAll('div.customScrollBar')]
+        .filter(e => e.querySelectorAll('div[role="option"]').length > 0)
+        .filter(e => e.scrollHeight > e.clientHeight + 10)[0];
+    if (!sc) return false;
+    sc.scrollTop = Math.min(sc.scrollTop + sc.clientHeight * 0.6, sc.scrollHeight);
+    return true;
+}"""
+
+
+def _tem_sessao_persistida():
+    return bool(os.environ.get("OUTLOOK_STORAGE_STATE"))
+
+
+def _logado(page):
+    url = page.url or ""
+    return not any(dominio in url for dominio in DOMINIOS_DE_LOGIN)
+
+
+def _abrir_caixa(page):
+    try:
+        page.goto(MAIL_URL, wait_until="domcontentloaded", timeout=45000)
+    except PlaywrightError as erro:
+        return False, f"não consegui abrir o Outlook ({type(erro).__name__})"
+    for _ in range(20):
+        if _logado(page):
+            break
+        page.wait_for_timeout(1000)
+    if not _logado(page):
+        return False, (
+            "a sessão salva do Outlook não vale mais (caiu na tela de "
+            "login). Rode automacao/capturar_sessao_outlook.py de novo e "
+            "atualize o Secret OUTLOOK_STORAGE_STATE"
+        )
+    return True, ""
+
+
+def _varrer_caixa(page, teto=MAX_MENSAGENS_OUTLOOK):
+    """Junta os ``aria-label`` da lista, rolando até estabilizar ou até o teto.
+
+    Chaveado por ``aria-label`` (nunca por ``aria-posinset``, que vem "0" em
+    quase toda linha — armadilha registrada na referência do sec-hotmail).
+    Devolve ``(mensagens, aviso)``: ``aviso`` não é ``None`` quando a lista
+    não montou, ou quando o teto foi atingido, ou quando a contagem final
+    ficou abaixo do que a própria caixa anuncia via ``aria-setsize`` — nesse
+    último caso não trava a rodada, só registra a discrepância, mesma
+    filosofia do teto de conferência em ``pipeline.py``.
+    """
+    try:
+        for _ in range(15):
+            if page.evaluate(JS_TOTAL_OPCOES):
+                break
+            page.wait_for_timeout(1000)
+        else:
+            return None, "a lista de mensagens não montou"
+
+        coletadas, estaveis = {}, 0
+        while len(coletadas) < teto:
+            antes = len(coletadas)
+            for rotulo in page.evaluate(JS_ROTULOS):
+                coletadas[rotulo] = True
+            if len(coletadas) == antes:
+                estaveis += 1
+            else:
+                estaveis = 0
+            if estaveis >= 5:
+                break
+            if not page.evaluate(JS_ROLAR):
+                break
+            page.wait_for_timeout(700)
+
+        aria_setsize = page.evaluate(JS_ARIA_SETSIZE)
+    except PlaywrightError as erro:
+        return None, f"a leitura da caixa parou no meio ({type(erro).__name__})"
+
+    mensagens = [{"texto": rotulo} for rotulo in list(coletadas)[:teto]]
+    aviso = None
+    if len(mensagens) >= teto:
+        aviso = f"parei em {teto} mensagem(ns) (teto da rodada)"
+    elif aria_setsize and len(mensagens) < aria_setsize:
+        aviso = (
+            f"a caixa anuncia {aria_setsize} mensagem(ns) e só consegui "
+            f"reunir {len(mensagens)}"
+        )
+    return mensagens, aviso
+
+
+def resultado(navegador, checked_at, cache=None):
+    """Lê o Outlook institucional num contexto próprio, sem tocar no do AVA.
+
+    ``cache`` aqui é só o retrato desta mesma rodada em memória — ver o aviso
+    de privacidade no topo do arquivo sobre por que esta fonte não persiste
+    conteúdo de e-mail em ``docs/estado.json`` entre rodadas.
+    """
+    if not _tem_sessao_persistida():
+        return SourceResult(
+            status="nao_aplicavel",
+            dados=[],
+            problemas=[
+                "sem sessão salva do Outlook (rode "
+                "automacao/capturar_sessao_outlook.py uma vez)"
+            ],
+            checked_at=checked_at,
+        )
+
+    try:
+        estado_sessao = json.loads(os.environ["OUTLOOK_STORAGE_STATE"])
+    except (KeyError, ValueError, TypeError):
+        return SourceResult(
+            status="falhou",
+            dados=[],
+            problemas=["o Secret OUTLOOK_STORAGE_STATE não é um JSON válido"],
+            checked_at=checked_at,
+        )
+
+    try:
+        contexto = navegador.new_context(storage_state=estado_sessao)
+    except PlaywrightError as erro:
+        return SourceResult(
+            status="falhou",
+            dados=[],
+            problemas=[f"não consegui abrir a sessão do Outlook ({type(erro).__name__})"],
+            checked_at=checked_at,
+        )
+
+    try:
+        page = contexto.new_page()
+        ok, motivo = _abrir_caixa(page)
+        if not ok:
+            return SourceResult(
+                status="falhou", dados=[], problemas=[motivo], checked_at=checked_at
+            )
+        mensagens, aviso = _varrer_caixa(page)
+        if mensagens is None:
+            return SourceResult(
+                status="falhou", dados=[], problemas=[aviso], checked_at=checked_at
+            )
+        return SourceResult(
+            status="parcial" if aviso else "live",
+            dados=mensagens,
+            problemas=[aviso] if aviso else [],
+            checked_at=checked_at,
+            quantidade_atual=len(mensagens),
+            last_live_at=checked_at,
+        )
+    finally:
+        try:
+            contexto.close()
+        except PlaywrightError:
+            pass

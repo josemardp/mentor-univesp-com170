@@ -52,16 +52,23 @@ jobs:
           python testes/test_portal.py
           python testes/test_revisao_entre_pares.py
           python testes/test_quadro.py
+          python testes/test_outlook.py
 
       # A sessão salva (Secret AVA_STORAGE_STATE) saiu em 13/08/2026. Ela era
       # um atalho para pular o login, e o log da rodada mostrou que o atalho
       # não atalhava nada: a sessão era restaurada, vencia, e o robô logava
       # com AVA_USUARIO/AVA_SENHA de qualquer jeito. Manter significava
       # carregar um cofre a mais e três scripts de manutenção para renová-la.
+      # OUTLOOK_STORAGE_STATE é opcional de propósito: sem ele a fonte
+      # "outlook" só devolve nao_aplicavel e o resto do guia segue normal.
+      # Ela é capturada uma vez à mão (automacao/capturar_sessao_outlook.py)
+      # porque o login daquela conta pede aprovação por push do Microsoft
+      # Authenticator, que ninguém pode aprovar numa Action agendada.
       - name: Gerar guia
         env:
           AVA_USUARIO: ${{ secrets.AVA_USUARIO }}
           AVA_SENHA: ${{ secrets.AVA_SENHA }}
+          OUTLOOK_STORAGE_STATE: ${{ secrets.OUTLOOK_STORAGE_STATE }}
         run: python automacao/gerar_guia.py
 
       # O login salva a sessão em disco durante a execução. Ela nunca sai do
@@ -86,18 +93,51 @@ jobs:
             # O checkout traz o commit que DISPAROU o evento, não o topo do
             # branch. Se main andou desde então, este push é recusado por não ser
             # fast-forward, e a rodada fica vermelha por uma corrida de segundos.
-            # Rebase e tenta de novo, igual ao passo que registra a data do
-            # e-mail mais abaixo. Aqui não dá para usar `exit 0` no sucesso: o
-            # resto deste mesmo passo é que confere o deploy antes de liberar o
-            # e-mail, então o laço tem que sair com `break`.
+            # Aqui não dá para usar `exit 0` no sucesso: o resto deste mesmo
+            # passo é que confere o deploy antes de liberar o e-mail, então o
+            # laço tem que sair com `break`.
+            #
+            # A recuperação era `git pull --rebase`, e ela NUNCA podia ter
+            # funcionado neste repositório — quebrou de verdade em 28/08/2026,
+            # quando uma rodada manual entrou na fila atrás da agendada das 18h.
+            # Duas rodadas do guia reescrevem os MESMOS três arquivos gerados,
+            # então o rebase para sempre em conflito de conteúdo, deixa o
+            # repositório no meio de um rebase e derruba junto o passo seguinte
+            # ("Committing is not possible because you have unmerged files").
+            #
+            # Não há o que mesclar: os três arquivos são retratos inteiros do
+            # AVA, não texto escrito a várias mãos. Entre dois retratos, quem
+            # vale é o mais novo, que é o desta rodada. Então o commit é
+            # reconstruído em cima da main nova, trazendo só o que esta rodada
+            # gerou. `docs/provas.json` (escrito à mão pelo Josemar) e
+            # `docs/revisao.json` (escrito pelo recado.py) ficam de fora de
+            # propósito: não são nossos para sobrescrever.
             EMPURROU=nao
             for TENTATIVA in 1 2 3; do
               if git push; then
                 EMPURROU=sim
                 break
               fi
-              echo "Push rejeitado (tentativa $TENTATIVA). Rebase e tenta de novo."
-              git pull --rebase origin main
+              echo "Push rejeitado (tentativa $TENTATIVA): a main andou. Refaço o commit em cima dela."
+              # O SHA é guardado ANTES do reset: é por ele que os arquivos desta
+              # rodada voltam depois. Sem isso o reset apagaria a leitura.
+              NOSSO_COMMIT=$(git rev-parse HEAD)
+              git fetch origin main
+              git reset --hard FETCH_HEAD
+              git checkout "$NOSSO_COMMIT" -- \
+                docs/data.json docs/estado.json docs/index.html
+              git add docs/data.json docs/estado.json docs/index.html
+              if git diff --cached --quiet; then
+                # Não deve acontecer (o publication_id é um instante, sempre
+                # diferente), mas commit vazio aborta o passo inteiro com
+                # `bash -e`. Se a main já tem exatamente este retrato, o
+                # trabalho está publicado e a conferência do Pages abaixo
+                # confirma pelo mesmo publication_id.
+                echo "A main já tem exatamente este retrato. Nada a empurrar."
+                EMPURROU=sim
+                break
+              fi
+              git commit -m "Atualização do guia ($(date -u +'%Y-%m-%d %H:%M') UTC)"
             done
             if [ "$EMPURROU" != "sim" ]; then
               echo "::error::Não consegui publicar as mudanças depois de 3 tentativas."
@@ -199,6 +239,12 @@ jobs:
         run: |
           git config user.name "guia-univesp-bot"
           git config user.email "actions@users.noreply.github.com"
+          # Este passo roda com `if: always()`, então pode chegar aqui logo
+          # depois de um passo que quebrou no meio de um rebase. Nesse estado
+          # qualquer `git commit` morre com "unmerged files", que foi o segundo
+          # erro da rodada de 28/08/2026 — cascata, não causa. Limpar antes
+          # custa nada e é inofensivo quando não há rebase em curso.
+          git rebase --abort 2>/dev/null || true
           for marcador in automacao/.ultimo_email_enviado automacao/.ultimo_aviso_falha; do
             if [ -f "$marcador" ]; then git add "$marcador"; fi
           done

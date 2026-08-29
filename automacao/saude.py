@@ -45,7 +45,14 @@ def resumo_fontes(dados):
 # O portal do aluno entra na mesma lista, por outro motivo: ele é um sistema
 # separado, com login e sessão próprios, e o guia funcionou meses sem ele.
 # Portal fora do ar não pode apagar a leitura boa do AVA.
-FONTES_QUE_NAO_BLOQUEIAM = ("boletim", "participacao", "meus_posts", "portal")
+# O Outlook institucional entra pelo mesmo motivo do portal, com um agravante:
+# ele depende de uma sessão persistida (ver fontes/outlook_univesp.py sobre o
+# MFA do Microsoft Entra ID) que vence sozinha depois de semanas, sem que
+# ninguém troque senha nenhuma. "Sem sessão válida" é o estado normal dele
+# entre uma captura manual e a próxima, não uma falha do robô.
+FONTES_QUE_NAO_BLOQUEIAM = (
+    "boletim", "participacao", "meus_posts", "portal", "outlook",
+)
 
 
 def validar_cobertura(dados, anterior):

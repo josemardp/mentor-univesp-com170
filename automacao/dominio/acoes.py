@@ -6,7 +6,7 @@ from datetime import date, datetime, timedelta
 from configuracao import NOVO_ATE_DIAS
 from dominio.datas import sem_acento
 from dominio.dependencias import propagar_urgencia
-from dominio.prazos import casar_prazos, fase_de, rotulo_fase
+from dominio.prazos import casar_prazos, extrair_prazos, fase_de, rotulo_fase
 
 ORDEM = {
     "hoje": 0,
@@ -862,6 +862,99 @@ def disciplinas_so_no_portal(dados):
     ]
 
 
+def avisos_do_outlook(dados, hoje, agora=None):
+    """E-mail do Outlook institucional com prazo reconhecido no texto.
+
+    O Outlook não pertence a nenhuma disciplina do AVA: pode ser boleto,
+    convocação de prova, prazo de matrícula em optativa. Sem seção nem
+    cronograma pra casar, a extração é a mesma que já lê aviso de fórum
+    (``dominio.prazos.extrair_prazos``) em cima do ``aria-label`` da
+    mensagem, e a mesma regra de confiança vale: só data com escopo forte
+    ("Módulo 4", "Quinzena 2"...) sai direto na fila; o resto vai para
+    "confirme se é prazo", como qualquer prazo lido em texto solto — a
+    esmagadora maioria de e-mail institucional vai cair aqui, e é o lado
+    seguro de errar: mostrar sem certeza, nunca inventar prazo.
+
+    Sem disciplina para casar (a maioria: nome vindo de saudação, secretaria,
+    financeiro), o curso do cartão é "Secretaria" — rótulo próprio, para não
+    ser confundido com um código de disciplina.
+    """
+    mensagens = dados.get("outlook") or []
+    if not mensagens:
+        return [], []
+    codigos_do_ava = {
+        curso["code"] for curso in dados.get("courses") or [] if curso.get("code")
+    }
+    novas_acoes, novos_confirmar, vistos = [], [], set()
+    for msg in mensagens:
+        texto = (msg.get("texto") or "").strip()
+        if not texto:
+            continue
+        alvo = next(
+            (codigo for codigo in codigos_do_ava if codigo in sem_acento(texto).upper()),
+            None,
+        )
+        rotulo_curso = alvo or "Secretaria"
+        for prazo in extrair_prazos(texto, hoje):
+            chave = (
+                prazo["quando"],
+                rotulo_curso,
+                sem_acento(prazo.get("rotulo") or "")[:40],
+            )
+            if chave in vistos:
+                continue
+            vistos.add(chave)
+            eh_evento = prazo.get("tipo") == "compromisso"
+            urgencia, texto_prazo = urgencia_de(
+                prazo["quando"], hoje, prazo.get("hora_certa", True),
+                evento=eh_evento, agora=agora,
+            )
+            if urgencia == "vencido":
+                continue
+            if prazo.get("confianca", "alta") != "alta" and not eh_evento:
+                novos_confirmar.append(
+                    {
+                        "curso": rotulo_curso,
+                        "quando": prazo["quando"],
+                        "quando_txt": texto_prazo,
+                        "tipo_lido": prazo.get("tipo"),
+                        "rotulo": prazo.get("rotulo"),
+                        "frase": prazo.get("frase"),
+                        "autor": None,
+                        "autoridade": "institucional",
+                        "url": None,
+                    }
+                )
+                continue
+            verbo, coisa = (
+                ("Assista", "ao vivo")
+                if eh_evento
+                else ("Resolva", "com a secretaria")
+            )
+            novas_acoes.append(
+                {
+                    "curso": rotulo_curso,
+                    "secao": "Outlook institucional",
+                    "fase": "regular",
+                    "verbo": verbo,
+                    "coisa": coisa,
+                    "o_que": prazo.get("rotulo") or "e-mail institucional",
+                    "tipo": "compromisso" if eh_evento else "email",
+                    "url": None,
+                    "conta_nota": False,
+                    "prazo": prazo["quando"],
+                    "prazo_txt": texto_prazo,
+                    "prazo_fonte": "e-mail institucional (Outlook)",
+                    "fonte_url": None,
+                    "autoridade": "institucional",
+                    "carencia": None,
+                    "hora_certa": prazo.get("hora_certa", True),
+                    "urgencia": urgencia,
+                }
+            )
+    return novas_acoes, novos_confirmar
+
+
 def _nome_da_atividade(evento):
     """Nome do Laboratório sem o sufixo de fase que o calendário acrescenta."""
     nome = evento.get("atividade") or evento.get("nome") or ""
@@ -1523,6 +1616,9 @@ def montar_acoes(dados, hoje, agora=None):
     # A prova presencial não tem cmid nem passa pelo Moodle, então não disputa
     # com nada que já esteja na fila.
     acoes.extend(provas_do_portal(dados, hoje, agora))
+    outlook_acoes, outlook_confirmar = avisos_do_outlook(dados, hoje, agora)
+    acoes.extend(outlook_acoes)
+    confirmar.extend(outlook_confirmar)
     acoes = _agrupar_compromissos(acoes)
     acoes = _fundir_live_do_calendario(acoes)
     acoes = _suprimir_avisos_redundantes(acoes)

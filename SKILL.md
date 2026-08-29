@@ -67,6 +67,18 @@ trocar. Entrar com credencial em campo de formulário é ação proibida para o 
 `recadoAluno.xhtml` marca o recado mais recente como lido, só entre ali para ler de
 verdade e conte a ele depois.
 
+**Outlook institucional** (`conta-academica@exemplo.edu.br`) é um quarto sistema, com um jeito
+de logar que os outros dois não têm (levantado em 28/08/2026). O SSO é o mesmo
+`login.univesp.br` do AVA e do Portal, mas o caminho passa pelo Microsoft Entra ID antes,
+e essa conta exige aprovação por push do Authenticator a cada sessão nova — o AVA e o
+Portal nunca passam por ali e nunca pedem isso. Não existe automação sem humano aqui: o
+guia diário reaproveita uma sessão que o Josemar aprova uma vez
+(`automacao/capturar_sessao_outlook.py`), do jeito descrito no `STATUS.md` (entrada
+"Quinta fonte: Outlook institucional"). Pra você, agente: nunca tente logar nessa conta
+sozinho preenchendo usuário e senha — o formulário pede o MFA, e não tem como aprovar por
+código. Se ele pedir para ver o Outlook institucional interativamente (não a fonte do
+robô), é a skill `sec-hotmail` que cobre isso, pelo navegador com sessão já aprovada dele.
+
 ## Rotinas já testadas no Moodle
 
 **Listar o que tem numa semana.** Abra `course/section.php?id=<id_da_secao>` e leia

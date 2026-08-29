@@ -4,6 +4,174 @@
 > Site: https://esdraaline.github.io/mentor-univesp-com170/ (conta GitHub `esdraaline`)
 > Histórico completo de sessões, auditorias e etapas concluídas: [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
+## Quinta fonte: Outlook institucional, travada no MFA até a captura manual (28/08/2026)
+
+Pedido: entrar com o Outlook institucional (`conta-academica@exemplo.edu.br`) no
+pipeline, junto com AVA e Portal. Implementado, mas **precisa de um passo
+manual do Josemar antes de funcionar de verdade** — ver "Pendente" no fim.
+
+**O SSO é compartilhado, confirmado ao vivo.** Abri `outlook.office.com/mail/`
+num contexto Playwright limpo: ele redireciona pra `login.microsoftonline.com`,
+aceita o e-mail institucional e cai em `login.univesp.br` — o mesmo SSO SAML
+que `sessao.py` e `fontes/portal.py` já usam. Não precisa de segredo novo pra
+identidade: `AVA_USUARIO`/`AVA_SENHA` bastam.
+
+**Mas apareceu uma trava que nem uma das duas hipóteses do prompt original
+previa: MFA obrigatório.** Testei com login automatizado real (mesmo padrão
+do `sessao.py`: credenciais lidas do ambiente, nunca impressas) e, mesmo
+reaproveitando a sessão que o AVA já tinha aberto no mesmo navegador (login
+automático, sem pedir senha de novo), a tela final parou em "Approve sign in
+request — Open your Authenticator app… Enter the number **66**". O motivo: o
+Outlook é produto Microsoft 365 e passa pelo Microsoft Entra ID antes de
+chegar à Univesp; o AVA e o Portal nunca passam por ali, e por isso nunca
+viram essa política. GitHub Actions roda sozinho, sem ninguém pra aprovar o
+push — é a mesma parede do Sistema de Provas (verificação anti-robô), e a
+resposta é a mesma: **não contornar**.
+
+Perguntei ao Josemar como seguir (SSO compartilhado + MFA por push era um
+cenário que nenhuma das hipóteses do prompt cobria). Ele escolheu **sessão
+persistida**: aprovar o MFA uma vez, à mão, e o robô reaproveitar essa sessão
+enquanto ela durar (a Microsoft costuma manter "conectado" por semanas, não
+um dia). Quando vencer, a fonte degrada sozinha — mesmo padrão do Portal
+quando ele cai.
+
+**O que foi construído:**
+
+- [`fontes/outlook_univesp.py`](automacao/fontes/outlook_univesp.py) — lê a
+  sessão salva do Secret `OUTLOOK_STORAGE_STATE` (JSON, carregado num
+  contexto Playwright **próprio**, não no do AVA — cookies de domínio
+  diferente). Sem o Secret: `nao_aplicavel`. Sessão vencida (caiu na tela de
+  login): `falhou`, com a mensagem já dizendo o comando que resolve. A
+  varredura da caixa usa a mecânica confirmada pela skill `sec-hotmail` em
+  28/08/2026 (mesmo produto Outlook web, mesmos seletores testados na própria
+  conta Univesp): `div[role="option"]` com `aria-label`, `aria-setsize` como
+  contagem real, scroller certo é o `div.customScrollBar` que tem opções **e**
+  rola de verdade (existem dois candidatos, só um rola). Teto de
+  `MAX_MENSAGENS_OUTLOOK` (40) mensagens por rodada, declarado como aviso
+  quando bate — não trava a rodada, só registra o corte.
+- [`capturar_sessao_outlook.py`](automacao/capturar_sessao_outlook.py) —
+  script de mão única: abre um Chrome **visível**, o Josemar loga e aprova o
+  MFA, e assim que a caixa aparece o script salva `storage_state` (só
+  cookies, nunca senha) direto no Secret via `gh secret set` — nunca em
+  arquivo do disco.
+- `dominio/acoes.py:avisos_do_outlook` — mesma extração de prazo que já lê
+  aviso de fórum (`dominio.prazos.extrair_prazos`), rodando sobre o texto de
+  cada mensagem. Mesma regra de confiança do resto do guia: só escopo forte
+  ("Módulo 4", "Quinzena 2"...) vira cobrança direta; o resto — a maioria
+  esperada de e-mail administrativo (boleto, convocação, matrícula) — vai
+  para "Confirme se é prazo", nunca inventa obrigação. Quando o texto cita o
+  código de uma disciplina cursada, o cartão nasce associado a ela; sem
+  código, o rótulo é "Secretaria". Live/encontro com hora marcada (mesmo
+  padrão dos avisos de fórum) vira compromisso, não pergunta.
+- `pipeline.py` chama a fonte por último, com o **mesmo navegador**, mas um
+  **contexto próprio** (`navegador.new_context(storage_state=...)`) — nunca a
+  aba do AVA. `saude.py`: `outlook` entrou em `FONTES_QUE_NAO_BLOQUEIAM`
+  (mesma lista do portal), e aparece na linha de saúde (`fontes_status`).
+- Teste novo: [`testes/test_outlook.py`](testes/test_outlook.py) — extração
+  de prazo (com/sem disciplina, live vs. prazo, vencido não entra), leitura
+  da caixa mockada (rolagem, teto, discrepância de `aria-setsize`, lista que
+  não monta) e `resultado()` cobrindo as quatro degradações (sem Secret,
+  Secret corrompido, sessão vencida, leitura boa). Rodado com os outros onze
+  arquivos, `TUDO OK`. Entrou na lista do `guia-diario.yml`.
+
+**Decisão de privacidade, sem pedir mas registrada:** esta fonte **nunca**
+grava o texto das mensagens em `docs/estado.json` entre rodadas (comentário
+no topo do arquivo explica o porquê). O cache de outras fontes — nota do
+boletim, disciplina do portal — é committado no repositório público, e isso
+já era aceito pelo Josemar para dado *dele* sobre o próprio curso. Conteúdo
+de caixa de e-mail é outra categoria: pode trazer dado de terceiro. Cada
+rodada lê ao vivo ou devolve vazio; nada de e-mail antigo fica no histórico
+do git por causa desta fonte. O que **continua** indo pro site público
+(`docs/data.json`), do mesmo jeito que já acontece com aviso de fórum hoje:
+o trecho curto (`frase`, cortado como os outros) de um prazo extraído, na aba
+"Confirme se é prazo" ou na fila. Vale o Josemar saber disso antes da
+primeira rodada real.
+
+**Sessão capturada em 28/08/2026.** O Josemar rodou o script, aprovou o MFA e
+o Secret `OUTLOOK_STORAGE_STATE` está no cofre. Um ajuste saiu daí: o
+`storage_state` inteiro tinha 49.943 caracteres e o GitHub recusou com
+`HTTP 422: Value is too large` (teto de ~64KB por Secret, e a primeira captura
+de teste chegou a 89.829). O grosso é `localStorage` de app do Outlook (React,
+feature flags), que não autentica nada — o script passou a guardar **só os
+cookies**, que é o que prova a sessão para o Entra ID. Ficou em 10.232
+caracteres, com folga.
+
+**Pendente: a fonte nunca foi exercitada de verdade.** A rodada disparada para
+conferir isso testou o código antigo, porque as mudanças ainda não estavam na
+`main` — o Actions faz checkout do remoto, não da máquina. Erro de método,
+registrado aqui para não se repetir: **verificar fonte nova na nuvem exige o
+push antes do disparo.** Depois do push desta sessão, a primeira rodada
+(agendada ou manual) é que vai dizer se a fonte `outlook` sobe como `live` em
+`fontes_status`. Enquanto ninguém olhar esse campo, a fonte está entregue, não
+verificada.
+
+Na mesma tentativa apareceu o defeito do retry do push (entrada acima) e ficou
+registrado que a rodada agendada das 18h de 28/08 falhou por conta própria, por
+instabilidade de leitura do AVA (`participacao` com TimeoutError, `foruns`
+degradado, boletim de duas disciplinas sem abrir). O robô fez o certo:
+preservou o retrato de 27/08 em vez de publicar meia leitura.
+
+**Sem amostra real de `aria-label` ainda.** A mecânica de scroll/seletor está
+confirmada (mesmo produto, mesma skill, testado na própria conta Univesp),
+mas o formato exato do texto de cada linha (ordem remetente/assunto/prévia)
+só se confirma depois do passo 1 acima. Por isso `avisos_do_outlook` roda a
+extração de prazo sobre o `aria-label` inteiro, sem tentar separar
+remetente/assunto agora — decisão deliberada de não inventar um formato não
+verificado. Depois da primeira captura real, vale reler uma amostra e, se
+compensar, refinar `msg.get("texto")` para os campos separados.
+
+## O retry do push nunca podia ter funcionado (28/08/2026)
+
+Achado ao disparar a rodada manual que ia testar a fonte do Outlook. Ela entrou
+na fila atrás da agendada das 18h, a agendada publicou primeiro, e a manual
+morreu ao tentar se recuperar. Duas rodadas, dois defeitos, o segundo em
+cascata:
+
+```
+CONFLICT (content): Merge conflict in docs/data.json
+CONFLICT (content): Merge conflict in docs/index.html
+error: could not apply 4b9b6fe... Atualização do guia
+```
+
+e, no passo seguinte:
+
+```
+error: Committing is not possible because you have unmerged files.
+```
+
+**A recuperação era `git pull --rebase`, e ela não tinha como dar certo neste
+repositório.** O comentário no workflow dizia que o rebase resolvia a corrida de
+segundos, e resolve mesmo — quando as duas rodadas mexem em arquivos
+diferentes. Só que **duas rodadas do guia reescrevem sempre os mesmos três
+arquivos gerados** (`docs/data.json`, `docs/estado.json`, `docs/index.html`), e
+o rebase então para em conflito de conteúdo, deixa o repositório no meio de um
+rebase e derruba junto o passo "Registrar data do envio", que roda com
+`if: always()` e cai em "unmerged files". O defeito estava lá desde que o retry
+foi escrito; só aparece quando duas rodadas se sobrepõem, o que só acontece com
+disparo manual em cima de uma agendada.
+
+**Não há o que mesclar.** Os três arquivos são retratos inteiros do AVA, não
+texto escrito a várias mãos: entre dois retratos, quem vale é o mais novo.
+Agora, quando o push é recusado, o commit é **reconstruído em cima da main
+nova**, trazendo só o que aquela rodada gerou. O SHA do commit é guardado antes
+do `reset --hard`, senão o reset apagaria a própria leitura que se quer
+publicar.
+
+**E a reconstrução é nominal, não `docs/` inteiro.** `docs/provas.json` é
+escrito à mão pelo Josemar e `docs/revisao.json` pelo `recado.py`; puxar a pasta
+toda do nosso commit reverteria uma edição feita por outro caminho enquanto a
+rodada corria. Só os três arquivos gerados voltam.
+
+Conferido num repositório de mentira que reproduz a corrida exata, incluindo o
+caso perigoso (a rodada que passou na frente também tinha editado o
+`provas.json`): o histórico da outra rodada fica preservado, os três arquivos
+gerados ficam com o retrato mais novo, e o `provas.json` editado à mão **não**
+é revertido.
+
+O passo "Registrar data do envio" ganhou um `git rebase --abort` inofensivo no
+começo, porque ele roda com `if: always()` e pode herdar um repositório sujo de
+qualquer passo anterior que quebre no meio de um rebase.
+
 ## O guia ganhou desktop (25/08/2026)
 
 Ele abriu o site no monitor e a palavra foi "péssimo", com razão: o guia nasceu

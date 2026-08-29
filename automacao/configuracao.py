@@ -48,6 +48,10 @@ MAX_ITENS_CONFERIDOS = 45
 # então um teto baixo por disciplina já cobre e não estoura o tempo da Action.
 MAX_ENTREGAS_CONFERIDAS = 12
 MAX_POSTS_POR_DISCUSSAO = 10
+# Teto de mensagens lidas por rodada no Outlook institucional. A lista vem
+# ordenada por mais recente primeiro, então parar aqui não perde prazo novo —
+# só evita rolar uma caixa inteira, de anos, cinco vezes por dia.
+MAX_MENSAGENS_OUTLOOK = 40
 TRECHO_AVISO = 400
 JANELA_AVISOS_DIAS = 45
 NOVO_ATE_DIAS = 3
