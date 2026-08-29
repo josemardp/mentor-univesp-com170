@@ -4,6 +4,55 @@
 > Site: https://esdraaline.github.io/mentor-univesp-com170/ (conta GitHub `esdraaline`)
 > Histórico completo de sessões, auditorias e etapas concluídas: [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
+## Pausa da sessão de 29/08/2026: portal resolvido, gatilho de prazo e Outlook seguem abertos
+
+Pedido do Josemar nesta sessão: atacar as três pendências abertas do guia, na
+ordem de valor descrita nas duas entradas anteriores (Outlook sem achar
+prazo, e portal morto desde 25/08), uma frente de cada vez, com consulta
+entre elas. Ele pediu para encerrar antes da consulta da Frente 2.
+
+**Frente 1 (portal do aluno) está feita, testada ao vivo e no ar.** Ver a
+entrada logo abaixo desta ("Portal do aluno remapeado..."). Não precisa
+retrabalho nenhum: `status: live`, doze arquivos de teste `TUDO OK`, commit
+`475a013` já pushado.
+
+**Próximo passo — Frente 2, ainda não iniciada de fato.** O pedido era medir
+o estrago antes de decidir: quantos prazos novos aparecem, e quantos são
+lixo, se `prova`/`provas` entrar em `GATILHOS_PRAZO`
+(`automacao/dominio/prazos.py`). Só foi mapeado *onde está o texto* pra fazer
+essa medição, nada foi rodado ainda:
+
+- O texto bruto dos posts de fórum (o retrato real de hoje) está cacheado em
+  `docs/estado.json`. Cada chave de nível raiz que começa com
+  `https://ava.univesp.br/mod/forum/...` é um dicionário com uma lista
+  `posts`; cada post tem um campo `texto` (o corpo cru do post, sem qualquer
+  extração aplicada) e um campo `prazos` (o que a extração atual já achou
+  ali).
+- O plano é: juntar todos os `texto` desses posts, rodar
+  `dominio.prazos.extrair_prazos` duas vezes sobre cada um — uma com o
+  `GATILHOS_PRAZO` de hoje, outra com a palavra nova acrescentada — e contar
+  a diferença. Depois olhar cada prazo novo à mão pra separar acerto (tipo o
+  e-mail do ciclo de provas) de falso positivo (post que só *menciona* prova
+  sem marcar data).
+- Não esquecer o e-mail do Outlook em si: ele não é cacheado (regra de
+  privacidade, ver entrada "Quinta fonte" abaixo), então o teste desse caso
+  específico usa o trecho já transcrito no STATUS ("PROVAS DE 14/09 A
+  25/09..."), direto como string no teste.
+- Depois de ter o número, mostrar pro Josemar e esperar a decisão dele antes
+  de tocar em `GATILHOS_PRAZO`. Mudar isso **obriga** incrementar
+  `VERSAO_CACHE` em `configuracao.py` (o comentário lá explica por quê —
+  já rodeu esse defeito duas vezes neste projeto).
+
+**Frente 3** (separar remetente/assunto/data/prévia antes de extrair prazo do
+Outlook, pra data de recebimento nunca virar prazo por engano — campo hoje
+é `avisos_do_outlook` em `automacao/dominio/acoes.py`) **segue sem nenhum
+trabalho ainda.** O formato de amostra real do `aria-label` está descrito na
+entrada "A fonte do Outlook lê, mas nunca vai achar prazo..." abaixo.
+
+Nenhum código foi tocado por esta entrada — é só registro de ponto de parada.
+Retomando amanhã: dizer "retoma" já basta, este texto tem tudo que a próxima
+sessão precisa pra seguir direto pra Frente 2 sem repetir pergunta nenhuma.
+
 ## Portal do aluno remapeado pro sistema novo, ao vivo (29/08/2026)
 
 Frente 1 das três pendências abertas nesta sessão. O portal estava `falhou`
