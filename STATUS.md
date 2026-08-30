@@ -4,32 +4,49 @@
 > Site: https://esdraaline.github.io/mentor-univesp-com170/ (conta GitHub `esdraaline`)
 > Histórico completo de sessões, auditorias e etapas concluídas: [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
-## Fechamento da sessão de 30/08/2026: aba do Outlook criada, testada ao vivo e com um bug de corrida corrigido
+## Fechamento da sessão de 30/08/2026: aba do Outlook no ar; leitura da caixa de entrada ainda falha, causa não fechada
 
 Feito nesta sessão (detalhes completos nas duas entradas logo abaixo):
 - Nova aba "E-mail (Outlook)" no site: última mensagem, não lidas, e leitura
   do Lixo Eletrônico (decisão dele: publica remetente/assunto/prévia
   completos, não só contagem).
 - Conferido ao vivo pelo navegador (`nav-josemardp`/skill `sec-hotmail`): a
-  rota do Lixo Eletrônico está certa e a caixa bateu com o robô. O Lixo
-  Eletrônico estava genuinamente vazio (nada caiu lá por engano).
-- Três bugs achados e corrigidos rodando o robô repetidas vezes de propósito:
-  pasta vazia virando "erro" por engano, mensagem de erro genérica demais
-  (`"(Error)"`), e a causa raiz de verdade da falha na caixa de entrada — uma
-  corrida de navegação (`Execution context was destroyed`) que agora é
-  tolerada em vez de derrubar a leitura.
+  rota do Lixo Eletrônico está certa e a caixa bateu com o robô na leitura
+  das 01h. O Lixo Eletrônico estava genuinamente vazio (nada caiu lá por
+  engano).
+- Dois bugs reais corrigidos: pasta vazia virando "erro" por engano, e
+  mensagem de erro genérica demais (`"(Error)"` virou a mensagem real do
+  Playwright).
 
-**Próximo passo:** conferir se o commit `a151ac7` (o fix da corrida de
-navegação) resolveu de vez. Rode `python testes/test_outlook.py` primeiro (já
-`TUDO OK` localmente), depois olhe o `docs/data.json` publicado — campo
-`fontes_status.outlook.status` deve estar `live` ou `parcial`, não `falhou`.
-A run que valida isso (`33327832827`,
-https://github.com/esdraaline/mentor-univesp-com170/actions/runs/33327832827)
-ainda estava rodando quando a sessão fechou (9m46s, o normal são ~10-11min) —
-o resultado dela já deve estar publicado como um commit "Atualização do
-guia" logo depois do `a151ac7` no histórico do `main`. Se `fontes_status`
-ainda vier `falhou`, leia a mensagem em `problemas` (agora vem detalhada de
-verdade, não só "Error") antes de tentar mais uma correção às cegas.
+**Próximo passo — a causa da falha na caixa de entrada NÃO está resolvida.**
+Rodei o robô manualmente 5 vezes hoje (`gh workflow run guia-diario.yml`) pra
+tentar fechar isso, e a leitura falhou em todas: nas 3 primeiras com
+`"a leitura da caixa parou no meio (Error)"`, na 4ª (depois do diagnóstico
+melhorado) com `"Execution context was destroyed, most likely because of a
+navigation"` — corrigi isso tolerando esse erro específico dentro do laço de
+espera (commit `a151ac7`) — e na 5ª, já com esse fix, voltou a falhar com
+`"a lista de mensagens não montou"` (genérico de novo, sem exceção). Ou seja:
+o fix da corrida de navegação não resolveu, e a causa real ainda está aberta.
+
+**Hipótese não descartada, e por isso não insisti numa 6ª rodada:** bati 5
+vezes na mesma conta institucional num intervalo de menos de 4 horas — pode
+estar acionando alguma proteção antiautomação da Microsoft (throttling,
+conditional access, tela de verificação) que não é bug nenhum no código, e
+mais tentativas em sequência podem piorar isso ou levantar alerta de
+segurança na conta dele. **Não dispare `gh workflow run guia-diario.yml`
+repetidamente tentando forçar isso** — deixe a próxima rodada agendada
+(14h/17h/20h/23h UTC) rodar sozinha e compare o resultado dela: se ela também
+falhar com a caixa vazia mesmo horas depois, sem nenhum robô batendo na
+conta nesse intervalo, aí sim é bug de verdade a investigar (o próximo passo
+técnico seria capturar screenshot no meio da falha, que a Action não guarda
+hoje). Se ela ler normal, foi throttling temporário e o código está bom.
+
+Comando pra conferir sem rodar de novo:
+```
+gh run list -R esdraaline/mentor-univesp-com170 --workflow=guia-diario.yml --limit 5
+```
+e olhar `fontes_status.outlook` no `docs/data.json` de cada commit
+"Atualização do guia" desde as 20h UTC de 30/08 em diante.
 
 **Pendência menor, não bloqueante:** `render_outlook` em `render.py` ainda
 não foi visto renderizado com dado real (só com dado sintético no smoke
