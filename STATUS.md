@@ -76,22 +76,35 @@ confere o texto real que o Outlook mostra ("Nenhum conteúdo em ...") antes de
 declarar problema. Dois testes novos em `test_outlook.py` cobrindo os dois
 casos (vazio confirmado vs. leitura travada sem esse texto).
 
-**Causa raiz da falha na caixa de entrada, achada rodando o robô mais duas
-vezes seguidas no mesmo dia:** a mensagem `"(Error)"` não dizia nada (era só
-o nome da classe genérica do Playwright), então criei `_resumo_erro()` pra
-pegar a primeira linha de verdade da exceção. Na rodada seguinte a mensagem
-ficou legível: `"a lista de mensagens não montou"` — ou seja, nem chegou a
-lançar exceção, foram as 15 tentativas de 1s esgotadas esperando
-`div[role="option"]` aparecer. Ao mesmo tempo, a mesma caixa abriu sem
-esforço nenhum no Chrome comum (a conferência do item 2 acima). Conclusão: o
-`_abrir_caixa` usa `wait_until="domcontentloaded"`, que dispara antes do
-bundle pesado do Outlook web acabar de montar a lista virtualizada, e o
-runner do GitHub Actions (mais lento/frio que um Chrome de desktop) não
-fechava essa conta em 15s. Aumentei para 30 tentativas (30s) em
-`_varrer_caixa`. **Ainda não confirmado se resolve** — só dá pra saber na
-próxima rodada. Se voltar a falhar com "não montou" mesmo em 30s, o próximo
-passo é capturar screenshot no meio da falha (a Action não guarda nenhuma
-evidência visual hoje) antes de aumentar o tempo de novo às cegas.
+**Causa raiz da falha na caixa de entrada**, achada rodando o robô mais três
+vezes seguidas no mesmo dia (30/08/2026), cada rodada corrigindo o
+diagnóstico da anterior:
+
+1. A mensagem `"(Error)"` não dizia nada (era só o nome da classe genérica do
+   Playwright) → criei `_resumo_erro()` pra pegar a primeira linha de verdade
+   da exceção.
+2. Com a mensagem legível, a rodada seguinte mostrou `"a lista de mensagens
+   não montou"` — sem exceção nenhuma, as 15 tentativas de 1s se esgotaram
+   esperando `div[role="option"]` aparecer. Palpite inicial (errado, registro
+   pra não repetir o caminho): que era lentidão do runner pra montar o bundle
+   pesado do Outlook, e por isso subi pra 30 tentativas.
+3. Com o diagnóstico já melhorado e 30 tentativas no ar, a rodada seguinte
+   revelou a causa **de verdade**: `"Execution context was destroyed, most
+   likely because of a navigation"` — não era lentidão, era uma corrida: a
+   página ainda estava trocando de URL (do `outlook.office.com` genérico
+   pra URL de sessão do `outlook.cloud.microsoft`) bem na hora do primeiro
+   `page.evaluate`, depois de `_abrir_caixa` já ter confirmado que saiu da
+   tela de login.
+
+Corrigido capturando esse erro especificamente **dentro** do laço de espera
+(não no `try/except` de fora, que aí sim continua protegendo contra falha de
+verdade) e tratando como "ainda não dá pra saber, tenta de novo" em vez de
+desistir na primeira navegação em andamento. Dois testes novos em
+`test_outlook.py` cobrindo isso: navegação que estabiliza depois de duas
+falhas, e navegação que nunca estabiliza (ainda desiste com "não montou"
+depois de 30 tentativas, sem propagar a exceção pro chamador).
+
+**Ainda não confirmado ao vivo** — a próxima rodada da Action é que confirma.
 
 ## Bug achado na "parte funcional": fila cobrava questionário já respondido (29/08/2026)
 

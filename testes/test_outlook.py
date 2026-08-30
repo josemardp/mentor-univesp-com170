@@ -229,7 +229,7 @@ class PaginaFalsa:
 
     def __init__(self, urls_login=(), rotulos=(), aria_setsize=None, rola=True,
                  rotulos_lixo=None, aria_setsize_lixo=None, falha_goto=(),
-                 pasta_vazia_lixo=False):
+                 pasta_vazia_lixo=False, falhas_montagem=0):
         self._urls = list(urls_login) or ["https://outlook.cloud.microsoft/mail/"]
         self.url = self._urls[0]
         self._rotulos_por_pasta = {
@@ -248,6 +248,7 @@ class PaginaFalsa:
         self.chamadas_rolar = 0
         self._falha_goto = set(falha_goto)
         self._pasta_vazia_lixo = pasta_vazia_lixo
+        self._falhas_montagem = falhas_montagem
 
     def goto(self, url, *a, **k):
         if any(trecho in url for trecho in self._falha_goto):
@@ -262,6 +263,12 @@ class PaginaFalsa:
     def evaluate(self, js):
         rotulos = self._rotulos_por_pasta[self._pasta]
         if js == outlook_univesp.JS_TOTAL_OPCOES:
+            if self._falhas_montagem > 0:
+                self._falhas_montagem -= 1
+                raise outlook_univesp.PlaywrightError(
+                    "Execution context was destroyed, most likely because "
+                    "of a navigation"
+                )
             return len(rotulos)
         if js == outlook_univesp.JS_ROTULOS:
             return list(rotulos)
@@ -297,6 +304,21 @@ pagina_vazia = PaginaFalsa(rotulos=[])
 mensagens, aviso = outlook_univesp._varrer_caixa(pagina_vazia, teto=40)
 checa(mensagens is None and "não montou" in aviso,
       "lista que nunca aparece no DOM é leitura falhada, não caixa vazia")
+
+# Achado ao vivo em 30/08/2026 no runner do GitHub Actions: a primeira
+# tentativa de ler a lista pode pegar a página no meio de uma navegação
+# (`Execution context was destroyed`) mesmo com a sessão já logada — isso não
+# pode contar como "a lista não montou", só como "tenta de novo".
+pagina_navegando = PaginaFalsa(rotulos=ROTULOS_3, falhas_montagem=2)
+mensagens, aviso = outlook_univesp._varrer_caixa(pagina_navegando, teto=40)
+checa(mensagens is not None and len(mensagens) == 3,
+      "duas falhas de 'Execution context destroyed' na primeira leitura não derrubam a varredura")
+checa(aviso is None, "depois de estabilizar, a leitura sai normal, sem aviso sobrando")
+
+pagina_nunca_estabiliza = PaginaFalsa(rotulos=ROTULOS_3, falhas_montagem=999)
+mensagens, aviso = outlook_univesp._varrer_caixa(pagina_nunca_estabiliza, teto=40)
+checa(mensagens is None and "não montou" in aviso,
+      "se a navegação nunca estabiliza, ainda desiste com 'não montou' depois de 30 tentativas, sem propagar a exceção")
 
 
 print("\n== login: sessão salva expirada é reconhecida ==")

@@ -144,15 +144,24 @@ def _varrer_caixa(page, teto=MAX_MENSAGENS_OUTLOOK):
     filosofia do teto de conferência em ``pipeline.py``.
     """
     try:
-        # 30s de paciência, não 15s: confirmado em 30/08/2026 que o runner do
-        # GitHub Actions estourava as antigas 15 tentativas de 1s com "a lista
-        # de mensagens não montou" três rodadas seguidas, enquanto a mesma
-        # caixa abria sem esforço num Chrome comum — o `domcontentloaded` do
-        # `_abrir_caixa` dispara antes do bundle pesado do Outlook web acabar
-        # de baixar e montar a lista virtualizada, e um runner mais lento (ou
-        # mais frio) simplesmente não fecha essa conta em 15s.
+        # 30 tentativas de 1s, tolerando navegação em andamento: confirmado em
+        # 30/08/2026, com o diagnóstico de erro melhorado, que a falha real no
+        # runner do GitHub Actions era "Execution context was destroyed, most
+        # likely because of a navigation" — `_abrir_caixa` já tinha saído da
+        # tela de login, mas a página ainda estava trocando de URL (do
+        # `outlook.office.com` genérico para a URL de sessão do
+        # `outlook.cloud.microsoft`) bem na hora do primeiro
+        # ``page.evaluate``, e esse erro específico não é "a lista não
+        # montou": é "ainda não dá pra saber, a página está no meio de uma
+        # troca". Capturado aqui dentro do laço e tratado como "tenta de
+        # novo", não como falha — o try/except de fora continua protegendo
+        # contra qualquer outro erro genuíno.
         for _ in range(30):
-            if page.evaluate(JS_TOTAL_OPCOES):
+            try:
+                montou = page.evaluate(JS_TOTAL_OPCOES)
+            except PlaywrightError:
+                montou = False
+            if montou:
                 break
             page.wait_for_timeout(1000)
         else:
