@@ -914,8 +914,15 @@ def avisos_do_outlook(dados, hoje, agora=None):
     Sem disciplina para casar (a maioria: nome vindo de saudação, secretaria,
     financeiro), o curso do cartão é "Secretaria" — rótulo próprio, para não
     ser confundido com um código de disciplina.
+
+    Lê a caixa de entrada e o Lixo Eletrônico juntos: um aviso de prazo que
+    caiu no spam por engano do filtro continua sendo um prazo real, e é
+    justamente esse o caso que esta fonte existe para não deixar passar.
     """
-    mensagens = dados.get("outlook") or []
+    outlook = dados.get("outlook") or {}
+    mensagens = (
+        (outlook.get("inbox") or {}).get("mensagens") or []
+    ) + ((outlook.get("lixo_eletronico") or {}).get("mensagens") or [])
     if not mensagens:
         return [], []
     codigos_do_ava = {

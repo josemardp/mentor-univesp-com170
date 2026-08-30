@@ -52,6 +52,9 @@ MAX_POSTS_POR_DISCUSSAO = 10
 # ordenada por mais recente primeiro, então parar aqui não perde prazo novo —
 # só evita rolar uma caixa inteira, de anos, cinco vezes por dia.
 MAX_MENSAGENS_OUTLOOK = 40
+# O Lixo Eletrônico é só conferência ("caiu ali por engano?"), não a caixa
+# principal — um teto menor já basta pra flagrar o que é recente.
+MAX_MENSAGENS_LIXO_OUTLOOK = 20
 TRECHO_AVISO = 400
 JANELA_AVISOS_DIAS = 45
 NOVO_ATE_DIAS = 3

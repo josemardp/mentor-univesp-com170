@@ -4,6 +4,58 @@
 > Site: https://esdraaline.github.io/mentor-univesp-com170/ (conta GitHub `esdraaline`)
 > Histórico completo de sessões, auditorias e etapas concluídas: [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
+## Nova aba "E-mail (Outlook)": última mensagem, não lidas e varredura do Lixo Eletrônico (30/08/2026)
+
+Pedido do Josemar: o site precisava mostrar o que há de novo no Outlook
+institucional (`conta-academica@exemplo.edu.br`) — a última mensagem da caixa de
+entrada, quantas não lidas, e conferir o **Lixo Eletrônico** pra ver se
+nada caiu ali por engano (o filtro de spam do Microsoft 365 já errou uma
+vez com e-mail de coordenação, motivo real do pedido).
+
+**Decisão de exposição pública:** `docs/data.json` é público (GitHub Pages,
+fica no histórico do git). Até aqui a fonte do Outlook lia a caixa só pra
+extrair prazo e nunca publicava o conteúdo do e-mail (mesmo padrão da
+Secretaria: só contagem de recados, nunca o texto). Perguntei ao Josemar o
+nível de exposição e ele escolheu publicar tudo (remetente, assunto e
+prévia, o mesmo `aria-label` que a fonte já lê) — decisão dele, registrada
+aqui porque muda o que fica público e permanente no repositório.
+
+**O que mudou:**
+- [`fontes/outlook_univesp.py`](automacao/fontes/outlook_univesp.py) agora
+  lê duas pastas: caixa de entrada (como já fazia) e Lixo Eletrônico (rota
+  OWA `mail/junkemail`, mesmo shell e mesma mecânica de scroll/seletor da
+  caixa de entrada). Uma falha ao ler o Lixo Eletrônico não derruba a
+  leitura da caixa de entrada — vira `parcial`, nunca `falhou`, e a pasta
+  falha fica `[]`, nunca inventada.
+- `resultado()` passou a devolver um dicionário
+  (`{"inbox": {...}, "lixo_eletronico": {...}}`, cada um com `total`,
+  `nao_lidas`, `ultima` e `mensagens`) em vez de uma lista solta. Não lida é
+  reconhecida pelo prefixo "Não lidos" do próprio `aria-label` (confirmado
+  contra `tmp/amostra_outlook.json`, amostra real capturada em 28/08).
+- [`dominio/acoes.py:avisos_do_outlook`](automacao/dominio/acoes.py) passou
+  a varrer as duas pastas, não só a caixa de entrada — um prazo que caiu no
+  spam por engano ainda vira cobrança ou "confirme se é prazo", igual a um
+  prazo lido na caixa de entrada.
+- [`coletar.py`](automacao/coletar.py) agora publica `dados["outlook"]` no
+  `data.json` (antes era deliberadamente omitido).
+- [`render.py`](automacao/render.py): nova função `render_outlook` e aba
+  "E-mail (Outlook)" (entre "Secretaria" e "Mapa das disciplinas"), com selo
+  de não lidas. A aba só aparece quando há leitura; sem sessão salva ou com
+  sessão vencida, mostra o aviso certo em vez de sumir sem explicação.
+- Testes: `testes/test_outlook.py` reescrito para o novo formato (fixtures
+  em dict, `PaginaFalsa` agora simula as duas pastas por URL, casos novos
+  para leitura das duas pastas, falha isolada do Lixo Eletrônico e
+  detecção de não lida contra a amostra real). Doze arquivos de teste,
+  `TUDO OK`.
+
+**Não verificado ao vivo ainda** — não há `OUTLOOK_STORAGE_STATE` disponível
+nesta máquina (sessão MFA-aprovada, só existe como Secret do GitHub Actions).
+A rota `mail/junkemail` é a convenção padrão do OWA (mesmo id que a Microsoft
+Graph usa para a pasta), mas só a próxima rodada da Action, ou uma captura de
+sessão seguida de `python automacao/coletar.py`, confirma se o Univesp/Entra
+ID usa exatamente essa rota. Se o Lixo Eletrônico vier sempre `falhou`,
+comece por aí.
+
 ## Bug achado na "parte funcional": fila cobrava questionário já respondido (29/08/2026)
 
 Josemar pediu as pendências dele até segunda (31/08); a fila do guia listava

@@ -1593,6 +1593,102 @@ def render_portal(data):
             + "".join(blocos) + "</div>")
 
 
+def _comeca_nao_lida(texto):
+    return _sem_acento(texto).strip().startswith("nao lid")
+
+
+def render_outlook(data):
+    """Aba "E-mail (Outlook)": o retrato da caixa institucional nesta rodada.
+
+    Sem histórico de propósito (ver ``fontes/outlook_univesp.py`` sobre o
+    porquê desta fonte nunca guardar e-mail em cache entre rodadas): o que
+    aparece aqui é sempre a leitura desta rodada, substituindo a anterior por
+    inteiro, nunca uma lista que cresce.
+    """
+    status_outlook = (data.get("fontes_status") or {}).get("outlook") or {}
+    status = status_outlook.get("status")
+    outlook = data.get("outlook") or {}
+
+    if status == "nao_aplicavel" and not outlook:
+        return (
+            '<div class="bloco"><h2>E-mail (Outlook)</h2>'
+            '<p class="sub">Sem sessão salva do Outlook institucional. Rode '
+            '<code>automacao/capturar_sessao_outlook.py</code> uma vez para '
+            'habilitar esta leitura.</p></div>'
+        )
+    if status == "falhou" and not outlook:
+        motivo = "; ".join(status_outlook.get("problemas") or [])
+        return (
+            '<div class="bloco"><h2>E-mail (Outlook)</h2>'
+            '<p class="sub secao-novidade">Não consegui ler o Outlook nesta '
+            f'rodada{": " + esc(motivo) if motivo else ""}.</p></div>'
+        )
+    if not outlook:
+        return ""
+
+    inbox = outlook.get("inbox") or {}
+    lixo = outlook.get("lixo_eletronico") or {}
+    blocos = []
+
+    ultima = inbox.get("ultima")
+    if ultima:
+        blocos.append(
+            '<p class="sub secao-novidade">Última mensagem da caixa de '
+            'entrada.</p>'
+            '<ul class="acoes"><li class="acao"><div class="acao-frase">'
+            f'{esc(ultima.get("texto") or "")}</div></li></ul>'
+        )
+
+    nao_lidas_inbox = [
+        m for m in inbox.get("mensagens") or []
+        if _comeca_nao_lida(m.get("texto") or "")
+    ]
+    if nao_lidas_inbox:
+        itens = "".join(
+            f'<li class="acao"><div class="acao-frase">'
+            f'{esc(m.get("texto") or "")}</div></li>'
+            for m in nao_lidas_inbox
+        )
+        blocos.append(
+            '<p class="sub secao-novidade">'
+            f'{plural(len(nao_lidas_inbox), "mensagem não lida", "mensagens não lidas")} '
+            'na caixa de entrada.</p>'
+            f'<ul class="acoes">{itens}</ul>'
+        )
+    elif "mensagens" in inbox:
+        blocos.append(
+            '<p class="sub">Nenhuma mensagem não lida na caixa de entrada.</p>'
+        )
+
+    mensagens_lixo = lixo.get("mensagens") or []
+    if mensagens_lixo:
+        itens = "".join(
+            f'<li class="acao"><div class="acao-frase">'
+            f'{esc(m.get("texto") or "")}</div></li>'
+            for m in mensagens_lixo
+        )
+        blocos.append(
+            '<p class="sub secao-novidade">'
+            f'{plural(len(mensagens_lixo), "mensagem", "mensagens")} no Lixo '
+            'Eletrônico. Confira se nenhuma caiu ali por engano.</p>'
+            f'<ul class="acoes">{itens}</ul>'
+        )
+    elif "mensagens" in lixo:
+        blocos.append(
+            '<p class="sub">Lixo Eletrônico sem mensagens nesta leitura.</p>'
+        )
+
+    if status_outlook.get("problemas"):
+        blocos.append(
+            '<p class="sub secao-novidade">'
+            f'{esc("; ".join(status_outlook["problemas"]))}.</p>'
+        )
+
+    if not blocos:
+        return ""
+    return '<div class="bloco"><h2>E-mail (Outlook)</h2>' + "".join(blocos) + '</div>'
+
+
 # ---------------------------------------------------------------------------
 # Abas
 # ---------------------------------------------------------------------------
@@ -1649,6 +1745,15 @@ def render_tabs(data):
     if portal_html:
         provas = len((data.get("portal") or {}).get("provas") or [])
         abas.append(("portal", "Secretaria", provas or None, portal_html))
+
+    outlook_html = render_outlook(data)
+    if outlook_html:
+        outlook_dados = data.get("outlook") or {}
+        badge_outlook = (
+            (outlook_dados.get("inbox") or {}).get("nao_lidas")
+            or None
+        )
+        abas.append(("outlook", "E-mail (Outlook)", badge_outlook, outlook_html))
 
     abas.append(("mapa", "Mapa das disciplinas", None, render_cards(data)))
 

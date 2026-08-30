@@ -708,7 +708,7 @@ def executar_coleta(estado, anterior=None):
         # `contexto` do AVA. Deliberadamente sem cache entre rodadas: ver o
         # aviso de privacidade no topo de outlook_univesp.py.
         resultado_outlook = outlook_univesp.resultado(navegador, checked_at)
-        dados_outlook = resultado_outlook.dados or []
+        dados_outlook = resultado_outlook.dados or {}
 
         navegador.close()
 

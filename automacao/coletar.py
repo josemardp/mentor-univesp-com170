@@ -165,6 +165,7 @@ def main():
         "courses": dados["courses"], "eventos": dados.get("eventos", []),
         "notificacoes": dados.get("notificacoes", []),
         "mensagens": dados.get("mensagens", []),
+        "outlook": dados.get("outlook") or {},
         "acoes": acoes, "encerrados": encerrados, "higiene": higiene,
         "confirmar": confirmar,
         "novidades": novidades(anterior, dados),

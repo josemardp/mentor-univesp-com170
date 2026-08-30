@@ -2,6 +2,12 @@
 """Outlook institucional (``conta-academica@exemplo.edu.br``), quarto sistema, com
 um jeito de logar que os outros três não têm.
 
+Lê duas pastas: a caixa de entrada e o Lixo Eletrônico. A segunda existe
+porque um aviso de prazo pode cair ali por engano do filtro de spam, e sem
+olhar essa pasta o guia nunca saberia. Uma falha ao ler o Lixo Eletrônico não
+derruba a leitura da caixa de entrada — cada pasta é uma leitura própria,
+mesma filosofia de fonte independente do resto do pipeline.
+
 O AVA e o Portal do aluno também passam pelo SSO da Univesp
 (``login.univesp.br``), e por isso reaproveitam ``AVA_USUARIO``/``AVA_SENHA``
 sem segredo novo — confirmado ao vivo em 28/08/2026, abrindo
@@ -40,10 +46,14 @@ import re
 
 from playwright.sync_api import Error as PlaywrightError
 
-from configuracao import MAX_MENSAGENS_OUTLOOK
+from configuracao import MAX_MENSAGENS_LIXO_OUTLOOK, MAX_MENSAGENS_OUTLOOK
+from dominio.datas import sem_acento
 from modelos import SourceResult
 
 MAIL_URL = "https://outlook.office.com/mail/"
+# Rota padrão do OWA para o Lixo Eletrônico (mesmo id que a Graph API usa:
+# "junkemail"). Mesmo shell, mesma mecânica de leitura da caixa de entrada.
+JUNK_URL = "https://outlook.office.com/mail/junkemail"
 DOMINIOS_DE_LOGIN = (
     "login.microsoftonline.com",
     "login.univesp.br",
@@ -83,9 +93,9 @@ def _logado(page):
     return not any(dominio in url for dominio in DOMINIOS_DE_LOGIN)
 
 
-def _abrir_caixa(page):
+def _abrir_caixa(page, url=MAIL_URL):
     try:
-        page.goto(MAIL_URL, wait_until="domcontentloaded", timeout=45000)
+        page.goto(url, wait_until="domcontentloaded", timeout=45000)
     except PlaywrightError as erro:
         return False, f"não consegui abrir o Outlook ({type(erro).__name__})"
     for _ in range(20):
@@ -151,6 +161,27 @@ def _varrer_caixa(page, teto=MAX_MENSAGENS_OUTLOOK):
     return mensagens, aviso
 
 
+def _eh_nao_lida(texto):
+    """A linha carrega o próprio estado de leitura no início do rótulo.
+
+    Confirmado na amostra real (``tmp/amostra_outlook.json``): mensagem não
+    lida começa com "Não lidos ...", mensagem já lida começa direto pelo
+    remetente/assunto.
+    """
+    return sem_acento(texto).strip().startswith("nao lid")
+
+
+def _resumo_pasta(mensagens):
+    return {
+        "total": len(mensagens),
+        "nao_lidas": sum(
+            1 for m in mensagens if _eh_nao_lida(m.get("texto") or "")
+        ),
+        "ultima": mensagens[0] if mensagens else None,
+        "mensagens": mensagens,
+    }
+
+
 def resultado(navegador, checked_at, cache=None):
     """Lê o Outlook institucional num contexto próprio, sem tocar no do AVA.
 
@@ -161,7 +192,7 @@ def resultado(navegador, checked_at, cache=None):
     if not _tem_sessao_persistida():
         return SourceResult(
             status="nao_aplicavel",
-            dados=[],
+            dados={},
             problemas=[
                 "sem sessão salva do Outlook (rode "
                 "automacao/capturar_sessao_outlook.py uma vez)"
@@ -174,7 +205,7 @@ def resultado(navegador, checked_at, cache=None):
     except (KeyError, ValueError, TypeError):
         return SourceResult(
             status="falhou",
-            dados=[],
+            dados={},
             problemas=["o Secret OUTLOOK_STORAGE_STATE não é um JSON válido"],
             checked_at=checked_at,
         )
@@ -184,29 +215,54 @@ def resultado(navegador, checked_at, cache=None):
     except PlaywrightError as erro:
         return SourceResult(
             status="falhou",
-            dados=[],
+            dados={},
             problemas=[f"não consegui abrir a sessão do Outlook ({type(erro).__name__})"],
             checked_at=checked_at,
         )
 
     try:
         page = contexto.new_page()
-        ok, motivo = _abrir_caixa(page)
+        ok, motivo = _abrir_caixa(page, MAIL_URL)
         if not ok:
             return SourceResult(
-                status="falhou", dados=[], problemas=[motivo], checked_at=checked_at
+                status="falhou", dados={}, problemas=[motivo], checked_at=checked_at
             )
-        mensagens, aviso = _varrer_caixa(page)
-        if mensagens is None:
+        mensagens_inbox, aviso_inbox = _varrer_caixa(page, teto=MAX_MENSAGENS_OUTLOOK)
+        if mensagens_inbox is None:
             return SourceResult(
-                status="falhou", dados=[], problemas=[aviso], checked_at=checked_at
+                status="falhou", dados={}, problemas=[aviso_inbox], checked_at=checked_at
             )
+
+        problemas = [aviso_inbox] if aviso_inbox else []
+
+        # O Lixo Eletrônico é a segunda leitura, deliberadamente tolerante: se
+        # ela falhar, a caixa de entrada já lida continua valendo, e a rodada
+        # só fica "parcial", nunca "falhou" por causa de uma pasta que nem é
+        # a principal.
+        ok_lixo, motivo_lixo = _abrir_caixa(page, JUNK_URL)
+        if ok_lixo:
+            mensagens_lixo, aviso_lixo = _varrer_caixa(
+                page, teto=MAX_MENSAGENS_LIXO_OUTLOOK
+            )
+            if mensagens_lixo is None:
+                mensagens_lixo = []
+                problemas.append(f"lixo eletrônico: {aviso_lixo}")
+            elif aviso_lixo:
+                problemas.append(f"lixo eletrônico: {aviso_lixo}")
+        else:
+            mensagens_lixo = []
+            problemas.append(f"lixo eletrônico: {motivo_lixo}")
+
+        dados = {
+            "inbox": _resumo_pasta(mensagens_inbox),
+            "lixo_eletronico": _resumo_pasta(mensagens_lixo),
+        }
         return SourceResult(
-            status="parcial" if aviso else "live",
-            dados=mensagens,
-            problemas=[aviso] if aviso else [],
+            status="parcial" if problemas else "live",
+            dados=dados,
+            problemas=problemas,
             checked_at=checked_at,
-            quantidade_atual=len(mensagens),
+            quantidade_atual=len(mensagens_inbox) + len(mensagens_lixo),
             last_live_at=checked_at,
         )
     finally:

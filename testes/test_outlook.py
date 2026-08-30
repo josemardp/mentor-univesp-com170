@@ -2,15 +2,15 @@
 """
 Outlook institucional: extração de prazo do e-mail e leitura degradada.
 
-Não existe amostra real de ``aria-label`` aqui ainda — a mecânica de scroll e
-o seletor vêm confirmados da skill `sec-hotmail` (mesmo produto Outlook web,
-Univesp incluída, medido em 28/08/2026), mas o formato exato do texto de
-cada linha só é confirmado depois da primeira captura de sessão de verdade
-(``automacao/capturar_sessao_outlook.py``). Por isso os testes de extração de
-prazo usam texto sintético no MESMO estilo de aviso que o resto do projeto já
-lê (ver ``testes/test_prazos.py``), não uma cópia de tela real — e os testes
-de leitura da caixa mockam a página, exercitando a lógica de rolagem/teto
-sem depender do formato do rótulo.
+A mecânica de scroll e o seletor vêm confirmados da skill `sec-hotmail`
+(mesmo produto Outlook web, Univesp incluída, medido em 28/08/2026). Os
+testes de extração de prazo usam texto sintético no MESMO estilo de aviso
+que o resto do projeto já lê (ver ``testes/test_prazos.py``); os de leitura
+da caixa mockam a página, exercitando a lógica de rolagem/teto/pasta sem
+depender do formato do rótulo. O reconhecimento de "não lida" é conferido
+contra a amostra real de ``tmp/amostra_outlook.json`` (capturada em
+28/08/2026), onde a mensagem lida não tem prefixo nenhum e a não lida
+começa com "Não lidos ".
 
 Rodar:  python testes/test_outlook.py
 """
@@ -38,27 +38,82 @@ HOJE = date(2026, 8, 28)
 AGORA = datetime(2026, 8, 28, 10, 0, tzinfo=timezone(timedelta(hours=-3)))
 
 
+print("\n== _eh_nao_lida / _resumo_pasta: contra a amostra real ==")
+
+LIDA_REAL = (
+    "COMUNICAÇÃO EMAIL/SMS/WHATSAPP O seu Portal do Aluno (Sistema "
+    "Acadêmico SEI) vai mudar!  Qui, 20/08 ..."
+)
+NAO_LIDA_REAL = (
+    "Não lidos Remetente externo ChatGPT Pergunte o que quiser. Sério. "
+    "Seg, 17/08 ..."
+)
+checa(outlook_univesp._eh_nao_lida(LIDA_REAL) is False,
+      "mensagem sem o prefixo 'Não lidos' é lida")
+checa(outlook_univesp._eh_nao_lida(NAO_LIDA_REAL) is True,
+      "mensagem com o prefixo 'Não lidos' é reconhecida como não lida")
+
+resumo = outlook_univesp._resumo_pasta(
+    [{"texto": NAO_LIDA_REAL}, {"texto": LIDA_REAL}]
+)
+checa(resumo["total"] == 2, "o resumo conta o total de mensagens da pasta")
+checa(resumo["nao_lidas"] == 1, "o resumo conta só as não lidas")
+checa(resumo["ultima"] == {"texto": NAO_LIDA_REAL},
+      "a 'última' é a primeira mensagem da lista (a mais recente)")
+checa(outlook_univesp._resumo_pasta([])["ultima"] is None,
+      "pasta vazia não inventa 'última' mensagem")
+
+
+def _outlook(inbox=(), lixo=()):
+    """Monta o formato publicado por ``outlook_univesp.resultado()``."""
+    return {
+        "inbox": {"mensagens": [{"texto": t} for t in inbox]},
+        "lixo_eletronico": {"mensagens": [{"texto": t} for t in lixo]},
+    }
+
+
 print("\n== e-mail sem gatilho de prazo não vira nada ==")
 
 DADOS_SEM_PRAZO = {
     "courses": [{"code": "COM100"}],
-    "outlook": [{"texto": "Newsletter semanal da Univesp, sem data nenhuma"}],
+    "outlook": _outlook(inbox=["Newsletter semanal da Univesp, sem data nenhuma"]),
 }
 acoes, confirmar = avisos_do_outlook(DADOS_SEM_PRAZO, HOJE, AGORA)
 checa(acoes == [] and confirmar == [],
       "texto sem gatilho de prazo não gera cartão nem 'confirme se é prazo'")
 
-checa(avisos_do_outlook({"courses": [], "outlook": []}, HOJE, AGORA) == ([], []),
+checa(avisos_do_outlook({"courses": [], "outlook": _outlook()}, HOJE, AGORA) == ([], []),
       "caixa vazia não gera nada")
+checa(avisos_do_outlook({"courses": []}, HOJE, AGORA) == ([], []),
+      "sem a chave 'outlook' também não quebra (fonte não aplicável)")
+
+
+print("\n== prazo escondido no Lixo Eletrônico não passa batido ==")
+
+DADOS_NO_LIXO = {
+    "courses": [{"code": "COM100"}, {"code": "SOC100"}],
+    "outlook": _outlook(
+        lixo=[
+            "Aviso da coordenação de SOC100: o prazo de entrega do "
+            "Módulo 3 foi prorrogado para 10/09/2026."
+        ]
+    ),
+}
+acoes, confirmar = avisos_do_outlook(DADOS_NO_LIXO, HOJE, AGORA)
+checa(len(acoes) == 1,
+      "um prazo com escopo forte que caiu no Lixo Eletrônico ainda vira cobrança")
+if acoes:
+    checa(acoes[0]["curso"] == "SOC100",
+          "o código citado no e-mail do lixo eletrônico casa com o curso certo")
 
 
 print("\n== prazo administrativo, sem disciplina, vai para 'confirme se é prazo' ==")
 
 DADOS_BOLETO = {
     "courses": [{"code": "COM100"}, {"code": "SOC100"}],
-    "outlook": [
-        {"texto": "Prezado aluno, o boleto da mensalidade vence em 05/09/2026."}
-    ],
+    "outlook": _outlook(
+        inbox=["Prezado aluno, o boleto da mensalidade vence em 05/09/2026."]
+    ),
 }
 acoes, confirmar = avisos_do_outlook(DADOS_BOLETO, HOJE, AGORA)
 checa(acoes == [], "sem escopo forte (Módulo/Semana/Quinzena), não vira cobrança direta")
@@ -76,14 +131,12 @@ print("\n== disciplina citada no texto casa o cartão com o código certo ==")
 
 DADOS_COM_DISCIPLINA = {
     "courses": [{"code": "COM100"}, {"code": "SOC100"}],
-    "outlook": [
-        {
-            "texto": (
-                "Aviso da coordenação de SOC100: o prazo de entrega do "
-                "Módulo 3 foi prorrogado para 10/09/2026."
-            )
-        }
-    ],
+    "outlook": _outlook(
+        inbox=[
+            "Aviso da coordenação de SOC100: o prazo de entrega do "
+            "Módulo 3 foi prorrogado para 10/09/2026."
+        ]
+    ),
 }
 acoes, confirmar = avisos_do_outlook(DADOS_COM_DISCIPLINA, HOJE, AGORA)
 checa(len(acoes) == 1,
@@ -99,15 +152,13 @@ print("\n== live/encontro anunciado por e-mail vira compromisso, não pergunta =
 
 DADOS_LIVE = {
     "courses": [{"code": "COM100"}],
-    "outlook": [
-        {
-            "texto": (
-                "Live de orientação\n"
-                "A live de orientação de matrícula está marcada para "
-                "01/09/2026 às 19h."
-            )
-        }
-    ],
+    "outlook": _outlook(
+        inbox=[
+            "Live de orientação\n"
+            "A live de orientação de matrícula está marcada para "
+            "01/09/2026 às 19h."
+        ]
+    ),
 }
 acoes, confirmar = avisos_do_outlook(DADOS_LIVE, HOJE, AGORA)
 checa(any(a["tipo"] == "compromisso" for a in acoes),
@@ -119,16 +170,14 @@ print("\n== a data de recebimento não vira prazo por engano ==")
 
 DADOS_ARIA_LABEL_REAL = {
     "courses": [{"code": "COM100"}],
-    "outlook": [
-        {
-            "texto": (
-                "Não lidos COMUNICAÇÃO EMAIL/SMS/WHATSAPP Provas Regulares - "
-                "3º Bimestre de 2026 Sex, 14/08 • 3º BIMESTRE - PROVAS DE "
-                "14/09 A 25/09 • Olá, aluno! De 14 a 25 de setembro, das 18h "
-                "às 22h, teremos nosso ciclo de provas Regulares."
-            )
-        }
-    ],
+    "outlook": _outlook(
+        inbox=[
+            "Não lidos COMUNICAÇÃO EMAIL/SMS/WHATSAPP Provas Regulares - "
+            "3º Bimestre de 2026 Sex, 14/08 • 3º BIMESTRE - PROVAS DE "
+            "14/09 A 25/09 • Olá, aluno! De 14 a 25 de setembro, das 18h "
+            "às 22h, teremos nosso ciclo de provas Regulares."
+        ]
+    ),
 }
 acoes, confirmar = avisos_do_outlook(DADOS_ARIA_LABEL_REAL, HOJE, AGORA)
 datas = {item["quando"][:10] for item in acoes + confirmar}
@@ -142,7 +191,7 @@ print("\n== prazo vencido não aparece ==")
 
 DADOS_VENCIDO = {
     "courses": [{"code": "COM100"}],
-    "outlook": [{"texto": "O boleto vencia em 01/01/2026."}],
+    "outlook": _outlook(inbox=["O boleto vencia em 01/01/2026."]),
 }
 acoes, confirmar = avisos_do_outlook(DADOS_VENCIDO, HOJE, AGORA)
 checa(acoes == [] and confirmar == [], "data que já passou não entra na fila nem em confirmar")
@@ -152,18 +201,38 @@ print("\n== leitura da caixa: rolagem, estabilização e teto ==")
 
 
 class PaginaFalsa:
-    """Simula só o que ``_varrer_caixa``/``_abrir_caixa`` consultam."""
+    """Simula só o que ``_varrer_caixa``/``_abrir_caixa`` consultam.
 
-    def __init__(self, urls_login=(), rotulos=(), aria_setsize=None, rola=True):
+    ``rotulos`` é a caixa de entrada; ``rotulos_lixo`` é o Lixo Eletrônico
+    (igual à caixa de entrada por padrão, quando o teste não precisa
+    diferenciar as duas). ``goto`` escolhe a pasta atual pela URL, do mesmo
+    jeito que ``resultado()`` navega entre elas.
+    """
+
+    def __init__(self, urls_login=(), rotulos=(), aria_setsize=None, rola=True,
+                 rotulos_lixo=None, aria_setsize_lixo=None, falha_goto=()):
         self._urls = list(urls_login) or ["https://outlook.cloud.microsoft/mail/"]
         self.url = self._urls[0]
-        self._rotulos = list(rotulos)
-        self._aria_setsize = aria_setsize if aria_setsize is not None else len(rotulos)
+        self._rotulos_por_pasta = {
+            "inbox": list(rotulos),
+            "lixo": list(rotulos_lixo) if rotulos_lixo is not None else list(rotulos),
+        }
+        self._aria_setsize_por_pasta = {
+            "inbox": aria_setsize if aria_setsize is not None else len(rotulos),
+            "lixo": (
+                aria_setsize_lixo if aria_setsize_lixo is not None
+                else len(self._rotulos_por_pasta["lixo"])
+            ),
+        }
+        self._pasta = "inbox"
         self._rola = rola
         self.chamadas_rolar = 0
+        self._falha_goto = set(falha_goto)
 
-    def goto(self, *a, **k):
-        pass
+    def goto(self, url, *a, **k):
+        if any(trecho in url for trecho in self._falha_goto):
+            raise outlook_univesp.PlaywrightError("boom")
+        self._pasta = "lixo" if "junkemail" in url else "inbox"
 
     def wait_for_timeout(self, *a):
         if len(self._urls) > 1:
@@ -171,12 +240,13 @@ class PaginaFalsa:
         self.url = self._urls[0]
 
     def evaluate(self, js):
+        rotulos = self._rotulos_por_pasta[self._pasta]
         if js == outlook_univesp.JS_TOTAL_OPCOES:
-            return len(self._rotulos)
+            return len(rotulos)
         if js == outlook_univesp.JS_ROTULOS:
-            return list(self._rotulos)
+            return list(rotulos)
         if js == outlook_univesp.JS_ARIA_SETSIZE:
-            return self._aria_setsize
+            return self._aria_setsize_por_pasta[self._pasta]
         if js == outlook_univesp.JS_ROLAR:
             self.chamadas_rolar += 1
             return self._rola
@@ -240,7 +310,7 @@ class NavegadorFalso:
 sem_sessao = outlook_univesp.resultado(NavegadorFalso(), "2026-08-28T10:00:00-03:00")
 checa(sem_sessao.status == "nao_aplicavel",
       "sem OUTLOOK_STORAGE_STATE, a fonte se declara não aplicável, não falha")
-checa(sem_sessao.dados == [], "e não inventa mensagem nenhuma")
+checa(sem_sessao.dados == {}, "e não inventa mensagem nenhuma")
 
 os.environ["OUTLOOK_STORAGE_STATE"] = "isto não é json"
 invalida = outlook_univesp.resultado(NavegadorFalso(), "2026-08-28T10:00:00-03:00")
@@ -271,15 +341,68 @@ class NavegadorComSessao:
 
 
 os.environ["OUTLOOK_STORAGE_STATE"] = '{"cookies": []}'
-contexto = ContextoFalso(PaginaFalsa(rotulos=ROTULOS_3))
+# Lixo eletrônico com uma mensagem só, não vazio: pasta genuinamente vazia
+# nunca monta ``div[role="option"]`` nenhum, e ``_varrer_caixa`` já trata
+# isso como leitura falhada ("a lista não montou"), não caixa confirmada
+# vazia — o mesmo vale pra pasta principal, não é peculiaridade daqui.
+contexto = ContextoFalso(
+    PaginaFalsa(rotulos=ROTULOS_3, rotulos_lixo=["Mensagem qualquer no lixo eletrônico"])
+)
 navegador = NavegadorComSessao(contexto)
 resultado_ok = outlook_univesp.resultado(navegador, "2026-08-28T10:00:00-03:00")
 checa(resultado_ok.status == "live", "com sessão válida e caixa lida, a fonte sai 'live'")
-checa(resultado_ok.quantidade_atual == 3, "a quantidade lida é reportada")
+checa(resultado_ok.quantidade_atual == 4,
+      "a quantidade lida soma caixa de entrada (3) e lixo eletrônico (1)")
+checa(resultado_ok.dados["inbox"]["mensagens"] == [{"texto": t} for t in ROTULOS_3],
+      "as mensagens da caixa de entrada vêm no formato {texto: ...} já usado no resto do guia")
 checa(navegador.storage_state_recebido == {"cookies": []},
       "a sessão salva é a que abre o contexto, não uma sessão nova do zero")
 checa(contexto.fechado is True,
       "o contexto próprio do Outlook é fechado, sem vazar para as outras fontes")
+os.environ.pop("OUTLOOK_STORAGE_STATE", None)
+
+
+print("\n== resultado(): resumo de cada pasta (última mensagem e não lidas) ==")
+
+os.environ["OUTLOOK_STORAGE_STATE"] = '{"cookies": []}'
+INBOX_MISTA = [
+    "Não lidos Sender A, Assunto novo, prévia",
+    "Sender B, Assunto já lido, prévia",
+]
+LIXO_MISTO = [
+    "Não lidos Promoção suspeita, isto parece phishing",
+]
+pagina_duas_pastas = PaginaFalsa(rotulos=INBOX_MISTA, rotulos_lixo=LIXO_MISTO)
+contexto2 = ContextoFalso(pagina_duas_pastas)
+navegador2 = NavegadorComSessao(contexto2)
+resultado2 = outlook_univesp.resultado(navegador2, "2026-08-28T10:00:00-03:00")
+checa(resultado2.status == "live", "as duas pastas lidas sem aviso saem 'live'")
+checa(resultado2.dados["inbox"]["ultima"]["texto"] == INBOX_MISTA[0],
+      "a 'última' é a primeira mensagem lida na caixa de entrada (a mais recente)")
+checa(resultado2.dados["inbox"]["nao_lidas"] == 1,
+      "a contagem de não lidas da caixa de entrada bate com o prefixo 'Não lidos'")
+checa(resultado2.dados["lixo_eletronico"]["total"] == 1
+      and resultado2.dados["lixo_eletronico"]["nao_lidas"] == 1,
+      "o lixo eletrônico também sai resumido, com total e não lidas")
+checa(resultado2.quantidade_atual == 3, "a quantidade soma as duas pastas")
+os.environ.pop("OUTLOOK_STORAGE_STATE", None)
+
+
+print("\n== resultado(): Lixo Eletrônico falho não derruba a caixa de entrada ==")
+
+os.environ["OUTLOOK_STORAGE_STATE"] = '{"cookies": []}'
+pagina_lixo_falho = PaginaFalsa(rotulos=ROTULOS_3, falha_goto={"junkemail"})
+contexto3 = ContextoFalso(pagina_lixo_falho)
+navegador3 = NavegadorComSessao(contexto3)
+resultado3 = outlook_univesp.resultado(navegador3, "2026-08-28T10:00:00-03:00")
+checa(resultado3.status == "parcial",
+      "caixa de entrada lida e Lixo Eletrônico falho vira 'parcial', não 'falhou'")
+checa(resultado3.dados["inbox"]["total"] == 3,
+      "a caixa de entrada continua completa mesmo com o lixo eletrônico falhando")
+checa(resultado3.dados["lixo_eletronico"]["mensagens"] == [],
+      "sem leitura do lixo eletrônico, a lista vem vazia, nunca inventada")
+checa(any("lixo eletrônico" in p for p in resultado3.problemas),
+      "o problema nomeia a pasta que falhou, não fica genérico")
 os.environ.pop("OUTLOOK_STORAGE_STATE", None)
 
 
