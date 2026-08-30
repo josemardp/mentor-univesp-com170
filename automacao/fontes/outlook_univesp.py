@@ -144,7 +144,14 @@ def _varrer_caixa(page, teto=MAX_MENSAGENS_OUTLOOK):
     filosofia do teto de conferência em ``pipeline.py``.
     """
     try:
-        for _ in range(15):
+        # 30s de paciência, não 15s: confirmado em 30/08/2026 que o runner do
+        # GitHub Actions estourava as antigas 15 tentativas de 1s com "a lista
+        # de mensagens não montou" três rodadas seguidas, enquanto a mesma
+        # caixa abria sem esforço num Chrome comum — o `domcontentloaded` do
+        # `_abrir_caixa` dispara antes do bundle pesado do Outlook web acabar
+        # de baixar e montar a lista virtualizada, e um runner mais lento (ou
+        # mais frio) simplesmente não fecha essa conta em 15s.
+        for _ in range(30):
             if page.evaluate(JS_TOTAL_OPCOES):
                 break
             page.wait_for_timeout(1000)

@@ -76,6 +76,23 @@ confere o texto real que o Outlook mostra ("Nenhum conteúdo em ...") antes de
 declarar problema. Dois testes novos em `test_outlook.py` cobrindo os dois
 casos (vazio confirmado vs. leitura travada sem esse texto).
 
+**Causa raiz da falha na caixa de entrada, achada rodando o robô mais duas
+vezes seguidas no mesmo dia:** a mensagem `"(Error)"` não dizia nada (era só
+o nome da classe genérica do Playwright), então criei `_resumo_erro()` pra
+pegar a primeira linha de verdade da exceção. Na rodada seguinte a mensagem
+ficou legível: `"a lista de mensagens não montou"` — ou seja, nem chegou a
+lançar exceção, foram as 15 tentativas de 1s esgotadas esperando
+`div[role="option"]` aparecer. Ao mesmo tempo, a mesma caixa abriu sem
+esforço nenhum no Chrome comum (a conferência do item 2 acima). Conclusão: o
+`_abrir_caixa` usa `wait_until="domcontentloaded"`, que dispara antes do
+bundle pesado do Outlook web acabar de montar a lista virtualizada, e o
+runner do GitHub Actions (mais lento/frio que um Chrome de desktop) não
+fechava essa conta em 15s. Aumentei para 30 tentativas (30s) em
+`_varrer_caixa`. **Ainda não confirmado se resolve** — só dá pra saber na
+próxima rodada. Se voltar a falhar com "não montou" mesmo em 30s, o próximo
+passo é capturar screenshot no meio da falha (a Action não guarda nenhuma
+evidência visual hoje) antes de aumentar o tempo de novo às cegas.
+
 ## Bug achado na "parte funcional": fila cobrava questionário já respondido (29/08/2026)
 
 Josemar pediu as pendências dele até segunda (31/08); a fila do guia listava
