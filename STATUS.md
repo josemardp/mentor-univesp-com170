@@ -48,13 +48,33 @@ aqui porque muda o que fica público e permanente no repositório.
   detecção de não lida contra a amostra real). Doze arquivos de teste,
   `TUDO OK`.
 
-**Não verificado ao vivo ainda** — não há `OUTLOOK_STORAGE_STATE` disponível
-nesta máquina (sessão MFA-aprovada, só existe como Secret do GitHub Actions).
-A rota `mail/junkemail` é a convenção padrão do OWA (mesmo id que a Microsoft
-Graph usa para a pasta), mas só a próxima rodada da Action, ou uma captura de
-sessão seguida de `python automacao/coletar.py`, confirma se o Univesp/Entra
-ID usa exatamente essa rota. Se o Lixo Eletrônico vier sempre `falhou`,
-comece por aí.
+**Verificado ao vivo em 30/08/2026**, duas frentes:
+
+1. **Robô acionado manualmente** (`gh workflow run guia-diario.yml`): o AVA
+   leu normal (20 ações, 4 disciplinas), mas o Outlook falhou na leitura da
+   caixa de entrada em duas rodadas seguidas (`"a leitura da caixa parou no
+   meio (Error)"`) — antes do deploy vinha lendo `live` havia dias. A falha é
+   na função de rolagem que eu não toquei (só mudei o que é feito com o
+   resultado dela depois), então é instabilidade do próprio Outlook web, não
+   regressão do código novo.
+2. **Conferência direta pelo navegador** (`nav-josemardp`, skill
+   `sec-hotmail`), depois de destravar o perfil (processos headless órfãos de
+   sessões antigas seguravam `perfil-josemardp` e impediam o
+   `nav-login.ps1` de abrir janela — precisou matar `chrome.exe`/`node.exe`
+   do perfil duas vezes antes do login pegar): a rota `mail/junkemail` está
+   certa (confirmado por redirecionamento real), a caixa de entrada bateu
+   exatamente com a última leitura boa do robô (22 de 23 mensagens, mesma
+   perda de 1 na rolagem), e **o Lixo Eletrônico estava genuinamente vazio**
+   — nada caiu lá por engano.
+
+Achado direto dessa conferência: uma pasta vazia de verdade e uma leitura que
+travou chegavam ao código do mesmo jeito ("nenhum `div[role=option]`
+apareceu"), então o Lixo Eletrônico vazio (o caso bom) ia sair no site como
+aviso de falha. Corrigido com `_pasta_vazia()` em
+[`fontes/outlook_univesp.py`](automacao/fontes/outlook_univesp.py), que
+confere o texto real que o Outlook mostra ("Nenhum conteúdo em ...") antes de
+declarar problema. Dois testes novos em `test_outlook.py` cobrindo os dois
+casos (vazio confirmado vs. leitura travada sem esse texto).
 
 ## Bug achado na "parte funcional": fila cobrava questionário já respondido (29/08/2026)
 

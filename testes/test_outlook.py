@@ -210,7 +210,8 @@ class PaginaFalsa:
     """
 
     def __init__(self, urls_login=(), rotulos=(), aria_setsize=None, rola=True,
-                 rotulos_lixo=None, aria_setsize_lixo=None, falha_goto=()):
+                 rotulos_lixo=None, aria_setsize_lixo=None, falha_goto=(),
+                 pasta_vazia_lixo=False):
         self._urls = list(urls_login) or ["https://outlook.cloud.microsoft/mail/"]
         self.url = self._urls[0]
         self._rotulos_por_pasta = {
@@ -228,6 +229,7 @@ class PaginaFalsa:
         self._rola = rola
         self.chamadas_rolar = 0
         self._falha_goto = set(falha_goto)
+        self._pasta_vazia_lixo = pasta_vazia_lixo
 
     def goto(self, url, *a, **k):
         if any(trecho in url for trecho in self._falha_goto):
@@ -250,6 +252,8 @@ class PaginaFalsa:
         if js == outlook_univesp.JS_ROLAR:
             self.chamadas_rolar += 1
             return self._rola
+        if js == outlook_univesp.JS_PASTA_VAZIA:
+            return self._pasta == "lixo" and self._pasta_vazia_lixo
         raise AssertionError(f"evaluate inesperado: {js[:60]}")
 
 
@@ -403,6 +407,42 @@ checa(resultado3.dados["lixo_eletronico"]["mensagens"] == [],
       "sem leitura do lixo eletrônico, a lista vem vazia, nunca inventada")
 checa(any("lixo eletrônico" in p for p in resultado3.problemas),
       "o problema nomeia a pasta que falhou, não fica genérico")
+os.environ.pop("OUTLOOK_STORAGE_STATE", None)
+
+
+print("\n== resultado(): Lixo Eletrônico genuinamente vazio não vira aviso de falha ==")
+# Confirmado ao vivo em 30/08/2026: a pasta pode estar mesmo vazia (o caso
+# bom), e isso não pode soar como "não consegui ler".
+
+os.environ["OUTLOOK_STORAGE_STATE"] = '{"cookies": []}'
+pagina_lixo_vazio = PaginaFalsa(
+    rotulos=ROTULOS_3, rotulos_lixo=[], pasta_vazia_lixo=True
+)
+contexto4 = ContextoFalso(pagina_lixo_vazio)
+navegador4 = NavegadorComSessao(contexto4)
+resultado4 = outlook_univesp.resultado(navegador4, "2026-08-28T10:00:00-03:00")
+checa(resultado4.status == "live",
+      "Lixo Eletrônico confirmado vazio não derruba o status pra 'parcial'")
+checa(resultado4.dados["lixo_eletronico"]["mensagens"] == [],
+      "e a lista sai vazia mesmo, sem inventar mensagem")
+checa(resultado4.problemas == [],
+      "pasta vazia confirmada não gera problema nenhum")
+os.environ.pop("OUTLOOK_STORAGE_STATE", None)
+
+
+print("\n== resultado(): Lixo Eletrônico que só travou (sem o texto de vazio) continua falha ==")
+
+os.environ["OUTLOOK_STORAGE_STATE"] = '{"cookies": []}'
+pagina_lixo_travado = PaginaFalsa(
+    rotulos=ROTULOS_3, rotulos_lixo=[], pasta_vazia_lixo=False
+)
+contexto5 = ContextoFalso(pagina_lixo_travado)
+navegador5 = NavegadorComSessao(contexto5)
+resultado5 = outlook_univesp.resultado(navegador5, "2026-08-28T10:00:00-03:00")
+checa(resultado5.status == "parcial",
+      "sem o texto de pasta vazia na tela, a leitura que não montou continua avisando")
+checa(any("lixo eletrônico" in p for p in resultado5.problemas),
+      "o aviso de leitura travada continua saindo quando não é vazio confirmado")
 os.environ.pop("OUTLOOK_STORAGE_STATE", None)
 
 

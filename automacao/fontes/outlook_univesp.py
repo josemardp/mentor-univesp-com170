@@ -82,6 +82,14 @@ JS_ROLAR = """() => {
     sc.scrollTop = Math.min(sc.scrollTop + sc.clientHeight * 0.6, sc.scrollHeight);
     return true;
 }"""
+# Confirmado ao vivo em 30/08/2026 no Lixo Eletrônico (que estava genuinamente
+# vazio): sem isto, ``_varrer_caixa`` não distingue "pasta vazia" de "leitura
+# travou" — as duas chegam como "nenhum div[role=option] apareceu", e sem essa
+# distinção uma pasta vazia (o caso bom) virava aviso de falha no site.
+JS_PASTA_VAZIA = """() => (
+    document.querySelectorAll('div[role="option"]').length === 0
+    && /Nenhum conteúdo em/.test(document.body.innerText)
+)"""
 
 
 def _tem_sessao_persistida():
@@ -171,6 +179,20 @@ def _eh_nao_lida(texto):
     return sem_acento(texto).strip().startswith("nao lid")
 
 
+def _pasta_vazia(page):
+    """A pasta está mesmo vazia, ou a leitura só travou?
+
+    Só entra depois que ``_varrer_caixa`` já desistiu de achar
+    ``div[role="option"]``: aqui é decidir se aquilo foi pasta vazia de
+    verdade (Outlook mostra "Nenhum conteúdo em <pasta>") ou uma leitura que
+    não carregou por outro motivo.
+    """
+    try:
+        return bool(page.evaluate(JS_PASTA_VAZIA))
+    except PlaywrightError:
+        return False
+
+
 def _resumo_pasta(mensagens):
     return {
         "total": len(mensagens),
@@ -246,7 +268,8 @@ def resultado(navegador, checked_at, cache=None):
             )
             if mensagens_lixo is None:
                 mensagens_lixo = []
-                problemas.append(f"lixo eletrônico: {aviso_lixo}")
+                if not _pasta_vazia(page):
+                    problemas.append(f"lixo eletrônico: {aviso_lixo}")
             elif aviso_lixo:
                 problemas.append(f"lixo eletrônico: {aviso_lixo}")
         else:
