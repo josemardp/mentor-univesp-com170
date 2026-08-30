@@ -64,6 +64,24 @@ checa(outlook_univesp._resumo_pasta([])["ultima"] is None,
       "pasta vazia não inventa 'última' mensagem")
 
 
+print("\n== _resumo_erro: mensagem de verdade, não só o nome genérico da classe ==")
+
+checa(
+    outlook_univesp._resumo_erro(
+        Exception("Execution context was destroyed, most likely because of a navigation")
+    ) == "Execution context was destroyed, most likely because of a navigation",
+    "a primeira linha da mensagem real do erro é o que sai, não 'Error'",
+)
+checa(
+    outlook_univesp._resumo_erro(
+        Exception("Timeout 45000ms exceeded.\nCall log:\n  - navigating to ...")
+    ) == "Timeout 45000ms exceeded.",
+    "só a primeira linha sai — o 'Call log' que o Playwright anexa fica de fora",
+)
+checa(outlook_univesp._resumo_erro(Exception("")) == "Exception",
+      "erro sem mensagem nenhuma cai de volta no nome da classe, nunca fica em branco")
+
+
 def _outlook(inbox=(), lixo=()):
     """Monta o formato publicado por ``outlook_univesp.resultado()``."""
     return {

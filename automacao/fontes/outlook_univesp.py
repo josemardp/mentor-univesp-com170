@@ -101,11 +101,24 @@ def _logado(page):
     return not any(dominio in url for dominio in DOMINIOS_DE_LOGIN)
 
 
+def _resumo_erro(erro):
+    """Primeira linha da mensagem, sem o "Call log" que o Playwright anexa.
+
+    Antes só saía ``type(erro).__name__`` — quase sempre "Error", a classe
+    genérica do Playwright, que não diz nada sobre o que realmente parou a
+    leitura. Confirmado em 30/08/2026: duas rodadas seguidas falharam com
+    esse nome sozinho, e não deu pra saber se foi timeout, navegação
+    interrompida ou outra coisa sem essa linha.
+    """
+    primeira_linha = str(erro).strip().splitlines()[0] if str(erro).strip() else ""
+    return primeira_linha[:160] or type(erro).__name__
+
+
 def _abrir_caixa(page, url=MAIL_URL):
     try:
         page.goto(url, wait_until="domcontentloaded", timeout=45000)
     except PlaywrightError as erro:
-        return False, f"não consegui abrir o Outlook ({type(erro).__name__})"
+        return False, f"não consegui abrir o Outlook ({_resumo_erro(erro)})"
     for _ in range(20):
         if _logado(page):
             break
@@ -155,7 +168,7 @@ def _varrer_caixa(page, teto=MAX_MENSAGENS_OUTLOOK):
 
         aria_setsize = page.evaluate(JS_ARIA_SETSIZE)
     except PlaywrightError as erro:
-        return None, f"a leitura da caixa parou no meio ({type(erro).__name__})"
+        return None, f"a leitura da caixa parou no meio ({_resumo_erro(erro)})"
 
     mensagens = [{"texto": rotulo} for rotulo in list(coletadas)[:teto]]
     aviso = None
@@ -238,7 +251,7 @@ def resultado(navegador, checked_at, cache=None):
         return SourceResult(
             status="falhou",
             dados={},
-            problemas=[f"não consegui abrir a sessão do Outlook ({type(erro).__name__})"],
+            problemas=[f"não consegui abrir a sessão do Outlook ({_resumo_erro(erro)})"],
             checked_at=checked_at,
         )
 
