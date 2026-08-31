@@ -27,16 +27,11 @@ de novo: 8 chaves MSAL sobraram, cookies + msal ficaram em 23.039
 caracteres, bem abaixo do teto — `OUTLOOK_STORAGE_STATE` gravado com
 sucesso no cofre do GitHub. Falta commit e push desta entrada + do código.
 
-**Ainda não confirmado se a leitura volta a `live`** — só a próxima rodada
-agendada confirma. Comando pra conferir sem disparar manualmente:
-```
-gh run list -R esdraaline/mentor-univesp-com170 --workflow=guia-diario.yml --limit 3
-```
-e olhar `fontes_status.outlook` em `docs/data.json` do commit "Atualização
-do guia" mais recente. Se vier `live`, fechado. Se voltar a falhar com "a
-lista de mensagens não montou" mesmo com o cache novo (agora sem
-accesstoken), a hipótese do MSAL cai de vez e o próximo passo vira capturar
-screenshot no meio da falha (a Action não guarda isso hoje).
+**Confirmado ao vivo, disparando manualmente pra não esperar a rodada das
+14h UTC** (`gh workflow run guia-diario.yml`, run `33387612865`, concluído
+em ~10min, sucesso): `fontes_status.outlook` em `docs/data.json` veio
+`"status": "live"`, 22 mensagens na caixa de entrada, `problemas: []`. A
+causa estava certa — o cache MSAL sem `accesstoken` resolveu de vez. **Pendência fechada.**
 
 ## Causa provável da falha do Outlook achada: faltava o cache MSAL, só cookies não bastam (31/08/2026)
 
