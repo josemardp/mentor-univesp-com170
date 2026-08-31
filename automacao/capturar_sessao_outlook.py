@@ -26,9 +26,9 @@ O que este script faz:
      "sim" que faz a sessão durar semanas em vez de um dia.
   3. Assim que a caixa de entrada aparecer na tela, aperte ENTER aqui no
      terminal. O script confere que saiu da tela de login antes de salvar.
-  4. A sessão (só cookies, nunca a senha) vai direto pro cofre de Secrets do
-     GitHub, como OUTLOOK_STORAGE_STATE. Não fica gravada em arquivo nenhum
-     deste computador.
+  4. A sessão (cookies + cache de autenticação do MSAL, nunca a senha) vai
+     direto pro cofre de Secrets do GitHub, como OUTLOOK_STORAGE_STATE. Não
+     fica gravada em arquivo nenhum deste computador.
 
 Rode com:  python automacao/capturar_sessao_outlook.py
 """
@@ -116,19 +116,22 @@ def main():
     #
     # Mas os cookies sozinhos NÃO bastam: o Outlook web é um app MSAL, e o
     # MSAL guarda o próprio cache de token (o que de fato autentica as
-    # chamadas à API do correio) em localStorage, sob chaves "msal.*" —
-    # medido ao vivo em 31/08/2026, ~21KB, bem menor que o cache "pesado" que
-    # este comentário original temia. Sem essas chaves, cada rodada do robô
-    # entra só com os cookies de SSO e depende de o app renovar o token
-    # sozinho por um iframe invisível — que pode falhar sem gerar nenhuma
-    # navegação nem exceção visível, deixando a caixa de e-mail nunca montar
-    # (causa real do "a lista de mensagens não montou" investigado nessa
-    # data). Guardar as chaves MSAL evita depender dessa renovação silenciosa.
+    # chamadas à API do correio) em localStorage, sob chaves "msal.*". Medido
+    # ao vivo em 31/08/2026: mesmo só essas chaves passaram de 75KB, porque a
+    # caixa do Outlook pede token pra vários recursos (substrate, graph,
+    # exchange...) e cada um vira uma entrada "accesstoken" própria, grande e
+    # de vida curta (renovam sozinhas). O que precisa durar semanas é o
+    # "refreshtoken" (um só, usado pra pedir qualquer access token de novo) e
+    # a conta/idtoken que o MSAL usa pra saber quem está logado — dropar só
+    # as entradas "accesstoken" é seguro: o MSAL trata cache-miss de access
+    # token como normal e pede um novo sozinho via refresh token, sem
+    # precisar de tela nem de MFA.
     origens_filtradas = []
     for origem in estado.get("origins", []):
         chaves_msal = [
             item for item in origem.get("localStorage", [])
             if "msal" in item.get("name", "").lower()
+            and "accesstoken" not in item.get("name", "").lower()
         ]
         if chaves_msal:
             origens_filtradas.append({

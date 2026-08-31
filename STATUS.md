@@ -4,28 +4,39 @@
 > Site: https://esdraaline.github.io/mentor-univesp-com170/ (conta GitHub `esdraaline`)
 > Histórico completo de sessões, auditorias e etapas concluídas: [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
-## Pausa da sessão de 31/08/2026: falta só ele rodar a captura de sessão do Outlook
+## Secret do Outlook gravado com o cache MSAL; falta só confirmar a próxima rodada agendada (31/08/2026)
 
-Correção já feita, testada e pushada (entrada logo abaixo, "Causa provável da
-falha do Outlook achada..."). **Falta só um passo manual dele, adiado pra
-amanhã** — nenhum código pendente.
+Continuação direta da entrada anterior ("Causa provável da falha do Outlook
+achada..."). Josemar rodou `capturar_sessao_outlook.py` pela manhã: a
+primeira tentativa **falhou ao gravar** — a sessão real trouxe 18 chaves
+MSAL (não as ~21KB estimadas na entrada anterior, que tinham vindo de uma
+inspeção manual parcial), cookies + msal somando 75.208 caracteres, acima
+do teto de ~64KB do Secret do GitHub (erro `HTTP 422: Value is too large`).
 
-**Ao retomar, rodar isto primeiro, antes de qualquer outra coisa no Outlook:**
+**Causa do inchaço:** o Outlook web pede token pra vários recursos
+(substrate, graph, exchange...) e cada um vira uma entrada `accesstoken`
+própria no cache MSAL — grandes e de vida curta, o app renova sozinho a
+partir do `refreshtoken`. Só o `refreshtoken` + `idtoken` + a entrada da
+conta precisam sobreviver semanas; os `accesstoken` não.
+
+**Correção em
+[`capturar_sessao_outlook.py`](automacao/capturar_sessao_outlook.py):** o
+filtro que já selecionava só chaves `msal.*` (feito na entrada anterior)
+passou também a descartar qualquer chave com `accesstoken` no nome. Rodado
+de novo: 8 chaves MSAL sobraram, cookies + msal ficaram em 23.039
+caracteres, bem abaixo do teto — `OUTLOOK_STORAGE_STATE` gravado com
+sucesso no cofre do GitHub. Falta commit e push desta entrada + do código.
+
+**Ainda não confirmado se a leitura volta a `live`** — só a próxima rodada
+agendada confirma. Comando pra conferir sem disparar manualmente:
 ```
-cd C:\projetos\mentor-univesp
-python automacao/capturar_sessao_outlook.py
+gh run list -R esdraaline/mentor-univesp-com170 --workflow=guia-diario.yml --limit 3
 ```
-Abre um Chrome visível: login com `conta-academica@exemplo.edu.br`, aprovar o MFA
-no Authenticator, clicar "Sim" pra manter conectado, ENTER no terminal quando
-a caixa aparecer. Grava um Secret `OUTLOOK_STORAGE_STATE` novo, agora com o
-cache MSAL (a correção desta sessão) — antes só ia cookie.
-
-Depois disso, conferir a próxima rodada agendada (`gh run list -R
-esdraaline/mentor-univesp-com170 --workflow=guia-diario.yml --limit 3` e olhar
-`fontes_status.outlook` em `docs/data.json`): se vier `live`, a causa estava
-certa e fechou; se voltar a falhar com "a lista de mensagens não montou" mesmo
-com o cache novo, a hipótese cai e o próximo passo vira capturar screenshot no
-meio da falha (a Action não guarda isso hoje).
+e olhar `fontes_status.outlook` em `docs/data.json` do commit "Atualização
+do guia" mais recente. Se vier `live`, fechado. Se voltar a falhar com "a
+lista de mensagens não montou" mesmo com o cache novo (agora sem
+accesstoken), a hipótese do MSAL cai de vez e o próximo passo vira capturar
+screenshot no meio da falha (a Action não guarda isso hoje).
 
 ## Causa provável da falha do Outlook achada: faltava o cache MSAL, só cookies não bastam (31/08/2026)
 
