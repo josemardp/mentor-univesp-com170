@@ -4,6 +4,29 @@
 > Site: https://esdraaline.github.io/mentor-univesp-com170/ (conta GitHub `esdraaline`)
 > Histórico completo de sessões, auditorias e etapas concluídas: [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
+## Pausa da sessão de 31/08/2026: falta só ele rodar a captura de sessão do Outlook
+
+Correção já feita, testada e pushada (entrada logo abaixo, "Causa provável da
+falha do Outlook achada..."). **Falta só um passo manual dele, adiado pra
+amanhã** — nenhum código pendente.
+
+**Ao retomar, rodar isto primeiro, antes de qualquer outra coisa no Outlook:**
+```
+cd C:\projetos\mentor-univesp
+python automacao/capturar_sessao_outlook.py
+```
+Abre um Chrome visível: login com `conta-academica@exemplo.edu.br`, aprovar o MFA
+no Authenticator, clicar "Sim" pra manter conectado, ENTER no terminal quando
+a caixa aparecer. Grava um Secret `OUTLOOK_STORAGE_STATE` novo, agora com o
+cache MSAL (a correção desta sessão) — antes só ia cookie.
+
+Depois disso, conferir a próxima rodada agendada (`gh run list -R
+esdraaline/mentor-univesp-com170 --workflow=guia-diario.yml --limit 3` e olhar
+`fontes_status.outlook` em `docs/data.json`): se vier `live`, a causa estava
+certa e fechou; se voltar a falhar com "a lista de mensagens não montou" mesmo
+com o cache novo, a hipótese cai e o próximo passo vira capturar screenshot no
+meio da falha (a Action não guarda isso hoje).
+
 ## Causa provável da falha do Outlook achada: faltava o cache MSAL, só cookies não bastam (31/08/2026)
 
 Continuação direta da pendência aberta na entrada logo abaixo ("a causa da
