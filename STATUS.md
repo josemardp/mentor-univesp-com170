@@ -4,6 +4,50 @@
 > Site: https://esdraaline.github.io/mentor-univesp-com170/ (conta GitHub `esdraaline`)
 > Histórico completo de sessões, auditorias e etapas concluídas: [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
+## Auditoria ao vivo: robô bate com AVA/Portal, uma anomalia real achada no boletim do SOC100 (31/08/2026)
+
+Pedido do Josemar: conferir o que o robô mostrou nesta rodada (11:35 UTC)
+contra o estado real no AVA, Portal do Aluno e Outlook. Sessão do
+`ava_vivo.py` reconectada e usada tanto pelo navegador (`nav-ava`) quanto
+para chamar `fontes/portal.py` direto (mesmo código do robô, sessão já
+quente) — evita repetir login.
+
+**Fila de pendências (39 itens): sem lixo.** Nenhum item já respondido
+preso na fila — confirma que o fix de 29/08 ("fila cobrava questionário já
+respondido") segue de pé. Itens com `entrega_nao_confirmada` são só os que
+ainda não venceram (S6/S7), estado esperado.
+
+**Portal do Aluno: tudo bate, inclusive o Sistema de Provas.** Disciplinas
+(6), recados não lidos (9) e as notas oficiais da secretaria (3 disciplinas
+"(Em Recuperação)" com parcelas vazias, 3 "Cursando" — real, não é bug de
+leitura) conferidos ao vivo, idênticos ao que o robô publicou. O Sistema de
+Provas, que a rodada de hoje achou bloqueado por verificação anti-robô,
+**abriu normal agora** e leu as mesmas 3 provas de 05/11 — o bloqueio é
+intermitente, não persistente, e a data conferida à mão em 15/08 segue
+correta 16 dias depois.
+
+**Participação (COM170): o `TimeoutError` da rodada não se repetiu.**
+Painel abriu normal ao vivo: Q1 concluída (Final), Q2 e Q3 "ainda não
+identificado" — parece instabilidade pontual daquela rodada, não bug
+persistente. Vale só observar se voltar a falhar nas próximas rodadas.
+
+**Achado real: o boletim do SOC100 (id Moodle 18880) está genuinely vazio
+no AVA**, não é erro de leitura do robô. Reproduzido duas vezes ao vivo em
+`grade/report/user/index.php?id=18880`: só o cabeçalho da tabela, nenhuma
+linha de nota, nem "Nota calculada". Comparado com COM100 (18870) e LET110
+(18893) no mesmo formato: as duas mostram S1-S5 com nota (10, 7,50 etc.) e
+"Média AVA" calculada — só o SOC100 está sem nenhum registro, mesmo ele já
+tendo entregue S1-S5 (a fila não cobra mais esses itens, confirmando que
+foram feitos). **Vale ele reportar isso ao SAE ou facilitador de SOC100** —
+o boletim da disciplina no Moodle parece quebrado, mesmo a entrega
+funcionando por baixo.
+
+**Outlook: já confirmado na própria rodada de hoje** (22 mensagens, sem
+problema) — ver entrada abaixo. Checagem cruzada por um caminho diferente
+(`nav-josemardp`) não rodou porque o perfil do navegador estava ocupado por
+um processo travado; não é bloqueante, a leitura do robô já é prova
+suficiente porque veio de uma sessão recém-gravada.
+
 ## Secret do Outlook gravado com o cache MSAL; falta só confirmar a próxima rodada agendada (31/08/2026)
 
 Continuação direta da entrada anterior ("Causa provável da falha do Outlook
