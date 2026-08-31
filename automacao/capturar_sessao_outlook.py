@@ -113,17 +113,45 @@ def main():
     # Secret do GitHub tem teto de ~64KB. A sessão inteira (cookies +
     # localStorage de cada origem) passa disso fácil — o grosso é cache de
     # app do próprio Outlook (React, feature flags), que não autentica nada.
-    # Quem prova a sessão pro Entra ID/Univesp são os cookies; sem eles não
-    # tem MFA persistido, e é exatamente isso que este script existe pra
-    # guardar. Sessão sem os cookies certos falha na primeira leitura do
-    # robô, e falha declarado (ver fontes/outlook_univesp.py) — não falha
-    # silenciosa.
-    estado_compacto = {"cookies": estado.get("cookies", [])}
+    #
+    # Mas os cookies sozinhos NÃO bastam: o Outlook web é um app MSAL, e o
+    # MSAL guarda o próprio cache de token (o que de fato autentica as
+    # chamadas à API do correio) em localStorage, sob chaves "msal.*" —
+    # medido ao vivo em 31/08/2026, ~21KB, bem menor que o cache "pesado" que
+    # este comentário original temia. Sem essas chaves, cada rodada do robô
+    # entra só com os cookies de SSO e depende de o app renovar o token
+    # sozinho por um iframe invisível — que pode falhar sem gerar nenhuma
+    # navegação nem exceção visível, deixando a caixa de e-mail nunca montar
+    # (causa real do "a lista de mensagens não montou" investigado nessa
+    # data). Guardar as chaves MSAL evita depender dessa renovação silenciosa.
+    origens_filtradas = []
+    for origem in estado.get("origins", []):
+        chaves_msal = [
+            item for item in origem.get("localStorage", [])
+            if "msal" in item.get("name", "").lower()
+        ]
+        if chaves_msal:
+            origens_filtradas.append({
+                "origin": origem["origin"],
+                "localStorage": chaves_msal,
+            })
+    estado_compacto = {
+        "cookies": estado.get("cookies", []),
+        "origins": origens_filtradas,
+    }
     valor = json.dumps(estado_compacto)
+    total_chaves_msal = sum(len(o["localStorage"]) for o in origens_filtradas)
     print(
-        f"\nSessão inteira tinha {len(json.dumps(estado))} caracteres; só os "
-        f"cookies (o que autentica) são {len(valor)}. Gravando no cofre do GitHub..."
+        f"\nSessão inteira tinha {len(json.dumps(estado))} caracteres; cookies + "
+        f"{total_chaves_msal} chave(s) msal (o que autentica de verdade) ficaram "
+        f"em {len(valor)}. Gravando no cofre do GitHub..."
     )
+    if len(valor) > 60000:
+        print(
+            "  aviso: passou de 60000 caracteres, perto do teto de ~64KB do "
+            "Secret. Pode falhar ao gravar — se falhar, avise, não dá pra "
+            "cortar sem risco de perder o que autentica."
+        )
     ok = gravar("OUTLOOK_STORAGE_STATE", valor)
     valor = None  # some da memória assim que possível
     if not ok:

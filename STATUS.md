@@ -4,6 +4,56 @@
 > Site: https://esdraaline.github.io/mentor-univesp-com170/ (conta GitHub `esdraaline`)
 > Histórico completo de sessões, auditorias e etapas concluídas: [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
+## Causa provável da falha do Outlook achada: faltava o cache MSAL, só cookies não bastam (31/08/2026)
+
+Continuação direta da pendência aberta na entrada logo abaixo ("a causa da
+falha na caixa de entrada NÃO está resolvida"). A hipótese de throttling
+registrada lá **caiu**: duas rodadas agendadas depois daquela entrada
+(22:28 UTC e 01:09 UTC, nenhuma disparada manualmente) falharam do mesmo
+jeito (`"a lista de mensagens não montou"`), sem ninguém batendo na conta no
+intervalo — confirmado olhando `docs/data.json` de cada commit.
+
+**Investigação:** a sessão do Outlook institucional guardada no navegador
+(`nav-josemardp`) já tinha expirado (tela de login só oferecia a conta
+pessoal). Sem poder reproduzir a sessão exata do robô sem novo MFA, usei a
+sessão pessoal (já logada) pra inspecionar a mecânica: o Outlook web é um
+app MSAL, mesmo `client_id` nas duas contas, e o MSAL guarda o cache de
+autenticação (o que de fato autoriza as chamadas à API do correio) em
+**localStorage**, sob chaves `msal.*` — medido ao vivo, ~21KB, 14 chaves.
+
+**Causa encontrada em
+[`capturar_sessao_outlook.py:113-121`](automacao/capturar_sessao_outlook.py#L113-L121)
+(código anterior a esta entrada):** só os cookies eram salvos no Secret. O
+comentário original presumia que cookies bastavam pra provar a sessão — errado
+pra um app MSAL. Sem o cache MSAL, cada rodada do robô entra só com os cookies
+de SSO e depende do app renovar o token sozinho por um iframe invisível contra
+`login.microsoftonline.com`. Isso explica o sintoma exato: `_logado()` nunca
+pega o problema (a URL nunca navega pra tela de login, o iframe falha por
+baixo dos panos, sem exceção do Playwright), e `_varrer_caixa` trava sem
+exceção nenhuma esperando `div[role="option"]` que nunca chega — o app ficou
+sem token válido pra chamar a API.
+
+**Correção aplicada:** `capturar_sessao_outlook.py` agora também salva as
+chaves `msal.*` do localStorage de cada origem (filtradas — só as que
+autenticam, não o cache pesado de UI que o comentário original queria evitar),
+junto dos cookies. Aviso novo se o total passar de 60000 caracteres (teto do
+Secret é ~64KB). `fontes/outlook_univesp.py` não precisou mudar —
+`new_context(storage_state=...)` já aceita o formato completo
+`{cookies, origins}`, só vinha recebendo cookies sozinhos até aqui. Doze
+arquivos de teste, `TUDO OK` (fixtures dos testes usam `{"cookies": []}`,
+formato ainda válido).
+
+**Ainda não confirmado ao vivo — depende de um passo manual dele.** É a
+hipótese mais forte até aqui, testada na mecânica mas não na causa exata
+desta conta, porque a sessão salva expirou e não dá pra reabrir sem MFA.
+**Próximo passo: pedir para o Josemar rodar
+`python automacao/capturar_sessao_outlook.py` de novo** (aprova MFA no
+celular, mesmo passo de sempre) pra gerar um Secret novo com o cache MSAL
+incluído, e então esperar a próxima rodada agendada confirmar se a leitura
+volta a `live`. Se voltar a falhar mesmo com o cache novo, a hipótese cai e
+o próximo passo vira o que já estava planejado antes (capturar screenshot no
+meio da falha, que a Action não guarda hoje).
+
 ## Fechamento da sessão de 30/08/2026: aba do Outlook no ar; leitura da caixa de entrada ainda falha, causa não fechada
 
 Feito nesta sessão (detalhes completos nas duas entradas logo abaixo):
