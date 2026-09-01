@@ -1917,25 +1917,29 @@ TEMPLATE = """<!doctype html>
 <title>Guia diário — Univesp</title>
 <style>
   :root{
-    --bg:#faf9f5; --paper:#ffffff; --ink:#201f1c; --ink-soft:#5c584f; --line:#e7e2d7;
+    --bg:#eef1ec; --paper:#ffffff; --ink:#182420; --ink-soft:#57625c; --line:#d9e0d8;
+    --accent:#2c5266; --accent-soft:#e2eaee;
     --brick:#a3222c; --brick-soft:#f3e2df; --ok:#2f6b4f; --ok-bg:#e7f1ea;
     --wait:#8a5a15; --wait-bg:#f6ecd8; --locked:#8b8578; --locked-bg:#eeece4;
-    --shadow: 0 1px 2px rgba(32,31,28,.06), 0 6px 20px rgba(32,31,28,.05);
+    --mono:ui-monospace,"Cascadia Code",Consolas,"SFMono-Regular",Menlo,monospace;
+    --shadow: 0 1px 0 rgba(24,36,32,.05), 0 2px 8px rgba(24,36,32,.06);
   }
   :root[data-theme="dark"], .dark-vars{}
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
-      --bg:#171613; --paper:#201f1b; --ink:#f2efe6; --ink-soft:#b8b2a3; --line:#3a362d;
+      --bg:#121715; --paper:#1a221f; --ink:#eef1ec; --ink-soft:#9aa39c; --line:#2b332e;
+      --accent:#8fb4c4; --accent-soft:#20303a;
       --brick:#e2777c; --brick-soft:#3a2222; --ok:#7fcba3; --ok-bg:#1f3129;
       --wait:#e3b463; --wait-bg:#3a2f19; --locked:#87816f; --locked-bg:#2a2820;
-      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+      --shadow: 0 1px 0 rgba(0,0,0,.3), 0 2px 10px rgba(0,0,0,.3);
     }
   }
   :root[data-theme="dark"]{
-    --bg:#171613; --paper:#201f1b; --ink:#f2efe6; --ink-soft:#b8b2a3; --line:#3a362d;
+    --bg:#121715; --paper:#1a221f; --ink:#eef1ec; --ink-soft:#9aa39c; --line:#2b332e;
+    --accent:#8fb4c4; --accent-soft:#20303a;
     --brick:#e2777c; --brick-soft:#3a2222; --ok:#7fcba3; --ok-bg:#1f3129;
     --wait:#e3b463; --wait-bg:#3a2f19; --locked:#87816f; --locked-bg:#2a2820;
-    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+    --shadow: 0 1px 0 rgba(0,0,0,.3), 0 2px 10px rgba(0,0,0,.3);
   }
   *{box-sizing:border-box;}
   body{margin:0;background:var(--bg);color:var(--ink);
@@ -1946,12 +1950,14 @@ TEMPLATE = """<!doctype html>
           a aba "Chegou novo" abria com rolagem horizontal. A propriedade é
           herdada, então uma linha aqui cobre todo o conteúdo do AVA. */
        overflow-wrap:break-word;}
-  h1,h2,h3{font-family:Georgia,"Times New Roman",ui-serif,serif;font-weight:700;
+  h1,h2,h3{font-family:inherit;font-weight:800;letter-spacing:-.01em;
            text-wrap:balance;margin:0;}
   a{color:inherit;}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px;}
   .wrap{max-width:580px;margin:0 auto;}
-  .eyebrow{font-size:12px;letter-spacing:.09em;text-transform:uppercase;
-           color:var(--brick);font-weight:700;margin-bottom:8px;}
+  .eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;
+           color:var(--accent);font-weight:700;margin-bottom:8px;}
+  header.topo{border-bottom:2px solid var(--accent);padding-bottom:14px;margin-bottom:4px;}
   h1{font-size:24px;line-height:1.15;}
   .sub{color:var(--ink-soft);font-size:14px;margin-top:8px;}
   /* Cada assunto da aba "Chegou novo" ganha respiro, menos o primeiro. */
@@ -1963,21 +1969,21 @@ TEMPLATE = """<!doctype html>
   .alertbar code{background:rgba(0,0,0,.08);padding:1px 5px;border-radius:5px;}
   .sourcebar{font-size:11.5px;color:var(--ink-soft);margin:8px 0 14px;line-height:1.4;}
   .sourcebar.degraded{color:var(--wait);font-weight:600;}
-  .recado{background:var(--brick-soft);border:1px solid var(--brick);border-radius:14px;
+  .recado{background:var(--accent-soft);border:1px solid var(--accent);border-radius:8px;
           padding:16px;box-shadow:var(--shadow);margin:18px 0 22px;}
   .recado-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
-  .recado-label{font-size:12px;letter-spacing:.08em;text-transform:uppercase;
-                color:var(--brick);font-weight:700;}
+  .recado-label{font-family:var(--mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;
+                color:var(--accent);font-weight:700;}
   .recado-body p{margin:0 0 8px;font-size:14px;}
   .recado-body ul{margin:6px 0 8px;padding-left:20px;}
   .recado-body li{font-size:14px;margin-bottom:4px;}
   .recado-when{margin:10px 0 0;font-size:11.5px;color:var(--ink-soft);}
-  .bloco{background:var(--paper);border:1px solid var(--line);border-radius:14px;
+  .bloco{background:var(--paper);border:1px solid var(--line);border-radius:8px;
          padding:16px;box-shadow:var(--shadow);margin:18px 0;}
-  .bloco.destaque{border-color:var(--brick);}
+  .bloco.destaque{border-color:var(--accent);}
   .bloco h2{font-size:17px;margin-bottom:6px;}
-  .grupo{font-size:12px;letter-spacing:.06em;text-transform:uppercase;
-         color:var(--brick);margin:14px 0 6px;}
+  .grupo{font-family:var(--mono);font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;
+         color:var(--accent);margin:14px 0 6px;font-weight:700;}
   .grupo .muted{color:var(--ink-soft);font-weight:400;}
   .acoes{list-style:none;margin:0;padding:0;}
   .acao,.aviso{padding:10px 0;border-top:1px solid var(--line);}
@@ -1993,14 +1999,14 @@ TEMPLATE = """<!doctype html>
   .prazos-lidos{list-style:none;margin:6px 0 0;padding:6px 10px;border-radius:8px;
                 background:var(--wait-bg);}
   .prazos-lidos li{font-size:12px;color:var(--wait);padding:2px 0;}
-  .card{background:var(--paper);border:1px solid var(--line);border-radius:14px;
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:8px;
         padding:16px;margin-bottom:14px;box-shadow:var(--shadow);}
   .card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
   .card h3{font-size:16px;}
-  .code{font-size:12px;color:var(--ink-soft);font-weight:600;}
-  .progress-pill{font-size:11px;font-weight:700;padding:3px 8px;border-radius:99px;
-                 white-space:nowrap;background:var(--locked-bg);color:var(--locked);}
-  .progress-pill.has-progress{background:var(--ok-bg);color:var(--ok);}
+  .code{font-family:var(--mono);font-size:12px;color:var(--ink-soft);font-weight:600;}
+  .progress-pill{font-family:var(--mono);font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px;
+                 border:1px solid var(--locked);white-space:nowrap;background:var(--locked-bg);color:var(--locked);}
+  .progress-pill.has-progress{background:var(--ok-bg);color:var(--ok);border-color:var(--ok);}
   .sections{margin-top:6px;}
   .sec{border-top:1px solid var(--line);}
   .sec:first-child{border-top:none;}
@@ -2019,13 +2025,14 @@ TEMPLATE = """<!doctype html>
                font-size:14px;border-top:1px solid var(--line);}
   .tasklist li:first-child{border-top:none;}
   .tlabel{flex:1;}
-  .status{flex:0 0 auto;margin-top:2px;font-size:10.5px;font-weight:700;
-          text-transform:uppercase;padding:2px 7px;border-radius:6px;white-space:nowrap;}
-  .status.pend{background:var(--wait-bg);color:var(--wait);}
-  .status.ok{background:var(--ok-bg);color:var(--ok);}
-  .status.lock{background:var(--locked-bg);color:var(--locked);}
-  .status.brick{background:var(--brick-soft);color:var(--brick);}
-  .status.neutral{background:var(--locked-bg);color:var(--ink-soft);}
+  .status{flex:0 0 auto;margin-top:2px;font-family:var(--mono);font-size:10.5px;font-weight:700;
+          letter-spacing:.02em;text-transform:uppercase;padding:2px 7px;border-radius:4px;
+          border:1px solid transparent;white-space:nowrap;}
+  .status.pend{background:var(--wait-bg);color:var(--wait);border-color:var(--wait);}
+  .status.ok{background:var(--ok-bg);color:var(--ok);border-color:var(--ok);}
+  .status.lock{background:var(--locked-bg);color:var(--locked);border-color:var(--locked);}
+  .status.brick{background:var(--brick-soft);color:var(--brick);border-color:var(--brick);}
+  .status.neutral{background:var(--locked-bg);color:var(--ink-soft);border-color:var(--line);}
   /* Quadro das matérias. São 4 ou 5 colunas dentro de 580px, e ele abre isto
      no celular: a tabela rola dentro da própria caixa em vez de empurrar a
      página inteira para o lado. */
@@ -2045,12 +2052,12 @@ TEMPLATE = """<!doctype html>
   table.quadro tbody th{font-weight:700;}
   .q-linha td,.q-linha th{border-top:1px solid var(--line);}
   .q-linha:first-child td,.q-linha:first-child th{border-top:none;}
-  .q-atual{background:var(--brick-soft);}
-  .q-atual th{color:var(--brick);}
+  .q-atual{background:var(--accent-soft);}
+  .q-atual th{color:var(--accent);}
   .q-fechada{color:var(--ink-soft);}
   .q-fora th,.q-fora td{color:var(--locked);}
-  .q-agora{display:inline-block;margin-left:6px;font-size:9.5px;font-weight:700;
-           letter-spacing:.06em;text-transform:uppercase;color:var(--brick);}
+  .q-agora{display:inline-block;margin-left:6px;font-family:var(--mono);font-size:9.5px;font-weight:700;
+           letter-spacing:.06em;text-transform:uppercase;color:var(--accent);}
   .q-chip{display:inline-block;margin-top:0;}
   .q-chip a{text-decoration:none;}
   /* O detalhe é a única coisa que pode quebrar linha: sem isto, "nenhuma das
@@ -2064,12 +2071,12 @@ TEMPLATE = """<!doctype html>
   .tab-btn{flex:0 0 auto;display:flex;align-items:center;gap:6px;
            font-family:ui-sans-serif,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
            font-size:13px;font-weight:600;color:var(--ink-soft);
-           background:var(--paper);border:1px solid var(--line);border-radius:99px;
+           background:var(--paper);border:1px solid var(--line);border-radius:6px;
            padding:8px 14px;cursor:pointer;white-space:nowrap;transition:.15s ease;}
-  .tab-btn:hover{color:var(--ink);}
-  .tab-btn.active{background:var(--brick-soft);border-color:var(--brick);color:var(--brick);}
-  .tab-badge{font-size:11px;font-weight:700;background:rgba(128,128,128,.22);
-             color:inherit;border-radius:99px;padding:1px 7px;}
+  .tab-btn:hover{color:var(--ink);border-color:var(--accent);}
+  .tab-btn.active{background:var(--accent);border-color:var(--accent);color:var(--paper);}
+  .tab-badge{font-family:var(--mono);font-size:11px;font-weight:700;background:rgba(128,128,128,.22);
+             color:inherit;border-radius:4px;padding:1px 7px;}
   .tab-panels{margin-top:10px;}
   .tab-panel[hidden]{display:none;}
   @media (prefers-reduced-motion: reduce){.chev{transition:none;}}
@@ -2107,10 +2114,10 @@ TEMPLATE = """<!doctype html>
             position:sticky;top:26px;padding-right:22px;
             border-right:1px solid var(--line);}
     .tab-btn{width:100%;justify-content:space-between;text-align:left;
-             background:transparent;border-color:transparent;border-radius:9px;
+             background:transparent;border-color:transparent;border-radius:6px;
              padding:9px 12px;font-size:13.5px;}
     .tab-btn:hover{background:var(--locked-bg);}
-    .tab-btn.active{background:var(--brick-soft);border-color:transparent;}
+    .tab-btn.active{background:var(--accent-soft);border-color:transparent;color:var(--accent);}
     .tab-badge{background:rgba(128,128,128,.18);}
     .tab-panels{margin:0;min-width:0;}
     /* Medida de leitura. A fila é texto corrido, e linha de mil pixels
