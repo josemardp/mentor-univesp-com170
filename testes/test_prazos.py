@@ -15,7 +15,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "automacao"))
 import coletar as C  # noqa: E402
 from dominio.datas import sem_acento  # noqa: E402
-from dominio.prazos import eh_saudacao  # noqa: E402
+from dominio.prazos import eh_saudacao, modulos_citados  # noqa: E402
 from fontes.instrucoes import (  # noqa: E402
     _chave_do_prazo as chave_do_prazo,
     _como_aviso as como_aviso,
@@ -737,6 +737,67 @@ so_futuras = como_aviso(_item, [_pz_live] * 5, "A quinzena oferece 7 lives.",
                         [_pz_live] * 6)
 checa(so_futuras.get("lives_lidas") == 6,
       "a conta compara promessa da pagina com lista da pagina, nao com a fila")
+
+# ---------------------------------------------------------------------------
+print("\n== Prazo que nomeia os módulos confere só eles (03/09/2026) ==")
+
+# Texto real do calendário da Quinzena 4: "PRAZO MÓDULOS 1 A 4", com escopo de
+# quinzena. A cobrança morava na seção da quinzena, e conferir a quinzena
+# inteira exigia também os Laboratórios dos Módulos 6 e 7 — que só abrem
+# depois desse mesmo prazo. Com os quatro módulos concluídos, o guia seguia
+# pedindo "conclua os módulos 1 a 4".
+checa(modulos_citados({"rotulo": "Prazo módulos 1 a 4"}) == {1, 2, 3, 4},
+      "'módulos 1 a 4' nomeia os quatro, não só o primeiro")
+checa(modulos_citados({"rotulo": "", "escopo": {"txt": "PRAZO MÓDULOS 1 A 4"}})
+      == {1, 2, 3, 4}, "a faixa também é lida do texto do escopo")
+checa(modulos_citados({"rotulo": "Módulos 1, 2 e 4"}) == {1, 2, 4},
+      "lista de módulos vira o conjunto exato, sem inventar o 3")
+checa(modulos_citados({"rotulo": "Prazo final do Módulo 4"}) == {4},
+      "módulo único continua sendo um módulo só")
+checa(modulos_citados({"rotulo": "Entrega da semana 5"}) == set(),
+      "prazo que não fala de módulo devolve vazio e não muda nada")
+
+
+def _q4(status_m4, status_m6):
+    """Quinzena 4 com o prazo dos módulos 1 a 4 e o Laboratório do M6."""
+    prazo = {"rotulo": "Prazo módulos 1 a 4",
+             "quando": "2026-09-06T23:59:00-03:00", "trecho": "", "tipo": "fim",
+             "hora_certa": True, "frase": "PRAZO MÓDULOS 1 A 4",
+             "escopo": {"familia": "quinzena", "numeros": [4],
+                        "txt": "PRAZO MÓDULOS 1 A 4"}}
+
+    def secao(id_, titulo, pai, itens):
+        return {"id": id_, "title": titulo, "parent": pai, "fase": "regular",
+                "locked": None, "items": itens}
+
+    return {"courses": [{"code": "COM170", "modelo": "quinzenal",
+            "paginas_instrucao": [{"autor": "Univesp", "url": "u",
+                                   "prazos": [prazo]}],
+            "sections": [
+                secao(10, "Quinzena 4", None, []),
+                secao(11, "Q4 Módulo 4", 10, [
+                    {"cmid": "1", "label": "Q4 M4 - Mini-quiz", "type": "scorm",
+                     "status": status_m4, "conta_nota": True,
+                     "tem_nota": status_m4 == "Concluído", "aberto": True,
+                     "entrega_confirmada": status_m4 == "Concluído",
+                     "url": "#"}]),
+                secao(12, "Q4 Módulo 6", 10, [
+                    {"cmid": "2", "label": "Q4 M6 - Revisão entre pares",
+                     "type": "workshop", "status": status_m6,
+                     "conta_nota": True, "tem_nota": False, "enviado": False,
+                     "aberto": True, "url": "#"}]),
+            ]}]}
+
+
+def _cobra_modulos(dados):
+    return [a for a in C.montar_acoes(dados, HOJE)[0]
+            if "dulos 1 a 4" in (a.get("o_que") or "")]
+
+
+checa(len(_cobra_modulos(_q4("Pendente", None))) == 1,
+      "com o Módulo 4 pendente, a cobrança dos módulos 1 a 4 aparece")
+checa(_cobra_modulos(_q4("Concluído", None)) == [],
+      "com o Módulo 4 concluído, ela some mesmo com o Laboratório do M6 aberto")
 
 print("\n" + "=" * 62)
 if falhas:

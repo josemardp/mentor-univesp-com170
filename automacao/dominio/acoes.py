@@ -6,7 +6,13 @@ from datetime import date, datetime, timedelta
 from configuracao import NOVO_ATE_DIAS
 from dominio.datas import sem_acento
 from dominio.dependencias import propagar_urgencia
-from dominio.prazos import casar_prazos, extrair_prazos, fase_de, rotulo_fase
+from dominio.prazos import (
+    casar_prazos,
+    extrair_prazos,
+    fase_de,
+    modulos_citados,
+    rotulo_fase,
+)
 
 ORDEM = {
     "hoje": 0,
@@ -144,6 +150,45 @@ def itens_por_secao(curso, filtro=None):
         return itens
 
     return {secao.get("id"): coletar(secao) for secao in secoes}
+
+
+MODULO_NO_TITULO_RE = re.compile(r"^(?:q\d+\s+)?modulo\s+(\d+)\b")
+
+
+def _numero_de_modulo(titulo):
+    achado = MODULO_NO_TITULO_RE.match(sem_acento(titulo or "").strip().lower())
+    return int(achado.group(1)) if achado else None
+
+
+def _secoes_filhas(curso, secao, nivel=0):
+    """Sub-seções da seção, em qualquer profundidade."""
+    if nivel >= 6:
+        return []
+    saida = []
+    for outra in curso.get("sections") or []:
+        if outra is secao or outra.get("parent") != secao.get("id"):
+            continue
+        saida.append(outra)
+        saida.extend(_secoes_filhas(curso, outra, nivel + 1))
+    return saida
+
+
+def itens_dos_modulos(curso, secao, numeros, itens_de_secao):
+    """Itens só dos módulos que o prazo nomeia, dentro desta seção.
+
+    "Prazo módulos 1 a 4" mora na seção da quinzena, e a quinzena inteira
+    inclui os Módulos 6 e 7, cujos Laboratórios só abrem *depois* dessa data.
+    Conferir a quinzena toda faz a cobrança sobreviver à conclusão dos quatro
+    módulos que ela realmente exige. Devolve lista vazia quando nenhum módulo
+    citado existe aqui, e quem chama volta a olhar a seção inteira.
+    """
+    if not numeros:
+        return []
+    alvo = []
+    for filha in _secoes_filhas(curso, secao):
+        if _numero_de_modulo(filha.get("title")) in numeros:
+            alvo.extend(itens_de_secao.get(filha.get("id")) or [])
+    return alvo
 
 
 def laboratorios_por_secao(curso):
@@ -1407,10 +1452,21 @@ def montar_acoes(dados, hoje, agora=None):
                 # guia cobrou três seções 100% concluídas (COM100 Semana 2,
                 # COM170 Módulo 4 e Q2 Módulo 4), todas com o quiz já
                 # pontuado. Cobrança de seção morre quando a seção acaba.
-                if verbo == "Conclua" and _secao_cumprida(
-                    itens_de_secao.get(secao.get("id")) or []
-                ):
-                    continue
+                # Quando o prazo nomeia os módulos ("prazo módulos 1 a 4"), a
+                # conferência é só deles: a seção que hospeda o aviso é a
+                # quinzena inteira, e exigir a quinzena toda mantinha de pé
+                # uma cobrança já cumprida (03/09/2026, Quinzena 4).
+                if verbo == "Conclua":
+                    citados = itens_dos_modulos(
+                        curso,
+                        secao,
+                        modulos_citados(prazo),
+                        itens_de_secao,
+                    )
+                    if _secao_cumprida(
+                        citados or itens_de_secao.get(secao.get("id")) or []
+                    ):
+                        continue
                 # Dedup pelo que o Josemar vê. O facilitador postou o mesmo
                 # lembrete de 04/08 em dois fóruns no mesmo minuto, e a fila
                 # exibia duas linhas idênticas. Obrigações de verdade

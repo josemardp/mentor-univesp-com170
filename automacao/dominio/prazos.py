@@ -297,6 +297,50 @@ def encerra_escopo(fragmento):
 # porque ele exige que o título comece por não-dígito.
 PREFIXO_QUINZENA_RE = re.compile(r"^q(\d+)\s+", re.IGNORECASE)
 
+# "PRAZO MÓDULOS 1 A 4" nomeia quatro módulos, e o escopo genérico não os lê:
+# ``ESCOPO_RE`` só junta dígitos separados por espaço, vírgula e "e", então o
+# "a" da faixa corta a leitura no primeiro número. Estes dois padrões existem
+# para uma decisão diferente da do escopo — saber *quais* módulos a cobrança
+# exige — e por isso não tentam adivinhar quinzena nem família.
+FAIXA_DE_MODULOS_RE = re.compile(
+    r"\bmodulos?\s+(\d+)\s*(?:a|ate|-|—|–)\s*(\d+)\b"
+)
+LISTA_DE_MODULOS_RE = re.compile(r"\bmodulos?\s+((?:\d+\s*(?:,|e)\s*)*\d+)\b")
+
+
+def modulos_citados(prazo):
+    """Números dos módulos que o texto do prazo nomeia, se nomear algum.
+
+    Devolve conjunto vazio quando o prazo não fala de módulo nenhum, e quem
+    chama continua com o comportamento antigo. Achado real de 03/09/2026: o
+    calendário da Quinzena 4 traz "PRAZO MÓDULOS 1 A 4" com escopo de
+    *quinzena*, então a cobrança só morria quando a quinzena inteira acabasse
+    — incluindo os Laboratórios dos Módulos 6 e 7, que só abrem depois desse
+    mesmo prazo. Resultado: o guia cobrou "conclua os módulos 1 a 4" com os
+    quatro já concluídos, e continuaria cobrando até o fim da quinzena.
+    """
+    alvo = sem_acento(
+        " ".join(
+            filter(
+                None,
+                (
+                    prazo.get("rotulo"),
+                    (prazo.get("escopo") or {}).get("txt"),
+                    prazo.get("trecho"),
+                ),
+            )
+        )
+    ).lower()
+    faixa = FAIXA_DE_MODULOS_RE.search(alvo)
+    if faixa:
+        inicio, fim = int(faixa.group(1)), int(faixa.group(2))
+        if inicio <= fim and fim - inicio <= 20:
+            return set(range(inicio, fim + 1))
+    lista = LISTA_DE_MODULOS_RE.search(alvo)
+    if lista:
+        return {int(numero) for numero in re.findall(r"\d+", lista.group(1))}
+    return set()
+
 
 def escopo_cobre(escopo, titulo_secao):
     """O prazo é desta seção?
