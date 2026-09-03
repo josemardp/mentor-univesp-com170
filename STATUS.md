@@ -4,6 +4,61 @@
 > Site: https://esdraaline.github.io/mentor-univesp-com170/ (conta GitHub `esdraaline`)
 > Histórico completo de sessões, auditorias e etapas concluídas: [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
+## Participação volta a ser lida, Quinzena 4 fechada, 6 fóruns postados e dois consertos na fila (03/09/2026)
+
+Sessão longa, com quatro blocos.
+
+**1. Progresso de participação consertado (commit `8344139`).** A fonte
+falhava com `TimeoutError` desde ~30/08. Causa achada ao vivo: a Univesp
+parou de abrir a ferramenta em aba nova e passou a embuti-la num iframe da
+própria página (`mod/lti/view.php`), então o `expect_page` esperava 30s por
+uma aba que nunca nasce. `fontes/participacao.py` agora tenta a aba, e sem
+ela procura o iframe. O `finally` também deixou de chamar `.close()` cego,
+porque `Frame` não tem esse método. Rodada seguinte voltou a `live`.
+
+**2. COM170 Quinzena 4 concluída.** Módulos 1 a 4 fechados, incluindo o
+miniquiz final do M4 com 5 de 5 acertos na primeira tentativa. Fecha antes
+do prazo de 06/09, que é o que dá direito ao trabalho em grupo desta
+quinzena. Sobram M6 e M7 (revisão entre pares, 12/09), que só abrem
+segunda-feira 07/09.
+
+**3. Os 6 fóruns temáticos pendentes foram postados.** COM100 S6 (projeto
+Scratch "Portal da Invisibilidade", feito pelo Codex a pedido dele),
+COM100 S7 (infográfico dos 4 pilares gerado no Gemini, com link público),
+LET110 S6 e S7, SOC100 S6 e S7. Todos conferidos depois na lista oficial
+`mod/forum/user.php?id=134270`. Antes de escrever qualquer coisa, essa
+mesma lista foi usada para provar que ele ainda não tinha postado: a busca
+por nome na página do fórum não serve sozinha, tem um `BENEDITO JOSEMAR` na
+turma que dá falso positivo.
+
+**4. Dois defeitos da fila, achados por conferência e consertados.**
+
+- `af72388`: prazo que nomeia módulos passa a conferir só eles. O calendário
+  da Q4 traz "PRAZO MÓDULOS 1 A 4" com escopo de *quinzena*, e a cobrança
+  morava na seção da quinzena inteira, que inclui os Laboratórios do M6 e
+  M7. Esses abrem depois do próprio prazo, então a cobrança nunca tinha como
+  ser cumprida a tempo: com os quatro módulos concluídos o guia seguia
+  pedindo "conclua os módulos 1 a 4". Novo `modulos_citados` lê faixa
+  ("1 a 4") e lista ("1, 2 e 4"); prazo sem módulo nomeado não muda nada.
+- `e7f7c07`: questionário respondido e pontuado sai da fila mesmo com o selo
+  aberto. O selo "Concluído" é a caixinha manual "Marcar como feito", que
+  ninguém clica depois de responder, e as três avaliativas da S7 estavam com
+  10/10 sendo cobradas. A rede de segurança do calendário já sabia disso e
+  usava `entrega_confirmada`; o laço de itens não. Agora concordam. **A
+  prova exige dois sinais juntos**, porque tentativa em curso também imprime
+  "Suas tentativas" na página: o bloco na página e a nota no boletim. Vale
+  só para `quiz`, nunca para workshop (tem a avaliação do colega depois da
+  entrega) nem SCORM (registra nota por abrir).
+
+**Fila hoje, depois dos consertos:** nada que dependa dele agora. Sobram as
+revisões entre pares de 12/09, as lives da LET110 (04/09 e 08/09) e as três
+provas presenciais de 05/11, que seguem no conflito conhecido com o CAO.
+
+**Fora do repo, para quem retomar:** Suno pede captcha de imagem no
+navegador automatizado e ChatGPT responde 403 do Cloudflare. O Gemini
+funciona logado e o menu de três pontinhos gera link público que expõe só
+aquela conversa (conferido sem login).
+
 ## Auditoria ao vivo: robô bate com AVA/Portal, uma anomalia real achada no boletim do SOC100 (31/08/2026)
 
 Pedido do Josemar: conferir o que o robô mostrou nesta rodada (11:35 UTC)
