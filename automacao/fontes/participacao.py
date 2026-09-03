@@ -87,10 +87,20 @@ def item_de_participacao(secoes):
 
 
 def _abrir(page, url):
-    """Segue o lançamento LTI até a página externa que ele abre."""
+    """Segue o lançamento LTI até onde a ferramenta aparece.
+
+    Até por volta de 30/08/2026 ela abria numa aba nova, e é por isso que o
+    código abaixo ainda tenta isso primeiro. Confirmado ao vivo em
+    03/09/2026 (Chrome de ``ava_vivo.py``, sessão real): a Univesp passou a
+    embutir a ferramenta num iframe da própria página
+    (``mod/lti/view.php``), sem aba nenhuma. Era essa mudança que fazia
+    ``fontes_status.participacao`` falhar com TimeoutError desde então — o
+    ``expect_page`` original esperava 30s por uma aba que nunca nasce.
+    """
     contexto = page.context
+    nova = None
     try:
-        with contexto.expect_page(timeout=30000) as espera:
+        with contexto.expect_page(timeout=8000) as espera:
             page.goto(url, wait_until="domcontentloaded", timeout=45000)
         nova = espera.value
     except PlaywrightError:
@@ -99,11 +109,22 @@ def _abrir(page, url):
         nova = next(
             (p for p in contexto.pages if "ativa.univesp.br" in p.url), None
         )
-        if nova is None:
-            raise
-    nova.wait_for_load_state("domcontentloaded", timeout=30000)
-    nova.wait_for_timeout(2500)
-    return nova
+    if nova is not None:
+        nova.wait_for_load_state("domcontentloaded", timeout=30000)
+        nova.wait_for_timeout(2500)
+        return nova
+    # Sem aba: procura o iframe que carregou a ferramenta na própria página.
+    page.wait_for_timeout(2500)
+    for quadro in page.frames:
+        if quadro == page.main_frame:
+            continue
+        try:
+            texto = quadro.locator("body").inner_text(timeout=5000)
+        except PlaywrightError:
+            continue
+        if "progresso de participa" in sem_acento(texto).lower():
+            return quadro
+    raise PlaywrightError("nem aba nova nem iframe com a ferramenta apareceram")
 
 
 def _linhas(pagina):
@@ -228,10 +249,14 @@ def ler(page, secoes):
         dados["fonte"] = pagina.url
         return dados
     finally:
-        try:
-            pagina.close()
-        except PlaywrightError:
-            pass
+        # Frame (ferramenta embutida por iframe) não tem .close() — só a aba
+        # nova do lançamento antigo tinha, e só essa deve ser fechada.
+        fechar = getattr(pagina, "close", None)
+        if callable(fechar):
+            try:
+                fechar()
+            except PlaywrightError:
+                pass
 
 
 def resultado(page, secoes, checked_at, cache=None):
