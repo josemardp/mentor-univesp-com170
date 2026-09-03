@@ -263,6 +263,29 @@ def _participacao_pendente(item, modelo):
     return forum_de_participacao(item, modelo) and item.get("postei") is False
 
 
+def quiz_respondido_e_pontuado(item):
+    """Questionário com tentativa finalizada na página E nota no boletim.
+
+    O selo "Concluído" é manual em boa parte das disciplinas ("Marcar como
+    feito"), então ele fica aberto mesmo depois de responder. Achado real de
+    03/09/2026: as três avaliativas da Semana 7 (COM100, LET110, SOC100)
+    estavam com 10/10 e o guia seguia cobrando as três — o mesmo defeito que
+    a rede de segurança do calendário já sabia evitar, e que o laço de itens
+    ainda não sabia.
+
+    Exige os dois sinais, e não cada um sozinho, porque tentativa **em
+    curso** também imprime "Suas tentativas" na página; nota no boletim só
+    aparece depois de enviar. Vale só para ``quiz``: Laboratório tem uma
+    segunda obrigação depois de entregar (avaliar o trabalho do colega), e
+    SCORM registra nota por abrir, sem terminar.
+    """
+    return (
+        item.get("type") == "quiz"
+        and item.get("entrega_confirmada") is True
+        and bool(item.get("tem_nota"))
+    )
+
+
 def _item_resolvido(item):
     """O item já está feito? Mesmas regras que tiram o item da fila.
 
@@ -271,6 +294,8 @@ def _item_resolvido(item):
     continua cobrando a seção que só tinha aquele item — que é exatamente o
     defeito de 09/08/2026.
     """
+    if quiz_respondido_e_pontuado(item):
+        return True
     sem_entrega = (
         item.get("type") in TIPOS_QUE_VALEM_NOTA
         and entrega_provada(item) is False
@@ -1530,6 +1555,13 @@ def montar_acoes(dados, hoje, agora=None):
                 # marcação é manual e não prova nada. Quem prova é a lista de
                 # mensagens dele na disciplina.
                 falta_postar = _participacao_pendente(item, modelo_curso)
+                # Questionário respondido e pontuado sai da fila mesmo com o
+                # selo aberto: a caixinha "Marcar como feito" é manual e o
+                # aluno não tem por que clicá-la (03/09/2026, as três
+                # avaliativas da Semana 7 com 10/10 sendo cobradas).
+                if quiz_respondido_e_pontuado(item):
+                    resolvidos.add(cmid_item)
+                    continue
                 if (
                     item.get("status") == "Concluído"
                     and not sem_entrega

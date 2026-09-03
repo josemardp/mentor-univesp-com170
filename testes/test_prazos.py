@@ -799,6 +799,40 @@ checa(len(_cobra_modulos(_q4("Pendente", None))) == 1,
 checa(_cobra_modulos(_q4("Concluído", None)) == [],
       "com o Módulo 4 concluído, ela some mesmo com o Laboratório do M6 aberto")
 
+# ---------------------------------------------------------------------------
+print("\n== Questionário respondido sai da fila sem o selo (03/09/2026) ==")
+
+# COM100, LET110 e SOC100 tinham 10/10 na avaliativa da Semana 7 e o guia
+# cobrava as três: o selo do Moodle é a caixinha manual "Marcar como feito",
+# que ninguém clica depois de responder. A prova é outra — o bloco "Suas
+# tentativas" na página do questionário mais a nota no boletim.
+def _s7(entrega, tem_nota, tipo="quiz", **extra):
+    item = {"cmid": "9", "label": "S7 - Atividade Avaliativa", "type": tipo,
+            "status": "Marcar como feito", "conta_nota": True, "aberto": True,
+            "entrega_confirmada": entrega, "tem_nota": tem_nota,
+            "nota": 10.0 if tem_nota else None, "url": "#", **extra}
+    return {"courses": [{"code": "COM100", "modelo": "regular", "avisos": [],
+            "sections": [{"title": "Semana 7", "fase": "regular",
+                          "locked": None, "items": [item]}]}]}
+
+
+def _cobra_s7(dados):
+    return [a for a in C.montar_acoes(dados, HOJE)[0]
+            if a.get("o_que") == "S7 - Atividade Avaliativa"]
+
+
+checa(_cobra_s7(_s7(True, True)) == [],
+      "tentativa finalizada e nota no boletim tiram o questionário da fila")
+checa(len(_cobra_s7(_s7(True, False))) == 1,
+      "tentativa EM CURSO (sem nota) continua sendo cobrada")
+checa(len(_cobra_s7(_s7(False, False))) == 1,
+      "questionário sem tentativa nenhuma continua sendo cobrado")
+checa(len(_cobra_s7(_s7(None, False))) == 1,
+      "leitura que falhou não vira 'está feito'")
+checa(len(_cobra_s7(_s7(True, True, tipo="workshop", enviado=True,
+                        avaliacao_pendente=True))) == 1,
+      "Laboratório entregue mas com avaliação pendente NÃO sai pela regra do quiz")
+
 print("\n" + "=" * 62)
 if falhas:
     print(f"{len(falhas)} FALHA(S):")
