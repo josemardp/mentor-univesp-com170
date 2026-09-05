@@ -4,6 +4,45 @@
 > Site: https://esdraaline.github.io/mentor-univesp-com170/ (conta GitHub `esdraaline`)
 > Histórico completo de sessões, auditorias e etapas concluídas: [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
+## Encaminhamento testado e descartado: tenant da Univesp bloqueia em silêncio. Decisão: opção (b), tirar a fonte do robô (05/09/2026)
+
+Continuação direta da entrada logo abaixo ("Outlook: a fonte estava morta
+havia 5 dias..."), que fechava com duas opções de fundo: (a) encaminhar
+o e-mail institucional para um Gmail, (b) tirar a fonte do robô.
+
+**Testado ao vivo pelo Josemar, opção (a):** habilitou "Encaminhamento"
+em Configurações > Email > Encaminhamento
+(`conta-academica@exemplo.edu.br`), com "manter cópia" marcado. O Outlook
+**aceitou salvar** (mostrou banner "Encaminhando... para
+conta-pessoal@exemplo.com"). Quatro testes de e-mail, dois destinos
+diferentes (`conta-pessoal@exemplo.com`, depois `conta-comercial@exemplo.com`), mais
+de 10 minutos cada: **nenhuma mensagem chegou, e nenhum NDR voltou**
+(conferido direto no Gmail `conta-comercial@exemplo.com` via conector, que é o
+remetente dos três testes — buscas `in:anywhere` sem resultado, nem na
+caixa nem no spam).
+
+**Isso fecha o diagnóstico.** Pela documentação da Microsoft
+([outbound spam policy / external
+forwarding](https://learn.microsoft.com/en-us/defender-office-365/outbound-spam-policies-external-email-forwarding)),
+o padrão "Automatic - System-controlled" hoje equivale a "Off", e um
+tenant com encaminhamento externo bloqueado devolve NDR `5.7.520` para
+o remetente quando o bloqueio é no nível da política. Nenhum retorno
+depois de 10+ minutos em 4 tentativas é o padrão de um bloqueio mais
+silencioso ainda (a UI deixa configurar e nem devolve erro) — não dá
+mais para insistir tentando outro endereço ou esperando mais.
+
+**Decisão: opção (b).** A fonte `outlook` continua no robô como está
+(com os 3 consertos da entrada anterior: diagnóstico sanitizado,
+alarme de fonte parada, conferência de login sem corrida), mas sem
+expectativa de virar confiável — vive presa ao teto de 24h da sessão
+MSAL. Quando o Josemar quiser ver a caixa institucional de verdade, o
+caminho é a skill `sec-hotmail` (sessão aprovada por ele, navegador
+não-headless). **Ação pendente, não bloqueante:** desfazer o
+encaminhamento configurado no Outlook institucional (Configurações >
+Email > Encaminhamento > desmarcar "Habilitar encaminhamento") — ele
+ficou ligado e sem efeito, mas é higiene deixar a caixa sem
+configuração morta.
+
 ## Outlook: a fonte estava morta havia 5 dias, e o motivo é um teto da Microsoft, não um bug nosso (05/09/2026)
 
 Josemar perguntou se o robô estava rodando certinho. A Action estava
