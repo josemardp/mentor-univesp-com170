@@ -13,7 +13,7 @@ from dominio.acoes import montar_acoes  # noqa: E402
 from fontes.moodle import FalhaFonte  # noqa: E402
 from modelos import SourceResult  # noqa: E402
 from pipeline import Fonte, executar_fonte, executar_fontes, politica_publicacao  # noqa: E402
-from saude import completar_idade_fontes  # noqa: E402
+from saude import completar_idade_fontes, fontes_paradas  # noqa: E402
 
 fixture = json.loads(
     (ROOT / "testes" / "fixtures" / "snapshot_dourado_sanitizado.json")
@@ -110,3 +110,36 @@ assert status["foruns"]["quantidade_atual"] == 10
 assert status["foruns"]["from_cache"] is True
 assert status["foruns"]["truncado"] is True
 print("ok | status expõe estado, idade, quantidade, cache e truncamento")
+
+# Regressão de 05/09/2026: o Outlook ficou cinco dias em "falhou" sem a Action
+# ficar vermelha (é fonte que não bloqueia, e isso está certo) e sem uma linha
+# no e-mail diário (isso estava errado). O idade_segundos já existia e ninguém
+# lia.
+paradas = fontes_paradas({
+    "fontes_status": {
+        "outlook": {
+            "status": "falhou",
+            "idade_segundos": 362870,
+            "problemas": ["a lista de mensagens não montou"],
+        },
+        "calendario": {"status": "live", "idade_segundos": 0, "problemas": []},
+        "portal": {
+            "status": "parcial",
+            "idade_segundos": 0,
+            "problemas": ["o Sistema de Provas pediu verificação de robô"],
+        },
+        "boletim": {
+            "status": "falhou",
+            "idade_segundos": 600,
+            "problemas": ["uma disciplina não renderizou"],
+        },
+        "email_novo": {"status": "falhou", "idade_segundos": None, "problemas": []},
+    }
+})
+nomes = [p["fonte"] for p in paradas]
+assert nomes == ["email_novo", "outlook"], nomes
+assert paradas[1]["horas"] == 100
+assert paradas[1]["problema"] == "a lista de mensagens não montou"
+assert paradas[0]["horas"] is None
+assert paradas[0]["problema"] == "sem motivo declarado"
+print("ok | fonte parada há mais de um dia é reportada; falha recente e 'parcial' não viram ruído")

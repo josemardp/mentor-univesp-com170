@@ -138,6 +138,40 @@ def validar_cobertura(dados, anterior):
     return not problemas, problemas
 
 
+LIMITE_FONTE_PARADA_HORAS = 24
+
+
+def fontes_paradas(dados, limite_horas=LIMITE_FONTE_PARADA_HORAS):
+    """Fontes que não têm leitura boa há tempo demais.
+
+    ``FONTES_QUE_NAO_BLOQUEIAM`` está certa em não travar a rodada: perder o
+    Outlook não pode apagar a leitura boa do AVA. Mas "não trava" virou "não
+    avisa": em 05/09/2026 a fonte do Outlook estava morta havia cinco dias com
+    a Action verde, o e-mail diário sem uma linha sobre ela e o único sinal
+    numa aba do site que ninguém abre de propósito. O ``idade_segundos`` já
+    era calculado desde sempre, e nenhum código lia.
+
+    Fonte declarada ``nao_aplicavel`` fica de fora: é o estado normal de quem
+    nunca teve sessão configurada, não uma fonte que parou. ``parcial``
+    também: é leitura boa com ressalva, e o Sistema de Provas vive assim.
+    """
+    limite = limite_horas * 3600
+    paradas = []
+    for nome, info in sorted((dados.get("fontes_status") or {}).items()):
+        info = info or {}
+        if info.get("status") not in ("falhou", "degradado"):
+            continue
+        idade = info.get("idade_segundos")
+        if idade is not None and idade < limite:
+            continue
+        paradas.append({
+            "fonte": nome,
+            "horas": None if idade is None else int(idade // 3600),
+            "problema": "; ".join(info.get("problemas") or []) or "sem motivo declarado",
+        })
+    return paradas
+
+
 def completar_idade_fontes(status_atual, status_anterior, agora_iso):
     """Calcula a idade a partir do último sucesso real de cada fonte."""
     agora = datetime.fromisoformat(agora_iso)

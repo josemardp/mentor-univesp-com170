@@ -26,6 +26,10 @@ from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from saude import fontes_paradas  # noqa: E402
+
 ROOT = Path(__file__).resolve().parent.parent
 DATA_PATH = ROOT / "docs" / "data.json"
 ULTIMO_ENVIO_PATH = ROOT / "automacao" / ".ultimo_email_enviado"
@@ -295,6 +299,21 @@ def montar_texto(data):
             "resultado válido da fonte indisponível. Confira a saúde no site.",
         ]
         linhas += [f"  - {p}" for p in (data.get("problemas") or [])]
+        linhas.append("")
+
+    # Fonte que não trava a rodada também não avisava: o Outlook ficou cinco
+    # dias morto com a Action verde e este e-mail sem uma linha sobre ele
+    # (achado em 05/09/2026). Vai aqui em cima porque "não li" é diferente de
+    # "não tem nada", e só a primeira exige ele fazer alguma coisa.
+    paradas = fontes_paradas(data)
+    if paradas:
+        linhas.append(f"FONTE PARADA ({len(paradas)})")
+        for parada in paradas:
+            ha = (
+                "nunca leu" if parada["horas"] is None
+                else f"ha {parada['horas']}h sem leitura boa"
+            )
+            linhas.append(f"  - {parada['fonte']}: {ha}. {parada['problema']}")
         linhas.append("")
 
     acoes = data.get("acoes") or []
