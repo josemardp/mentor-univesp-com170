@@ -47,9 +47,11 @@ def resumo_fontes(dados):
 # Portal fora do ar não pode apagar a leitura boa do AVA.
 # O Outlook institucional entra pelo mesmo motivo do portal, com um agravante:
 # ele depende de uma sessão persistida (ver fontes/outlook_univesp.py sobre o
-# MFA do Microsoft Entra ID) que vence sozinha depois de semanas, sem que
-# ninguém troque senha nenhuma. "Sem sessão válida" é o estado normal dele
-# entre uma captura manual e a próxima, não uma falha do robô.
+# MFA do Microsoft Entra ID) que vence sozinha em no máximo 24h, sem que
+# ninguém troque senha nenhuma — teto da Microsoft para app de página única,
+# medido neste projeto em 05/09/2026. "Sem sessão válida" é o estado normal
+# dele entre uma captura manual e a próxima, não uma falha do robô. Mas não
+# bloquear não é o mesmo que não avisar: ver fontes_paradas() logo abaixo.
 FONTES_QUE_NAO_BLOQUEIAM = (
     "boletim", "participacao", "meus_posts", "portal", "outlook",
 )

@@ -12,18 +12,31 @@ por dia, sem ninguém com o celular na mão pra aprovar.
 
 A saída é a mesma que este projeto já usa pro Sistema de Provas, que fica
 atrás de verificação anti-robô: não contornar, e sim guardar uma sessão já
-aprovada por você, uma vez, pro robô reaproveitar. Ela dura enquanto a
-Microsoft mantiver "conectado" — costuma ser semanas, não um dia. Quando
-vencer, a fonte "outlook" do guia passa a dizer isso sozinha (fica em
-"falhou", com a mensagem pedindo pra rodar este script de novo), e o resto
-do guia continua normal, do jeito que já continua sem o Portal quando ele
-cai.
+aprovada por você, uma vez, pro robô reaproveitar. Quando vencer, a fonte
+"outlook" do guia diz isso sozinha (fica em "falhou", com a mensagem pedindo
+pra rodar este script de novo), e o resto do guia continua normal, do jeito
+que já continua sem o Portal quando ele cai.
+
+ATENÇÃO, e isto muda o que dá pra esperar deste script: até 05/09/2026 este
+texto prometia que a sessão duraria "semanas, não um dia". Está errado, e
+nunca foi alcançável. O Outlook web é um app MSAL de página única, e o
+Microsoft Entra ID dá a esse tipo de app um refresh token de NO MÁXIMO 24
+horas, que não se configura e que renovar não estende (os tokens seguintes
+herdam o mesmo vencimento). Passadas as 24h, só um login interativo em
+janela de primeiro plano recupera — exatamente o que uma Action agendada não
+pode fazer. Medido duas vezes neste projeto: a captura de 29/08 leu bem por
+~24h, a de 31/08 por ~12h, e as duas morreram em seguida.
+
+Ou seja: rodar este script compra menos de um dia de leitura, não semanas.
+Enquanto a decisão de fundo não for tomada (encaminhar o e-mail
+institucional pro Gmail, ou tirar esta fonte do robô), esta é a expectativa
+correta. Ver STATUS.md, entrada de 05/09/2026.
 
 O que este script faz:
   1. Abre um Chrome VISÍVEL — você precisa ver a tela pra aprovar o MFA.
   2. Você faz o login à mão: aprova no Authenticator e clica em
-     "Sim" / "Manter-me conectado" quando a Microsoft perguntar. É esse
-     "sim" que faz a sessão durar semanas em vez de um dia.
+     "Sim" / "Manter-me conectado" quando a Microsoft perguntar. (Esse
+     "sim" ajuda o login seguinte, mas não estica o teto de 24h acima.)
   3. Assim que a caixa de entrada aparecer na tela, aperte ENTER aqui no
      terminal. O script confere que saiu da tela de login antes de salvar.
   4. A sessão (cookies + cache de autenticação do MSAL, nunca a senha) vai

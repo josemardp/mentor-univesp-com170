@@ -4,6 +4,79 @@
 > Site: https://esdraaline.github.io/mentor-univesp-com170/ (conta GitHub `esdraaline`)
 > Histórico completo de sessões, auditorias e etapas concluídas: [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
+## Outlook: a fonte estava morta havia 5 dias, e o motivo é um teto da Microsoft, não um bug nosso (05/09/2026)
+
+Josemar perguntou se o robô estava rodando certinho. A Action estava
+verde em todas as rodadas, no horário, com nove fontes `live` — e a fonte
+`outlook` estava **falhando desde 31/08 às 19:52 UTC**, cinco dias, em
+silêncio.
+
+**A causa é estrutural e está documentada pela Microsoft.** O Outlook web
+é um app MSAL de página única, e o Entra ID dá a esse tipo de app um
+refresh token de **no máximo 24 horas**, que não se configura e que
+renovar não estende (os tokens seguintes herdam o mesmo vencimento).
+Passadas as 24h, só um login interativo em janela de primeiro plano
+recupera, que é justamente o que uma Action agendada não pode fazer.
+Referências: [refresh
+tokens](https://learn.microsoft.com/en-us/entra/identity-platform/refresh-tokens)
+e [authorization code
+flow](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow).
+
+As vidas medidas no histórico do `docs/data.json` batem com o teto:
+captura de ~29/08 leu bem até 30/08 01:17 e morreu (~24h); captura de
+31/08 11:28 leu às 11:35, 17:57 e 19:52 e morreu antes das 23:40 (~12h).
+**A promessa que estava escrita no `capturar_sessao_outlook.py` ("dura
+semanas, não um dia") nunca foi alcançável.** O conserto do cache MSAL de
+31/08 era necessário de verdade, mas foi declarado fechado com uma
+confirmação feita 7 minutos depois de uma captura nova — dentro da janela
+em que qualquer coisa funciona. A validação não tinha como distinguir
+"consertado" de "recém-capturado". Lição para as próximas: **confirmação
+de conserto desta fonte dentro das primeiras horas após uma captura não
+prova nada.**
+
+**Três defeitos nossos, achados no caminho e consertados.**
+
+- `35ffceb`: a conferência de login em `_abrir_caixa` era **uma amostra
+  só** — bastava um instante fora do domínio de login para a fonte se
+  declarar logada, e esse instante é logo após o `domcontentloaded`,
+  quando a página ainda está em `outlook.office.com` e o redirecionamento
+  nem começou. Sessão vencida passava como boa e ia morrer 30s adiante na
+  varredura publicando "a lista de mensagens não montou". Foi por isso
+  que a fonte passou cinco dias **pedindo o conserto errado**: a mensagem
+  certa ("rode `capturar_sessao_outlook.py` de novo") já existia e nunca
+  era alcançada. Agora exige amostras seguidas fora do login, mais uma
+  rede de segurança no caminho de falha da varredura.
+- `0614ff9`: `idade_segundos` era calculado desde sempre e **nenhum
+  código lia**. Novo `fontes_paradas()` em `saude.py`, e o e-mail diário
+  passa a abrir com `FONTE PARADA` quando uma fonte está há mais de 24h
+  sem leitura boa. `nao_aplicavel` e `parcial` ficam de fora, senão o
+  aviso vira ruído.
+- `a9eaacf`: a linha do site que responde "posso confiar no que estou
+  lendo?" **não tinha o Outlook na lista**, apesar do comentário dela
+  dizer que toda fonte lida é declarada "sem exceção" — o mesmo defeito
+  que já tinha acontecido com boletim, participação e portal. Agora ela
+  diz "houve falha ao atualizar: e-mail institucional".
+
+**Diagnóstico novo na falha (`9583638`).** A mensagem era a mesma frase
+para três defeitos diferentes (login, erro do Outlook, shell vazio).
+Agora diz onde a tela parou e quais marcadores de um vocabulário fixo
+casaram — **sanitizado de propósito**, porque `docs/data.json` é público:
+nunca publica o texto nem o título da tela. Foi ele que fechou o
+diagnóstico, na rodada manual `33968216636`: `a tela parou em
+https://login.microsoftonline.com/common/oauth2/v2.0/authorize (tela de
+login dentro do app; 102 caractere(s) de texto, 0 iframe(s))`.
+
+**Decisão de fundo pendente, é do Josemar.** Recapturar a sessão compra
+menos de um dia de leitura, então não é solução, é só um teste. As
+opções reais: (a) encaminhar/redirecionar o e-mail institucional para o
+Gmail, que já é triado, e a fonte deixa de precisar de sessão — depende
+de o tenant da Univesp permitir encaminhamento externo, e dá para testar
+em minutos no Outlook web; (b) tirar a fonte do robô e usar a skill
+`sec-hotmail` quando ele quiser ver a caixa institucional. Graph com app
+registrado no tenant e IMAP com senha de app estão fora: o primeiro
+precisa de admin da Univesp, o segundo é basic auth, desligado em tenant
+com MFA.
+
 ## Participação volta a ser lida, Quinzena 4 fechada, 6 fóruns postados e dois consertos na fila (03/09/2026)
 
 Sessão longa, com quatro blocos.
