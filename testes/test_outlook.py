@@ -229,7 +229,8 @@ class PaginaFalsa:
 
     def __init__(self, urls_login=(), rotulos=(), aria_setsize=None, rola=True,
                  rotulos_lixo=None, aria_setsize_lixo=None, falha_goto=(),
-                 pasta_vazia_lixo=False, falhas_montagem=0):
+                 pasta_vazia_lixo=False, falhas_montagem=0, texto_da_tela="",
+                 iframes=0):
         self._urls = list(urls_login) or ["https://outlook.cloud.microsoft/mail/"]
         self.url = self._urls[0]
         self._rotulos_por_pasta = {
@@ -249,6 +250,8 @@ class PaginaFalsa:
         self._falha_goto = set(falha_goto)
         self._pasta_vazia_lixo = pasta_vazia_lixo
         self._falhas_montagem = falhas_montagem
+        self._texto_da_tela = texto_da_tela
+        self._iframes = iframes
 
     def goto(self, url, *a, **k):
         if any(trecho in url for trecho in self._falha_goto):
@@ -279,6 +282,13 @@ class PaginaFalsa:
             return self._rola
         if js == outlook_univesp.JS_PASTA_VAZIA:
             return self._pasta == "lixo" and self._pasta_vazia_lixo
+        if js == outlook_univesp.JS_DIAGNOSTICO:
+            return {
+                "endereco": self.url.split("?")[0],
+                "texto": self._texto_da_tela,
+                "iframes": self._iframes,
+                "opcoes": len(rotulos),
+            }
         raise AssertionError(f"evaluate inesperado: {js[:60]}")
 
 
@@ -320,6 +330,43 @@ mensagens, aviso = outlook_univesp._varrer_caixa(pagina_nunca_estabiliza, teto=4
 checa(mensagens is None and "não montou" in aviso,
       "se a navegação nunca estabiliza, ainda desiste com 'não montou' depois de 30 tentativas, sem propagar a exceção")
 
+
+print("\n== diagnóstico da tela: diz o que apareceu, sem publicar o conteúdo ==")
+# A fonte morreu três vezes com a mesma frase ("a lista de mensagens não
+# montou"), que não distingue login, erro do Outlook e shell vazio. O
+# diagnóstico separa os três, e não pode vazar o que está escrito na tela:
+# docs/data.json é público.
+
+pagina_login_no_app = PaginaFalsa(
+    rotulos=[],
+    texto_da_tela="Entrar em sua conta\nEmail, telefone ou Skype\nPróxima",
+)
+diag = outlook_univesp._diagnostico_da_tela(pagina_login_no_app)
+checa("tela de login dentro do app" in diag,
+      "tela de login renderizada dentro do domínio do Outlook é reconhecida pelo marcador")
+checa("Entrar em sua conta" not in diag and "Skype" not in diag,
+      "o texto da tela NUNCA entra no diagnóstico (docs/data.json é público)")
+checa("outlook.cloud.microsoft/mail/" in diag,
+      "o endereço onde a página parou entra, porque é ele que diz se caiu de domínio")
+
+pagina_shell_vazio = PaginaFalsa(rotulos=[], texto_da_tela="", iframes=3)
+diag_vazio = outlook_univesp._diagnostico_da_tela(pagina_shell_vazio)
+checa("nenhum marcador conhecido" in diag_vazio,
+      "shell que carrega e fica vazio se declara assim, em vez de fingir diagnóstico")
+checa("3 iframe(s)" in diag_vazio,
+      "a contagem de iframes entra: é por iframe que o MSAL tenta renovar o token calado")
+
+
+class PaginaQueNaoInspeciona(PaginaFalsa):
+    def evaluate(self, js):
+        if js == outlook_univesp.JS_DIAGNOSTICO:
+            raise outlook_univesp.PlaywrightError("Target page, context or browser has been closed")
+        return super().evaluate(js)
+
+
+diag_falho = outlook_univesp._diagnostico_da_tela(PaginaQueNaoInspeciona(rotulos=[]))
+checa("não consegui inspecionar a tela" in diag_falho,
+      "se nem o diagnóstico roda, ele diz isso em vez de explodir e derrubar a fonte")
 
 print("\n== login: sessão salva expirada é reconhecida ==")
 
@@ -483,6 +530,29 @@ checa(resultado5.status == "parcial",
       "sem o texto de pasta vazia na tela, a leitura que não montou continua avisando")
 checa(any("lixo eletrônico" in p for p in resultado5.problemas),
       "o aviso de leitura travada continua saindo quando não é vazio confirmado")
+os.environ.pop("OUTLOOK_STORAGE_STATE", None)
+
+
+print("\n== resultado(): a falha da caixa de entrada sai com o diagnóstico junto ==")
+# Regressão da recaída achada em 05/09/2026: a fonte ficou 5 dias publicando
+# só "a lista de mensagens não montou", frase que serve para três defeitos
+# diferentes e não ajudava a escolher nenhum conserto.
+
+os.environ["OUTLOOK_STORAGE_STATE"] = '{"cookies": []}'
+pagina_inbox_morta = PaginaFalsa(
+    rotulos=[], texto_da_tela="Algo deu errado. Tente novamente mais tarde."
+)
+resultado_morto = outlook_univesp.resultado(
+    NavegadorComSessao(ContextoFalso(pagina_inbox_morta)),
+    "2026-09-05T10:00:00-03:00",
+)
+checa(resultado_morto.status == "falhou",
+      "caixa de entrada que não monta continua sendo falha declarada")
+checa(any("não montou" in p and "erro do próprio Outlook" in p
+          for p in resultado_morto.problemas),
+      "o problema publicado junta o sintoma e o diagnóstico numa linha só")
+checa(not any("Tente novamente" in p for p in resultado_morto.problemas),
+      "e o texto da tela continua fora do que vai para o data.json público")
 os.environ.pop("OUTLOOK_STORAGE_STATE", None)
 
 

@@ -91,6 +91,43 @@ JS_PASTA_VAZIA = """() => (
     && /Nenhum conteúdo em/.test(document.body.innerText)
 )"""
 
+# Quando a lista não monta, "a lista de mensagens não montou" não diz o que a
+# tela está mostrando, e foi por isso que esta fonte já morreu três vezes sem
+# ninguém saber o motivo (30/08, 31/08 e a recaída achada em 05/09/2026).
+#
+# O diagnóstico vai parar em ``docs/data.json``, que é PÚBLICO (Pages + git).
+# Por isso ele nunca publica o texto da página nem o título: publica só o
+# endereço (origem + caminho, sem query), quais marcadores desta lista fixa
+# casaram, e três contagens genéricas. Marcador é vocabulário fechado — nada
+# do que estiver escrito na tela vaza por ele.
+MARCADORES_DE_TELA = (
+    ("tela de login dentro do app", (
+        "entrar em sua conta", "escolha uma conta", "pick an account",
+        "sign in", "insira a senha", "manter-me conectado",
+    )),
+    ("sessão expirada", (
+        "sua sessao expirou", "session has expired", "faca login novamente",
+        "sign in again", "sua sessao terminou",
+    )),
+    ("erro do próprio Outlook", (
+        "algo deu errado", "something went wrong", "nao foi possivel carregar",
+        "couldn't load", "tente novamente mais tarde",
+    )),
+    ("verificação anti-robô", (
+        "verificacao de seguranca", "captcha", "confirme que voce",
+    )),
+    ("acesso negado", (
+        "nao tem permissao", "access denied", "acesso negado",
+    )),
+)
+
+JS_DIAGNOSTICO = """() => ({
+    endereco: location.origin + location.pathname,
+    texto: (document.body && document.body.innerText) || '',
+    iframes: document.querySelectorAll('iframe').length,
+    opcoes: document.querySelectorAll('div[role="option"]').length,
+})"""
+
 
 def _tem_sessao_persistida():
     return bool(os.environ.get("OUTLOOK_STORAGE_STATE"))
@@ -222,6 +259,36 @@ def _pasta_vazia(page):
         return False
 
 
+def _diagnostico_da_tela(page):
+    """O que a tela mostra quando a lista não monta, sem vazar conteúdo.
+
+    Só entra no caminho de falha da caixa de entrada. Devolve uma frase curta
+    para grudar na mensagem de erro: endereço onde a página parou, marcadores
+    conhecidos que casaram (ver ``MARCADORES_DE_TELA``) e o tamanho do texto
+    da tela. Texto curto com zero marcador é a assinatura de "shell carregou e
+    ficou vazio", que é diferente de "caiu no login" e de "o Outlook mostrou
+    erro" — e essas três pedem conserto diferente.
+    """
+    try:
+        bruto = page.evaluate(JS_DIAGNOSTICO)
+    except PlaywrightError as erro:
+        return f"não consegui inspecionar a tela ({_resumo_erro(erro)})"
+    if not isinstance(bruto, dict):
+        return "não consegui inspecionar a tela (resposta inesperada)"
+
+    texto = sem_acento(bruto.get("texto") or "")
+    achados = [
+        nome for nome, termos in MARCADORES_DE_TELA
+        if any(termo in texto for termo in termos)
+    ]
+    return (
+        f"a tela parou em {bruto.get('endereco') or 'endereço desconhecido'} "
+        f"({', '.join(achados) if achados else 'nenhum marcador conhecido'}; "
+        f"{len(texto)} caractere(s) de texto, "
+        f"{bruto.get('iframes', 0)} iframe(s))"
+    )
+
+
 def _resumo_pasta(mensagens):
     return {
         "total": len(mensagens),
@@ -281,7 +348,10 @@ def resultado(navegador, checked_at, cache=None):
         mensagens_inbox, aviso_inbox = _varrer_caixa(page, teto=MAX_MENSAGENS_OUTLOOK)
         if mensagens_inbox is None:
             return SourceResult(
-                status="falhou", dados={}, problemas=[aviso_inbox], checked_at=checked_at
+                status="falhou",
+                dados={},
+                problemas=[f"{aviso_inbox} — {_diagnostico_da_tela(page)}"],
+                checked_at=checked_at,
             )
 
         problemas = [aviso_inbox] if aviso_inbox else []
