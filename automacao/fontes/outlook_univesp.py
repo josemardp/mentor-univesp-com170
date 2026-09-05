@@ -151,22 +151,45 @@ def _resumo_erro(erro):
     return primeira_linha[:160] or type(erro).__name__
 
 
+SESSAO_VENCIDA = (
+    "a sessão salva do Outlook não vale mais (parou na tela de login). "
+    "Rode automacao/capturar_sessao_outlook.py de novo e atualize o Secret "
+    "OUTLOOK_STORAGE_STATE"
+)
+
+# Quantas amostras seguidas fora do domínio de login provam que a página
+# assentou. Uma só não prova nada — ver `_abrir_caixa`.
+CONFIRMACOES_FORA_DO_LOGIN = 3
+
+
 def _abrir_caixa(page, url=MAIL_URL):
     try:
         page.goto(url, wait_until="domcontentloaded", timeout=45000)
     except PlaywrightError as erro:
         return False, f"não consegui abrir o Outlook ({_resumo_erro(erro)})"
+
+    # A conferência era uma amostra só: bastava UM instante fora do domínio de
+    # login para a fonte se declarar logada, e o primeiro instante é logo
+    # depois do `domcontentloaded`, quando a página ainda está em
+    # outlook.office.com e o redirecionamento para o login sequer começou.
+    # Resultado: sessão vencida passava por aqui como boa e ia morrer 30s
+    # adiante em `_varrer_caixa`, publicando "a lista de mensagens não montou"
+    # — sintoma genérico — em vez desta mensagem, que já existia e diz o que
+    # fazer. Foi assim que a fonte passou cinco dias pedindo o conserto errado.
+    #
+    # Medido ao vivo em 05/09/2026, com o diagnóstico novo: a tela tinha
+    # parado em login.microsoftonline.com/common/oauth2/v2.0/authorize.
+    #
+    # Agora a página precisa ficar fora do login em amostras seguidas. Sessão
+    # boa assenta fora do login e alcança; sessão vencida assenta NO login e
+    # nunca alcança. O redirecionamento no meio do caminho deixa de enganar.
+    seguidas = 0
     for _ in range(20):
-        if _logado(page):
-            break
+        seguidas = seguidas + 1 if _logado(page) else 0
+        if seguidas >= CONFIRMACOES_FORA_DO_LOGIN:
+            return True, ""
         page.wait_for_timeout(1000)
-    if not _logado(page):
-        return False, (
-            "a sessão salva do Outlook não vale mais (caiu na tela de "
-            "login). Rode automacao/capturar_sessao_outlook.py de novo e "
-            "atualize o Secret OUTLOOK_STORAGE_STATE"
-        )
-    return True, ""
+    return False, SESSAO_VENCIDA
 
 
 def _varrer_caixa(page, teto=MAX_MENSAGENS_OUTLOOK):
@@ -347,10 +370,18 @@ def resultado(navegador, checked_at, cache=None):
             )
         mensagens_inbox, aviso_inbox = _varrer_caixa(page, teto=MAX_MENSAGENS_OUTLOOK)
         if mensagens_inbox is None:
+            # Rede de segurança do conserto em `_abrir_caixa`: se o
+            # redirecionamento para o login acontecer DEPOIS que a caixa foi
+            # dada como aberta, quem descobre é aqui. Sessão vencida tem
+            # conserto conhecido, e a mensagem precisa dizer qual é.
+            motivo = (
+                SESSAO_VENCIDA if not _logado(page)
+                else f"{aviso_inbox} — {_diagnostico_da_tela(page)}"
+            )
             return SourceResult(
                 status="falhou",
                 dados={},
-                problemas=[f"{aviso_inbox} — {_diagnostico_da_tela(page)}"],
+                problemas=[motivo],
                 checked_at=checked_at,
             )
 

@@ -387,6 +387,25 @@ pagina_logada = PaginaFalsa(
 ok, motivo = outlook_univesp._abrir_caixa(pagina_logada)
 checa(ok, "sessão que resolve o login sozinha (SSO válido) é reconhecida")
 
+# A causa da recaída de 31/08 a 05/09/2026, medida ao vivo: a página começa em
+# outlook.office.com (ainda não redirecionou), e é EXATAMENTE nesse instante
+# que a conferência caía. Uma amostra só dava "logado", `_abrir_caixa`
+# devolvia sucesso, e a sessão vencida ia morrer 30s depois na varredura com a
+# mensagem errada. A tela real tinha parado em
+# login.microsoftonline.com/common/oauth2/v2.0/authorize.
+pagina_redireciona_depois = PaginaFalsa(
+    urls_login=(
+        ["https://outlook.office.com/mail/"]
+        + ["https://login.microsoftonline.com/common/oauth2/v2.0/authorize"] * 30
+    )
+)
+ok, motivo = outlook_univesp._abrir_caixa(pagina_redireciona_depois)
+checa(not ok,
+      "sessão vencida que só redireciona para o login DEPOIS do primeiro instante é pega")
+checa("capturar_sessao_outlook" in motivo,
+      "e o motivo é o conserto de verdade (recapturar a sessão), não 'a lista não montou'")
+
+
 
 print("\n== resultado(): degradação sem quebrar o pipeline ==")
 
@@ -553,6 +572,25 @@ checa(any("não montou" in p and "erro do próprio Outlook" in p
       "o problema publicado junta o sintoma e o diagnóstico numa linha só")
 checa(not any("Tente novamente" in p for p in resultado_morto.problemas),
       "e o texto da tela continua fora do que vai para o data.json público")
+
+# Rede de segurança: o redirecionamento para o login pode acontecer depois de
+# `_abrir_caixa` já ter dado a caixa como aberta. Aí quem tem que reconhecer a
+# sessão vencida é o caminho de falha da varredura.
+pagina_login_tardio = PaginaFalsa(
+    rotulos=[],
+    urls_login=(
+        ["https://outlook.office.com/mail/"] * 4
+        + ["https://login.microsoftonline.com/common/oauth2/v2.0/authorize"] * 60
+    ),
+    texto_da_tela="Entrar em sua conta",
+)
+resultado_tardio = outlook_univesp.resultado(
+    NavegadorComSessao(ContextoFalso(pagina_login_tardio)),
+    "2026-09-05T13:00:00-03:00",
+)
+checa(resultado_tardio.status == "falhou", "sessão vencida continua sendo falha declarada")
+checa(any("capturar_sessao_outlook" in p for p in resultado_tardio.problemas),
+      "redirecionamento para o login depois da caixa aberta ainda vira 'recapture a sessão'")
 os.environ.pop("OUTLOOK_STORAGE_STATE", None)
 
 
