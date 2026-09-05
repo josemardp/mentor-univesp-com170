@@ -59,16 +59,16 @@ jobs:
       # não atalhava nada: a sessão era restaurada, vencia, e o robô logava
       # com AVA_USUARIO/AVA_SENHA de qualquer jeito. Manter significava
       # carregar um cofre a mais e três scripts de manutenção para renová-la.
-      # OUTLOOK_STORAGE_STATE é opcional de propósito: sem ele a fonte
-      # "outlook" só devolve nao_aplicavel e o resto do guia segue normal.
-      # Ela é capturada uma vez à mão (automacao/capturar_sessao_outlook.py)
-      # porque o login daquela conta pede aprovação por push do Microsoft
-      # Authenticator, que ninguém pode aprovar numa Action agendada.
+      #
+      # OUTLOOK_STORAGE_STATE saiu em 05-06/09/2026, pelo mesmo motivo: virou
+      # cofre morto. `pipeline.py` não chama mais `fontes/outlook_univesp.py`
+      # — o Entra ID limita a sessão desse tipo de app a 24h sem exceção, e a
+      # alternativa (app próprio via Microsoft Graph) foi testada e morreu no
+      # bloqueio de autorregistro do tenant da Univesp. Ver STATUS.md.
       - name: Gerar guia
         env:
           AVA_USUARIO: ${{ secrets.AVA_USUARIO }}
           AVA_SENHA: ${{ secrets.AVA_SENHA }}
-          OUTLOOK_STORAGE_STATE: ${{ secrets.OUTLOOK_STORAGE_STATE }}
         run: python automacao/gerar_guia.py
 
       # O login salva a sessão em disco durante a execução. Ela nunca sai do

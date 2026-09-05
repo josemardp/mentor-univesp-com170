@@ -1,5 +1,15 @@
 # -*- coding: utf-8 -*-
 """
+DESATIVADO em 05-06/09/2026 — o robô não lê mais o Outlook institucional.
+`pipeline.py` não chama `fontes/outlook_univesp.py`, e o Secret
+OUTLOOK_STORAGE_STATE saiu do workflow. Não é bug: o Entra ID limita a sessão
+desse tipo de app a 24h sem exceção (não configurável), e a alternativa via
+Microsoft Graph (app próprio, refresh token de 90 dias) foi testada e morreu
+no bloqueio de autorregistro do tenant da Univesp (401 em entra.microsoft.com
+e portal.azure.com). Ver STATUS.md, entrada de 05-06/09/2026, para o
+histórico completo. Este script fica no repositório só para o caso de a
+política do tenant mudar um dia — rodá-lo hoje grava um Secret que ninguém lê.
+
 Sessão do Outlook institucional pro robô, feita uma vez, com você aprovando
 o MFA no celular.
 

@@ -4,6 +4,46 @@
 > Site: https://esdraaline.github.io/mentor-univesp-com170/ (conta GitHub `esdraaline`)
 > Histórico completo de sessões, auditorias e etapas concluídas: [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
+## Fonte Outlook removida do robô de vez, decisão fechada (06/09/2026)
+
+Continuação e fechamento das duas entradas logo abaixo. Depois do encaminhamento
+descartado, o Josemar pediu um teste a mais antes de desistir de vez: um app
+próprio no Entra ID, tipo "Mobile and desktop" (não SPA), que teria refresh
+token de até 90 dias em vez do teto de 24h. Pediu pro Spark testar.
+
+**Primeira rodada do Spark não provou nada.** Tentou logar com ferramentas
+prontas da Microsoft (Azure CLI, Azure PowerShell, Graph CLI) em vez de
+registrar um app próprio — os erros que trouxe (`AADSTS65002`, `AADSTS700016`)
+são sobre essas ferramentas nunca terem sido autorizadas no tenant, não sobre
+se o Josemar pode criar app dele. Pedi uma segunda rodada, mais estreita, só
+com o teste que decide: abrir a tela de registro de app por dois caminhos
+diferentes (`portal.azure.com` com deep-link direto na blade de App
+registrations, e `aad.portal.azure.com`).
+
+**Segunda rodada: mesmo resultado, agora direto.** Os dois caminhos caem no
+mesmo `entra.microsoft.com`, que devolve 401 ("Você não tem acesso") pra
+`conta-academica@exemplo.edu.br`. Sem ambiguidade de "testou a coisa errada" desta
+vez — é a própria tela de registro, não uma ferramenta de terceiro.
+
+**Decisão do Josemar: fechado, sem solução.** Removida a fonte `outlook` de
+`pipeline.py` (não chama mais `fontes/outlook_univesp.py`), o Secret
+`OUTLOOK_STORAGE_STATE` saiu do `.github/workflows/guia-diario.yml`, e as
+referências em `saude.py`/`render.py` foram limpas (deixavam menção morta a
+uma fonte que não roda mais). O módulo `fontes/outlook_univesp.py` e o script
+`automacao/capturar_sessao_outlook.py` continuam no repositório, marcados
+como desativados — se a política do tenant mudar um dia, é só religar. O
+Secret `OUTLOOK_STORAGE_STATE` continua existindo no GitHub (não apagado),
+só não é mais lido por nada.
+
+**Para ver a caixa institucional de agora em diante:** skill `sec-hotmail`,
+sessão aprovada à mão pelo Josemar, do jeito que já era usado antes de
+existir a ambição de automatizar isso.
+
+**Pendência que sobrou, sem prazo:** o Josemar configurou encaminhamento no
+Outlook institucional durante o teste (entrada abaixo) e ele ficou ligado,
+sem efeito. Vale ele desfazer em Configurações > Email > Encaminhamento
+quando lembrar — não é urgente, só higiene.
+
 ## Encaminhamento testado e descartado: tenant da Univesp bloqueia em silêncio. Decisão: opção (b), tirar a fonte do robô (05/09/2026)
 
 Continuação direta da entrada logo abaixo ("Outlook: a fonte estava morta

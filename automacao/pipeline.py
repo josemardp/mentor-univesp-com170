@@ -27,7 +27,6 @@ from fontes import (
     itens,
     meus_posts,
     notificacoes,
-    outlook_univesp,
     participacao,
     portal,
 )
@@ -701,15 +700,17 @@ def executar_coleta(estado, anterior=None):
             cache_fontes["portal"] = resultado_portal.dados
         dados_portal = resultado_portal.dados or {}
 
-        # O Outlook é o quinto sistema e o único que não abre com
-        # AVA_USUARIO/AVA_SENHA: precisa da sessão persistida capturada por
-        # capturar_sessao_outlook.py (ver fontes/outlook_univesp.py sobre o
-        # porquê do MFA). Por isso ganha um contexto próprio, não uma aba do
-        # `contexto` do AVA. Deliberadamente sem cache entre rodadas: ver o
-        # aviso de privacidade no topo de outlook_univesp.py.
-        resultado_outlook = outlook_univesp.resultado(navegador, checked_at)
-        dados_outlook = resultado_outlook.dados or {}
-
+        # O Outlook institucional SAIU do robô em 05/09/2026. Não é falha de
+        # código: o Outlook web é um app MSAL de página única, e o Entra ID
+        # limita refresh token de SPA a 24h, sem configuração possível — a
+        # sessão persistida nunca durou mais que isso. A alternativa (app
+        # próprio via Microsoft Graph, refresh token de 90 dias) foi testada
+        # e descartada: o tenant da Univesp bloqueia o autorregistro de apps
+        # (entra.microsoft.com e portal.azure.com devolvem 401 para o
+        # usuário comum). Ver STATUS.md, entrada de 05-06/09/2026, para o
+        # histórico completo da investigação. `fontes/outlook_univesp.py` e
+        # `automacao/capturar_sessao_outlook.py` continuam no repositório,
+        # sem uso — se o tenant um dia mudar a política, é só religar aqui.
         navegador.close()
 
     if erros_estrutura:
@@ -818,7 +819,6 @@ def executar_coleta(estado, anterior=None):
 
     resultados_finais = {
         "portal": resultado_portal,
-        "outlook": resultado_outlook,
         "disciplinas": descoberta,
         "calendario": resultado_calendario,
         "cronograma": agregado_cronograma,
@@ -847,7 +847,7 @@ def executar_coleta(estado, anterior=None):
         for nome, resultado in resultados_finais.items()
         if resultado.status in ("falhou", "degradado")
         and nome not in (
-            "boletim", "participacao", "meus_posts", "portal", "outlook",
+            "boletim", "participacao", "meus_posts", "portal",
         )
     ]
     return {
@@ -856,7 +856,6 @@ def executar_coleta(estado, anterior=None):
         "mensagens": sinais.get("mensagens", []),
         "eventos": eventos,
         "portal": dados_portal,
-        "outlook": dados_outlook,
         "fontes_status": status_fontes,
         "_fonte_obrigatoria_falhou": descoberta.status == "falhou",
         "_fontes_degradadas": degradadas,

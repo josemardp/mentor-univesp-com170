@@ -45,15 +45,16 @@ def resumo_fontes(dados):
 # O portal do aluno entra na mesma lista, por outro motivo: ele é um sistema
 # separado, com login e sessão próprios, e o guia funcionou meses sem ele.
 # Portal fora do ar não pode apagar a leitura boa do AVA.
-# O Outlook institucional entra pelo mesmo motivo do portal, com um agravante:
-# ele depende de uma sessão persistida (ver fontes/outlook_univesp.py sobre o
-# MFA do Microsoft Entra ID) que vence sozinha em no máximo 24h, sem que
-# ninguém troque senha nenhuma — teto da Microsoft para app de página única,
-# medido neste projeto em 05/09/2026. "Sem sessão válida" é o estado normal
-# dele entre uma captura manual e a próxima, não uma falha do robô. Mas não
-# bloquear não é o mesmo que não avisar: ver fontes_paradas() logo abaixo.
+# O Outlook institucional passou por aqui e foi RETIRADO do robô em
+# 05-06/09/2026 (não está mais em `pipeline.py`, então nunca mais aparece em
+# `fontes_status`). Não foi falta de esforço: o Entra ID limita a sessão desse
+# tipo de app a 24h sem exceção, e a alternativa (app próprio via Graph,
+# refresh token de 90 dias) morreu porque o tenant da Univesp bloqueia
+# autorregistro de app para usuário comum (401 em entra.microsoft.com e em
+# portal.azure.com, medido ao vivo). Ver STATUS.md para o histórico. Fica
+# registrado aqui só para quem procurar "outlook" e estranhar a ausência.
 FONTES_QUE_NAO_BLOQUEIAM = (
-    "boletim", "participacao", "meus_posts", "portal", "outlook",
+    "boletim", "participacao", "meus_posts", "portal",
 )
 
 

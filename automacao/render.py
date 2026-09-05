@@ -217,7 +217,6 @@ def render_fontes_status(data):
         "participacao": "progresso de participação",
         "meus_posts": "suas mensagens de fórum",
         "portal": "portal do aluno",
-        "outlook": "e-mail institucional",
     }
     # Esta linha existe pra responder "posso confiar no que estou lendo?".
     # A primeira versão saía em idioma de programador ("foruns: live (60,
@@ -230,13 +229,8 @@ def render_fontes_status(data):
     # novas: em 15/08 o portal estava parcial, com "o Sistema de Provas pediu
     # verificação de robô" registrado, e a linha saía verde. Toda fonte lida é
     # fonte declarada, sem exceção — é isso que impede a linha de mentir.
-    # O Outlook entrou na lista em 05/09/2026, pelo mesmo motivo que boletim,
-    # participação e portal entraram antes: ficando de fora, ele podia falhar
-    # dias seguidos com esta linha continuando verde. E foi o que aconteceu —
-    # cinco dias morto, e aqui não saía uma palavra.
     ordem = ("disciplinas", "calendario", "cronograma", "foruns", "itens",
-             "notificacoes", "boletim", "participacao", "meus_posts", "portal",
-             "outlook")
+             "notificacoes", "boletim", "participacao", "meus_posts", "portal")
     quantidades = {
         "disciplinas": "{n} disciplinas",
         "calendario": "{n} prazos no calendário",
@@ -247,7 +241,6 @@ def render_fontes_status(data):
         "participacao": "{n} quinzenas de participação",
         "meus_posts": "{n} fóruns em que você escreveu",
         "portal": "{n} provas no portal",
-        "outlook": "{n} mensagens no e-mail institucional",
     }
 
     horas, numeros, falhas, parciais, truncadas = set(), [], [], [], []
