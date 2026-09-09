@@ -61,6 +61,13 @@ Atualmente, o aluno está cursando as seguintes disciplinas (baseado no `docs/da
   robô/skills para apoiar o aluno. `.playwright-mcp/` (usado pra upload no
   AVA) é ignorado pelo git, não sobrou nada solto no repo.
 
+### Sessão 09/09/2026 - Trabalho em Grupo COM170 Q4 M7 (Protocolo da Nexo)
+- **Contexto:** Josemar foi escolhido como representante do Grupo G4 (colega, colega, colega e Josemar) para submeter o trabalho em grupo.
+- **Ações realizadas:**
+  1. Analisados os 7 arquivos recebidos dos colegas em Downloads (`PORTFOLIO_MODULO_5_QUINZENA 4.pdf`, `colega Q5 M6.pdf`, `Portfolio_Individual_Modulo_6.PDF`, `trabalho_nexo_g4.PDF`).
+  2. Identificadas duas correções críticas na minuta preliminar do grupo: (a) remoção dos nomes reais para atender à regra oficial de anonimato da Univesp; (b) inclusão do Caso B (Caio / Josemar), que havia ficado de fora da tabela do Bloco 1.
+  3. Gerado o PDF final corrigido e diagramado em alto padrão: `C:\Users\pc\Downloads\Reflexao_de_Grupo_Q4_M7_G4.pdf` (e cópia no repositório), contendo os 4 integrantes/casos nos Blocos 1, 2 e 3, no nível Consolidado da rubrica.
+
 ## 4. Aprendizados e Preferências do Usuário
 - O usuário prefere que os commits sejam feitos diretamente na branch principal (`main`), sem a criação de branches intermediárias.
 - O usuário gosta de um estilo "padrão dos estudantes" para respostas em fóruns (não muito formal, mas acadêmico e engajado).
@@ -70,12 +77,9 @@ Atualmente, o aluno está cursando as seguintes disciplinas (baseado no `docs/da
 - [ ] **Trocar a senha do AVA.** Ela ficou em texto puro neste arquivo, num
       repositório público, entre 30/07 e 04/08/2026. Foi removida do arquivo em
       04/08, mas continua no histórico do Git: só a troca resolve.
-- [ ] Monitorar o AVA para novas liberações de módulos ou prazos de atividades.
-- [ ] **COM170 Q4 M7:** grupo G4 ainda não decidiu quem é o representante da
-      quinzena (pergunta postada no fórum em 08/09, sem resposta ainda).
-      Prazo do Protocolo em grupo: sábado 12/09, 23:59.
-- [ ] **COM170 Q4 M7:** avisar a colega (fora do AVA, zap do grupo) que o Fecho
-      dela está num formato diferente do que o Bloco 1 do Protocolo precisa.
+- [ ] **COM170 Q4 M7:** Postar prévia no fórum Ponto de Encontro para o grupo G4 e realizar o envio do `Reflexao_de_Grupo_Q4_M7_G4.pdf` no Laboratório de Revisão (Prazo: sábado 12/09, 23:59).
+- [ ] **COM170 Q4 M6/M7:** Aguardar abertura da fase de avaliação entre pares no domingo (13/09).
 
 ---
-*Última atualização: 08/09/2026*
+*Última atualização: 09/09/2026*
+
