@@ -8,3 +8,15 @@ __pycache__/
 
 # Scratch de sessao (PDFs baixados para conferencia, nao fazem parte do guia)
 tmp/
+
+# === Dados do AVA: NUNCA versionar (regra de 12/09/2026) ===
+# O estado.json chegou a guardar 573 posts de forum com o nome completo de 254
+# colegas, raspados de ambiente logado, e ficou publico. O repositorio passou a
+# ser so o CODIGO que gera o painel; o painel e os dados sao artefato local.
+#
+# Estas linhas sao a trava: "git add docs/estado.json" nao passa com o arquivo
+# ignorado, nem pelo workflow. Para gerar o painel na sua maquina, rode o
+# gerador normalmente; os arquivos aparecem em docs/ e ficam so ali.
+docs/estado.json
+docs/data.json
+docs/index.html
