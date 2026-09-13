@@ -1,74 +1,130 @@
-# mentor-univesp
+# Mentor UNIVESP
 
-Agente que acompanha um curso universitário a distância no lugar do aluno: entra no
-ambiente virtual (Moodle) e nos sistemas satélite, lê o que mudou, cruza prazos, fóruns,
-notas e avisos, e entrega um briefing diário do que precisa ser feito.
+Automação de processos educacionais e consolidação de rotina acadêmica via Playwright para ambientes virtuais de aprendizagem sem API pública.
 
-Construído para uso real, todo dia, num curso em andamento. Rodou agendado no GitHub
-Actions até 12/09/2026, cinco vezes ao dia, publicando o painel e mandando o resumo por
-e-mail. Hoje roda na máquina do aluno, por comando: a publicação saiu porque o painel
-mostra post de fórum com nome de colega, e isso não pode ficar num repositório público.
+---
 
-## O que este repositório demonstra
+## Visão Geral
 
-- **Automação de navegador contra sistemas que não têm API.** Playwright em Python
-  operando Moodle, portal do aluno e Outlook institucional, com login via SSO federado
-  (Microsoft, cache MSAL) e tratamento explícito das telas que quebram o fluxo
-  (verificação anti-robô, sessão expirada, tenant que bloqueia autorregistro).
-- **Arquitetura de fontes isoladas.** Cada sistema é uma fonte independente em
-  `automacao/fontes/`: boletim, calendário, cronograma, disciplinas, fóruns, itens,
-  posts próprios, Outlook, portal. Uma fonte que falha não derruba as outras; o
-  resultado sai marcado como `falhou` ou `não aplicável`, nunca como dado inventado.
-  Há teste específico para isso (`test_isolamento_fontes.py`).
-- **Testes onde o risco mora.** Doze suítes em `testes/`, incluindo um *golden test*
-  que compara a saída contra um snapshot sanitizado, testes de parsing de prazos,
-  de participação em fórum, de revisão entre pares e de login. Rodam antes de cada
-  execução; se falham, a rodada para.
-- **Operação documentada como engenharia.** `STATUS.md` registra o estado real do
-  sistema, sessão a sessão. Cinco rodadas de auditoria independente estão
-  versionadas na raiz, com achados e correções. Decisões que não são óbvias no
-  código estão escritas, com data e motivo.
-- **Credenciais fora do repositório, sempre.** Senha, sessão salva e SMTP vivem em
-  GitHub Secrets. O script que as cadastra (`automacao/salvar_credenciais.py`) lê
-  a senha sem eco e não grava em arquivo. Nunca houve segredo commitado.
+O **Mentor UNIVESP** é um projeto de automação desenvolvido para apoiar a gestão do tempo e o acompanhamento de prazos de um estudante universitário em curso de graduação a distância.
 
-## O que este repositório NÃO contém, e por quê
+Ambientes Virtuais de Aprendizagem (AVAs baseados em Moodle), sistemas acadêmicos satélites e e-mails institucionais costumam manter informações dispersas, sem alertas proativos consolidados e sem APIs públicas de integração. Este projeto utiliza **Playwright** para navegar de forma resiliente por esses sistemas, extrair dados operacionais (prazos, fóruns, avaliações, materiais), validar a integridade dessas leituras e gerar um **briefing diário unificado** na máquina local do estudante.
 
-Este é o código que gera o painel. O painel e os dados que ele consome ficam **fora
-do controle de versão**, por regra:
+---
 
-- `docs/estado.json` e `docs/data.json` guardam posts de fórum, com nome completo dos
-  colegas, raspados de ambiente que exige login. Isso é dado pessoal de terceiro e
-  **não entra em repositório**, muito menos público.
-- `docs/index.html` é o briefing do aluno, com notas e desempenho. Dado pessoal.
+## O Problema que Resolve
 
-Os três estão no `.gitignore`. O `git add` deles não passa, nem pelo workflow. Quem
-clonar e rodar o gerador produz os próprios arquivos localmente, e eles ficam só ali.
+- **Informação dispersa em múltiplos sistemas:** o estudante precisava navegar manualmente entre o Moodle (AVA), o Portal do Aluno e o webmail institucional (Outlook) para descobrir tarefas pendentes.
+- **Ausência de APIs:** as plataformas institucionais não fornecem endpoints públicos ou documentados para consulta de tarefas e notas.
+- **Risco de perda de prazos:** atividades com janelas curtas de submissão ou regras específicas (como revisão entre pares em fóruns) podiam passar despercebidas.
+- **Complexidade de autenticação:** fluxo protegido por SSO federado corporativo (Microsoft/Office 365), com telas anti-robô e expiração de sessão.
 
-Essa regra foi escrita em setembro de 2026, depois de uma auditoria que encontrou o
-`estado.json` publicado por engano. A correção não foi só apagar: foi separar o que é
-código do que é dado, para que o repositório pudesse ser público sem expor ninguém.
+---
 
-## Como rodar
+## Arquitetura da Automação
 
+O pipeline opera por meio de etapas bem definidas, garantindo isolamento de falhas e proteção estrita da privacidade:
+
+```mermaid
+flowchart TD
+    A["Moodle / AVA / Portal Institucional / Webmail"] --> B["Autenticação SSO Federada (Microsoft / MSAL)"]
+    B --> C["Motor de Automação de Navegador (Playwright)"]
+    C --> D["Fontes Isoladas (Boletim, Calendário, Fóruns, Prazos)"]
+    D --> E["Validação e Golden Tests (Fixtures Sanitizadas)"]
+    E --> F["Sanitização de Dados e Políticas de Privacidade"]
+    F --> G["Briefing Acadêmico Local (HTML / Notificação)"]
+```
+
+---
+
+## Como a Automação Funciona
+
+1. **Navegação com Playwright:** o motor acessa os sistemas web simulando a navegação do usuário autenticado. Ele trata explicitamente situações de transição, como carregamento assíncrono de componentes, avisos de tela cheia e sessões expiradas.
+2. **Fontes Isoladas (*Fault Isolation*):** cada subsistema (boletim de notas, calendário de eventos, tópicos de fóruns, avisos gerais) é extraído por um módulo independente em `automacao/fontes/`. Se o portal de notas estiver temporariamente indisponível ou passar por manutenção, as outras fontes (fórum, prazos da semana) continuam funcionando normalmente. O sistema marca a fonte indisponível como `não confirmada` ou `falhou`, sem derrubar a execução e sem inventar dados.
+3. **Resiliência e Recuperação:** retentativas defensivas para falhas transitórias de rede, sem insistir em requisições quando a sessão foi efetivamente encerrada pelo servidor.
+
+---
+
+## Privacidade e Proteção de Dados de Terceiros
+
+A privacidade é uma restrição arquitetural essencial deste projeto:
+
+- **Código versus Dados:** o repositório no GitHub armazena estritamente o código-fonte do motor e fixtures de teste sintéticas.
+- **Bloqueio de Dados Reais no Git:** arquivos como `docs/data.json`, `docs/index.html` e `docs/estado.json` estão expressamente incluídos no `.gitignore`.
+- **Proteção de Colegas e Docentes:** mensagens de fórum e interações com colegas contêm nomes e dados pessoais de terceiros. Nenhum desses dados é versionado, publicado ou enviado para servidores externos.
+- **Credenciais Seguras:** credenciais de acesso nunca são gravadas em arquivos de código ou histórico.
+- **Execução Local:** o briefing é gerado e consumido localmente na estação de trabalho do estudante.
+
+---
+
+## Demonstração Visual (Dados Sintéticos)
+
+Exemplo de visualização do painel diário consolidado, gerado com dados de teste completamente sanitizados:
+
+![Briefing Acadêmico Sanitizado](docs/screenshots/briefing-academico.png)
+
+*Nota: Todas as notas, títulos de disciplinas e datas exibidas na imagem acima foram gerados a partir de fixtures de teste sintéticas para fins de demonstração.*
+
+---
+
+## Qualidade e Testes Automatizados
+
+O repositório conta com **12 suítes de testes automatizados**, responsáveis por garantir que as heurísticas de extração e os cálculos de prazo permaneçam íntegros mesmo após mudanças de layout nos sistemas de origem:
+
+| Suíte | Foco da Validação |
+|---|---|
+| `test_golden.py` | *Golden test* comparando a extração ponta a ponta contra snapshot de referência sanitizado. |
+| `test_isolamento_fontes.py` | Garante que a falha de uma fonte não compromete os dados das demais. |
+| `test_prazos.py` | Valida heurísticas de parsing de datas, carências e fusos horários. |
+| `test_revisao_entre_pares.py` | Regras complexas de workshops e avaliações mútuas de estudantes. |
+| `test_quadro.py` | Montagem da grade semanal e quinzenal de tarefas. |
+| `test_operacao.py` | Políticas de publicação local, integridade de logging e guardrails de segurança. |
+| Outras 6 suítes | Login simulado, workshop enviado, portal, fórum e webmail institucional. |
+
+---
+
+## Como Executar Localmente
+
+### Pré-requisitos
+- Python 3.10 ou superior.
+- Navegadores do Playwright instalados.
+
+### Instalação
 ```bash
+git clone https://github.com/esdraaline/mentor-univesp-com170.git
+cd mentor-univesp-com170
 pip install -r automacao/requirements.txt
 python -m playwright install chromium
-python automacao/salvar_credenciais.py     # cadastra AVA_USUARIO e AVA_SENHA nos Secrets
-python testes/test_golden.py               # confere que o motor está íntegro
 ```
 
-Não há execução agendada no GitHub: o painel e os dados são gerados na máquina do aluno
-(`python automacao/gerar_guia.py`) e nunca são publicados. Os workflows antigos foram
-removidos em 12/09/2026 porque ainda apontavam para o Pages desativado.
-
-## Estrutura
-
+### Executar os Testes
+Para rodar a verificação de integridade e o teste golden (utilizando apenas fixtures sintéticas):
+```bash
+python testes/test_golden.py
+python testes/test_isolamento_fontes.py
+python testes/test_operacao.py
 ```
-automacao/         motor: navegação, fontes, geração do painel e do e-mail
-automacao/fontes/  uma fonte por sistema, isoladas entre si
-testes/            doze suítes; fixtures sanitizadas em testes/fixtures/
-references/        notas sobre o curso: calendário, avaliação, navegação
-STATUS.md          estado real do sistema, sessão a sessão
-AUDITORIA-*.md     cinco rodadas de auditoria independente, com achados e correções
+
+### Gerar o Briefing Localmente
+```bash
+# Execução local da coleta e montagem do briefing:
+python automacao/gerar_guia.py
 ```
+
+Não há execução agendada no GitHub: o painel e os dados são gerados na máquina do aluno (`python automacao/gerar_guia.py`) e nunca são publicados em repositório ou páginas públicas.
+
+---
+
+## Sobre o Desenvolvimento
+
+Este projeto foi concebido como uma iniciativa pessoal e laboratório de aprendizagem em **automação de processos, integração de sistemas legados e resiliência de software**, buscando resolver um problema real de sobrecarga cognitiva e organização de estudos.
+
+O desenvolvimento foi realizado com **apoio intensivo de ferramentas de Inteligência Artificial** para acelerar a escrita de scripts, geração de expressões regulares e estruturação das suítes de teste. O mapeamento dos fluxos de navegação, a modelagem dos estados de exceção, a política estrita de privacidade e a garantia de qualidade foram concebidos e guiados diretamente pelo autor.
+
+---
+
+## Status do Projeto
+
+- **Fase:** Funcional em execução local assistida.
+- **Segurança:** 100% livre de credenciais, cookies ou dados de terceiros no repositório.
+- **Suítes de Teste:** 12 suítes de teste verdes.
