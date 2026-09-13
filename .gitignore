@@ -20,3 +20,9 @@ tmp/
 docs/estado.json
 docs/data.json
 docs/index.html
+
+# Agenda de prova, notas e entregas com nome de colega: dado pessoal, fica local
+docs/provas.json
+docs/revisao.json
+entregas_s4/*.pdf
+entregas_s4/qa/

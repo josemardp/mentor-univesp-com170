@@ -56,8 +56,9 @@ python automacao/salvar_credenciais.py     # cadastra AVA_USUARIO e AVA_SENHA no
 python testes/test_golden.py               # confere que o motor está íntegro
 ```
 
-A execução agendada está em `.github/workflows/guia-diario.yml`. Para rodar uma vez na
-mão, dispare o workflow manualmente ou execute o gerador local.
+Não há execução agendada no GitHub: o painel e os dados são gerados na máquina do aluno
+(`python automacao/gerar_guia.py`) e nunca são publicados. Os workflows antigos foram
+removidos em 12/09/2026 porque ainda apontavam para o Pages desativado.
 
 ## Estrutura
 
