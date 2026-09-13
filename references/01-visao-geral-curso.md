@@ -11,8 +11,8 @@
 - **ID do usuário (Moodle)**: 134270 (Josemar de Paula)
 
 ## Professor / Autor do conteúdo
-- **Prof. Dr. coordenador** — aparece no bloco lateral "Autor" da página do curso e como **Coordenador do Minicurso AIA** nos vídeos de abertura de cada semana.
-  - Mini currículo: Graduação em Engenharia de Computação (Instituto Militar de Engenharia, 1989), Mestrado em Ciência da Computação (texto truncado no levantamento — reabrir o bloco lateral do curso para ler na íntegra se precisar).
+- **O coordenador do minicurso** (nome não registrado aqui: dado de terceiro) — aparece no bloco lateral "Autor" da página do curso e como **Coordenador do Minicurso AIA** nos vídeos de abertura de cada semana.
+  - O bloco lateral do curso traz o mini currículo dele. Não fica registrado aqui: é dado de terceiro.
   - Não está confirmado se ele também é "o facilitador da turma" no sentido do Manual do Ingressante, ou apenas o professor-coordenador de conteúdo do AIA.
 
 ## Estrutura macro do curso (índice de seções)

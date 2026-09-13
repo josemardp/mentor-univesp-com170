@@ -8,7 +8,7 @@ comum), na prática **COM170** neste momento funciona como o **AIA**: um "minicu
 semanas, obrigatório antes de começar as disciplinas regulares, em formato de "missões",
 não de aulas tradicionais.
 
-- **Coordenador do Minicurso AIA**: Prof. coordenador (vídeos de abertura/boas-vindas de cada semana).
+- **Coordenador do Minicurso AIA**: o coordenador (vídeos de abertura/boas-vindas de cada semana).
 - O Manual do Ingressante fala em "Facilitador de turma"; no AIA, quem aparece no conteúdo é o "Coordenador do Minicurso" — pode ou não ser o mesmo papel. **formador** e **formador** aparecem como "Formadores" desta turma (aba Informação do curso) — prováveis facilitadores operacionais, sem confirmação de rótulo oficial.
 - Depois que o AIA acabar (4 semanas), o aluno provavelmente migra para a disciplina estruturante regular — não confirmado se ocupa o mesmo espaço Moodle ou vira um curso novo.
 
@@ -33,7 +33,7 @@ Seção: https://ava.univesp.br/course/section.php?id=79317
 ## Semana 2 — "Mapa da Univesp" (concluída no snapshot, com pendências de leitura em fóruns)
 Seção: https://ava.univesp.br/course/section.php?id=79318
 
-1. **S2 - Início** — vídeo do Prof. coordenador (~4 min) explicando formação de grupos e a missão da semana; apresenta o NotebookLM.
+1. **S2 - Início** — vídeo do coordenador (~4 min) explicando formação de grupos e a missão da semana; apresenta o NotebookLM.
 2. **S2 - Como organizar seus estudos esta semana**
 3. **S2 - NotebookLM** — ferramenta do Google para consultar/organizar documentos-fonte com respostas rastreáveis; inclui tutorial interativo.
 4. **S2 - A missão da semana** — tarefa em grupo: produzir um **"FAQ do Calouro"** com as 10 perguntas mais úteis para quem está começando na Univesp, cada uma com pergunta + resposta verificada em fonte oficial + fonte citada. Temas sugeridos: AVA por dentro, polo presencial, canais de ajuda, documentos oficiais. Regra importante: **"Resposta gerada por IA sem verificação em fonte oficial não é entrega aceita."**
@@ -52,7 +52,7 @@ Seção: https://ava.univesp.br/course/section.php?id=79319 — disponível a pa
    - **Status:** **Enviado** em 09/07/2026 pelo grupo G4 (arquivo `Cartao_de_Entrega_Semana3_IA.PDF`).
 2. **Fórum do Grupo (Participação):**
    - Discussão e debate no tópico "Missão da Semana 3".
-   - **Pendência:** Postar a lista de nomes dos participantes ativos no tópico "ORIENTAÇÕES SEMANA 3" (facilitador formador solicitou isso para controle).
+   - **Pendência:** Postar a lista de nomes dos participantes ativos no tópico "ORIENTAÇÕES SEMANA 3" (um dos formadores solicitou isso para controle).
 3. **Fórum Geral (Eleição de Representante):**
    - Eleição de representante e suplente (08/07 a 16/07). Candidatos: candidato e candidato.
 

@@ -77,13 +77,15 @@ De: 05/11 19:40
 Até 05/11 23:50
 ```
 
-O ano só aparece no título; a linha `De:` traz só dia e mês.
+O ano só aparece no título; a linha `De:` traz só dia e mês. Os valores do bloco
+acima são exemplo fictício: a data real é agenda pessoal e não fica registrada aqui.
 
 ## O que estava valendo em 15/08/2026
 
 - **Ciclo de provas do 3º bimestre: 14 a 25 de setembro, 18h às 22h, presencial no
   polo.** É a janela geral, anunciada por recado.
-- **A data dele: 05/11, das 19:40 às 23:50**, com **três provas no mesmo dia**: COM100,
+- **A data dele é individual e sai no Sistema de Provas** (não registrada aqui:
+  agenda pessoal), com **três provas no mesmo dia**: COM100,
   LET110 e SOC100. COM170 não constava no Calendário de Atividades, apesar de a
   disciplina anunciar 60% da nota em prova presencial. Vale perguntar.
 - **Seis disciplinas matriculadas**: COM170, LET110, COM100, SOC100, **MMB002

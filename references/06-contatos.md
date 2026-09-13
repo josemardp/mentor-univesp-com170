@@ -2,10 +2,14 @@
 
 > Snapshot de 02/07/2026.
 
+> Nome de colega, de formador e de coordenador não entra neste repositório, que é
+> público: é dado de terceiro raspado de sistema que exige login. Os papéis ficam,
+> os nomes não. Se precisar do nome, ele está no AVA, não aqui.
+
 ## Papéis identificados nesta disciplina/turma
-- **Coordenador do Minicurso AIA**: **Prof. coordenador** — vídeos de abertura de cada semana ("Mensagem de boas-vindas"/"Mensagem do professor"). Na lista de Participantes aparece como "Sem papéis/Nenhum grupo" (o Moodle não rotula o papel dele explicitamente). Também é o "Autor" do curso no bloco lateral.
-- **"Formadores" da turma** (aba "Informação" do curso): **formador** e **formador**. Aparecem em Participantes como "Nenhum papel/Nenhum grupo". Provavelmente são os facilitadores operacionais da turma (bate com "2 facilitadores dedicados" do Manual do Ingressante), mas sem rótulo explícito de "Facilitador" confirmado.
-- **participante** — também na lista de Participantes como "Sem papéis/Nenhum grupo". Papel não identificado — pode ser supervisora, coordenação de curso, ou outra formadora.
+- **Coordenador do Minicurso AIA** (nome não registrado aqui) — vídeos de abertura de cada semana ("Mensagem de boas-vindas"/"Mensagem do professor"). Na lista de Participantes aparece como "Sem papéis/Nenhum grupo" (o Moodle não rotula o papel dele explicitamente). Também é o "Autor" do curso no bloco lateral.
+- **"Formadores" da turma** (aba "Informação" do curso): **duas pessoas**, nomes não registrados aqui. Aparecem em Participantes como "Nenhum papel/Nenhum grupo". Provavelmente são os facilitadores operacionais da turma (bate com "2 facilitadores dedicados" do Manual do Ingressante), mas sem rótulo explícito de "Facilitador" confirmado.
+- **Uma quarta pessoa** — também na lista de Participantes como "Sem papéis/Nenhum grupo". Papel não identificado — pode ser supervisora, coordenação de curso, ou outra formadora.
 - **Facilitador da(s) live(s)**: item "Live com facilitador" existe na seção Geral (ferramenta externa/LTI), mas a página não carregou completamente no levantamento — nome do facilitador da live não confirmado por ali.
 
 > Nenhum desses 4 nomes tem um "papel" Moodle nomeado (ex. "Teacher", "Facilitador")
