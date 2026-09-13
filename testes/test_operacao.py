@@ -983,7 +983,7 @@ checa("60% prova presencial" in html_c and "Sistema de Provas" in html_c,
 html_com_prova = R.render_composicao({
     "courses": [{"code": "COM100", "avisos": [aviso_com100]}],
     "portal": {"provas": [{"codigo": "COM100",
-                           "inicio": "2026-11-05T19:40:00-03:00"}]},
+                           "inicio": "2026-12-03T14:05:00-03:00"}]},
 })
 checa(html_com_prova == "",
       "disciplina com prova conhecida sai do bloco de 'o que não acompanho'")
@@ -991,7 +991,7 @@ checa(html_com_prova == "",
 html_sem_prova = R.render_composicao({
     "courses": [{"code": "COM100", "avisos": [aviso_com100]}],
     "portal": {"provas": [{"codigo": "SOC100",
-                           "inicio": "2026-11-05T19:40:00-03:00"}]},
+                           "inicio": "2026-12-03T14:05:00-03:00"}]},
 })
 checa("Sistema de Provas" in html_sem_prova,
       "prova de outra disciplina não silencia a lacuna desta")
@@ -1297,27 +1297,44 @@ if _limite_antigo is None:
 else:
     os.environ["LIMITE_HORAS"] = _limite_antigo
 
-vigia_yml = (ROOT / ".github" / "workflows" / "vigia.yml").read_text(
-    encoding="utf-8")
-principal = (ROOT / ".github" / "workflows" / "guia-diario.yml").read_text(
-    encoding="utf-8")
-crons_vigia = _re.findall(r'- cron: "([^"]+)"', vigia_yml)
-crons_robo = _re.findall(r'- cron: "([^"]+)"', principal)
-checa(crons_vigia and not set(crons_vigia) & set(crons_robo),
-      "o vigia tem horário próprio, separado do robô")
-checa("EMAIL_PARA" in vigia_yml and "--avisar" in vigia_yml,
-      "o vigia sabe mandar e-mail quando acha o guia parado")
-checa("AVA_USUARIO" not in vigia_yml and "AVA_SENHA" not in vigia_yml,
-      "o vigia não recebe credencial do AVA: ele só olha o site público")
+# O vigia continua existindo como módulo, e a decisão de "acordar" é a mesma
+# testada logo acima. O que mudou em 12/09/2026 foi quem o dispara: os dois
+# workflows agendados (guia-diario.yml e vigia.yml) foram removidos junto com o
+# Pages, porque publicavam o painel, e o painel carrega nome de colega.
+#
+# O contrato que sobrou é este: o robô roda na máquina do aluno e nada é
+# publicado. O teste abaixo é a trava desse contrato. Ele não afirma que o
+# agendamento é melhor ou pior: afirma que, se alguém trouxer um workflow de
+# volta, ele não pode publicar dado pessoal nem carregar credencial do AVA.
+_WORKFLOWS = ROOT / ".github" / "workflows"
+_ymls = sorted(_WORKFLOWS.glob("*.yml")) + sorted(_WORKFLOWS.glob("*.yaml"))
+checa(not any(_re.findall(r"- cron:", y.read_text(encoding="utf-8"))
+              for y in _ymls),
+      "não existe execução agendada no GitHub: o guia é gerado localmente")
+for _y in _ymls:
+    _txt = _y.read_text(encoding="utf-8")
+    checa("AVA_SENHA" not in _txt and "AVA_USUARIO" not in _txt,
+          f"{_y.name} não recebe credencial do AVA")
+    checa("docs/estado.json" not in _txt and "docs/data.json" not in _txt,
+          f"{_y.name} não publica os arquivos de dado pessoal")
 
-# O Secret da sessão salva saiu: o log de 13/08 mostrou a sessão sendo
-# restaurada, vencendo e o robô logando por credencial do mesmo jeito.
-# O alvo é o consumo do Secret, não a palavra: o comentário que explica por
-# que ele saiu tem que poder continuar ali.
-checa("secrets.AVA_STORAGE_STATE" not in principal,
-      "o workflow não carrega mais a sessão salva")
-checa("AVA_USUARIO" in principal and "AVA_SENHA" in principal,
-      "e continua logando com as credenciais, que é o caminho que funciona")
+# O vigia é importável e continua sendo o módulo que decide se o guia parou.
+# Sem isso, o bloco de cima acima vira teste de arquivo vazio.
+_vigia_py = ROOT / "automacao" / "vigia.py"
+checa(_vigia_py.exists(), "o vigia continua no código, como módulo local")
+checa("--avisar" in _vigia_py.read_text(encoding="utf-8"),
+      "o vigia sabe mandar e-mail quando acha o guia parado")
+
+# A trava de verdade contra republicar o painel é o .gitignore: foi por ali
+# que 573 posts com nome de 254 colegas ficaram públicos até 12/09/2026.
+_ignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
+for _alvo in ("docs/estado.json", "docs/data.json", "docs/index.html",
+              "docs/provas.json", "docs/revisao.json", "storage_state.json"):
+    checa(_alvo in _ignore, f"{_alvo} está ignorado pelo git")
+
+# O caminho local documentado no README tem que existir de fato.
+checa((ROOT / "automacao" / "gerar_guia.py").exists(),
+      "o gerador local existe: é o caminho de execução que o README promete")
 
 print("\n== Os dez pontos contáveis da quinzena (COM170) ==")
 
@@ -1439,7 +1456,7 @@ print("\n== Entregou e o boletim lançou zero (M6 Q1, 13/08/2026) ==")
 # Estado real: entrega em 29/07, avaliação do colega no nível máximo, boletim
 # com 0,00 no envio. Sem isto à vista, "entreguei e zerei" tem a mesma cara
 # de "não fiz".
-M6_ZERADO = {"label": "M6 - Revisão entre pares (colega)",
+M6_ZERADO = {"label": "M6 - Revisão entre pares (Portfólio Individual)",
              "type": "workshop", "conta_nota": True, "enviado": True,
              "nota_txt": "0,00", "nota": 0.0, "tem_nota": True,
              "url": "https://ava.univesp.br/mod/workshop/view.php?id=173854"}
@@ -2295,23 +2312,28 @@ checa(P._mesma_data("2026-08-05T23:59:00-03:00", semana2) is False,
 checa(P._mesma_data("2026-08-09T23:59:00-03:00", None) is False,
       "sem cronograma não há o que reconciliar")
 
-print("\n== Workflow de publicação ==")
-workflow = (ROOT / ".github" / "workflows" / "guia-diario.yml").read_text(encoding="utf-8")
-checa('- cron: "0 11 * * *"' in workflow, "agenda matinal tem gatilho próprio")
-checa("github.event.schedule" in workflow and "date -u +%H" not in workflow,
-      "atraso do runner não muda a decisão de enviar")
-pos_publicar = workflow.index("- name: Publicar mudanças")
-pos_confirmar = workflow.index("Pages confirmou o artefato")
-pos_email = workflow.index("- name: Enviar resumo por e-mail")
-checa(pos_publicar < pos_confirmar < pos_email,
-      "e-mail só vem depois da confirmação pública do artefato")
-checa("publication_id" in workflow, "deploy é conferido pelo ID do artefato servido")
-# A espera de 3 minutos falhou em 13/08 com um deploy de 187s, e ao desistir
-# o passo seguinte empurrava outro commit, cancelando o deploy que estava
-# quase pronto. A margem tem que ficar acima do pior caso já visto.
-_espera = _re.search(r"for TENTATIVA in \$\(seq 1 (\d+)\)", workflow)
-checa(_espera and int(_espera.group(1)) * 5 >= 420,
-      "a espera do Pages cobre pelo menos 7 minutos")
+print("\n== Publicação: o painel não sai da máquina ==")
+
+# Este bloco testava a ordem dos passos do workflow que publicava no Pages:
+# publicar, confirmar o artefato, só então mandar o e-mail. O workflow não
+# existe mais (12/09/2026) e o Pages foi desativado, porque o painel mostra
+# post de fórum com nome completo de colega.
+#
+# A garantia equivalente na arquitetura de hoje é que o gerador escreve o
+# painel em docs/ e ali ele fica: nenhum caminho do código faz deploy, e o
+# README não promete um.
+_render = (ROOT / "automacao" / "render.py").read_text(encoding="utf-8")
+_gerar = (ROOT / "automacao" / "gerar_guia.py").read_text(encoding="utf-8")
+checa("docs" in _render or "docs" in _gerar,
+      "o gerador escreve o painel em docs/, na máquina de quem roda")
+for _proibido in ("gh-pages", "peaceiris/actions-gh-pages", "actions/deploy-pages",
+                  "git push"):
+    checa(_proibido not in _render and _proibido not in _gerar,
+          f"o gerador não publica o painel ({_proibido} não aparece)")
+
+_readme = (ROOT / "README.md").read_text(encoding="utf-8")
+checa("Não há execução agendada no GitHub" in _readme,
+      "o README diz que não há execução agendada, e isso bate com o código")
 
 
 # ---------------------------------------------------------------------------
@@ -2357,7 +2379,7 @@ def _acao(urgencia, tipo, nome):
         "verbo": "Compareça" if tipo == "prova" else "Leia",
         "coisa": "à prova no polo" if tipo == "prova" else "material",
         "o_que": nome, "tipo": tipo, "url": None, "conta_nota": True,
-        "prazo": "2026-11-05T19:40:00-03:00", "prazo_txt": "acontece 05/11",
+        "prazo": "2026-12-03T14:05:00-03:00", "prazo_txt": "acontece 03/12",
         "prazo_fonte": "Sistema de Provas", "carencia": None,
         "hora_certa": True, "urgencia": urgencia,
     }

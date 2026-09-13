@@ -263,7 +263,7 @@ COM170 = {
         {"id": "q3", "parent": None, "title": "Quinzena 3", "items": []},
         {"id": "m6", "parent": "q3", "title": "Q3 Módulo 6", "items": [
             {"cmid": "228139", "type": "workshop",
-             "label": "Q3 M6 - Revisão entre pares (colega)",
+             "label": "Q3 M6 - Revisão entre pares (Portfólio Individual)",
              "conta_nota": True, "enviado": False, "prazo": DEPOIS},
         ]},
         {"id": "m7", "parent": "q3", "title": "Q3 Módulo 7", "items": [

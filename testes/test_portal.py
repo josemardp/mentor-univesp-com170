@@ -59,18 +59,18 @@ Agosto de 2026
 Suas atividades
 Presencial
 2026 - COM100 - PENSAMENTO COMPUTACIONAL - 3 BIMESTRE
-De: 05/11 19:40
-Até 05/11 23:50
+De: 03/12 14:05
+Até 03/12 18:15
 
 Presencial
 2026 - LET110 - LEITURA E PRODUÇÃO DE TEXTOS - 3 BIMESTRE
-De: 05/11 19:40
-Até 05/11 23:50
+De: 03/12 14:05
+Até 03/12 18:15
 
 Presencial
 2026 - SOC100 - ÉTICA CIDADANIA E SOCIEDADE - 3 BIMESTRE
-De: 05/11 19:40
-Até 05/11 23:50
+De: 03/12 14:05
+Até 03/12 18:15
 """
 
 VAZIO = """ATIVIDADES
@@ -89,7 +89,7 @@ checa(len(achadas) == 3, f"as três provas são lidas (vieram {len(achadas)})")
 
 primeira = achadas[0].groups()
 checa(primeira[0] == "Presencial", "a modalidade sai da linha de cima")
-checa(primeira[2] == "05/11" and primeira[3] == "19:40",
+checa(primeira[2] == "03/12" and primeira[3] == "14:05",
       "início com dia e hora, do jeito que a tela escreve")
 
 cabecalho = RE_TITULO_PROVA.match(primeira[1])
@@ -110,9 +110,9 @@ checa(bool(RE_TELA_DE_PROVAS.search(VAZIO)),
 checa(not RE_TELA_DE_PROVAS.search(ESPERA),
       "a página de redirecionamento não passa por calendário vazio")
 
-checa(_iso("05/11", "19:40", 2026).startswith("2026-11-05T19:40"),
+checa(_iso("03/12", "14:05", 2026).startswith("2026-12-03T14:05"),
       "a data vira ISO no fuso de Brasília")
-checa(_iso("31/02", "19:40", 2026) is None,
+checa(_iso("31/02", "14:05", 2026) is None,
       "data impossível devolve None em vez de chutar")
 
 
@@ -127,8 +127,8 @@ DADOS = {
                 "codigo": "COM100",
                 "titulo": "2026 - COM100 - PENSAMENTO COMPUTACIONAL - 3 BIMESTRE",
                 "modalidade": "Presencial",
-                "inicio": "2026-11-05T19:40:00-03:00",
-                "fim": "2026-11-05T23:50:00-03:00",
+                "inicio": "2026-12-03T14:05:00-03:00",
+                "fim": "2026-12-03T18:15:00-03:00",
             }
         ],
         "disciplinas": [
@@ -145,7 +145,7 @@ checa(len(acoes) == 1, "a prova entra na fila")
 if acoes:
     a = acoes[0]
     checa(a["verbo"] == "Compareça", "prova presencial pede comparecer, não entregar")
-    checa("acontece 05/11" in a["prazo_txt"],
+    checa("acontece 03/12" in a["prazo_txt"],
           f"o texto trata como encontro, não como vencimento ({a['prazo_txt']})")
     checa(a["prazo_fonte"] == "Sistema de Provas (portal do aluno)",
           "a origem da data aparece, como toda data neste guia")
@@ -153,8 +153,8 @@ if acoes:
 
 # No dia seguinte à prova ela some sozinha, como a live que já aconteceu.
 depois = provas_do_portal(
-    DADOS, date(2026, 11, 6),
-    agora=datetime(2026, 11, 6, 8, 0, tzinfo=timezone(timedelta(hours=-3))),
+    DADOS, date(2026, 12, 4),
+    agora=datetime(2026, 12, 4, 8, 0, tzinfo=timezone(timedelta(hours=-3))),
 )
 checa(not depois, "prova que já passou sai da fila")
 
@@ -334,7 +334,7 @@ checa(cartao.get("entrega_nao_confirmada") is not True,
 
 INDIVIDUAL = json.loads(json.dumps(GRUPO))
 item = INDIVIDUAL["courses"][0]["sections"][0]["items"][0]
-item["label"] = "Q2 M6 - Revisão entre pares (colega)"
+item["label"] = "Q2 M6 - Revisão entre pares (Portfólio Individual)"
 acoes_ind, _, _, _ = montar_acoes(
     INDIVIDUAL, date(2026, 8, 15),
     agora=datetime(2026, 8, 15, 10, 0, tzinfo=timezone(timedelta(hours=-3))),
@@ -374,8 +374,12 @@ print("\n== tela inicial: disciplinas e RA no formato novo ==")
 # Copiado da tela real em 29/08/2026: o rótulo virou "RA:" (era "Registro
 # Acadêmico:") e a situação da disciplina vem sozinha na linha seguinte
 # ("CURSANDO", maiúsculo), não mais precedida de "Situação:".
-TELA_INICIAL_REAL = """JOSEMAR DE PAULA
-RA: RA_OCULTO
+# O RA e o nome abaixo sao sinteticos de proposito: formato valido, valor que
+# nao existe. O RA real e dado pessoal e nao entra em fixture (regra de
+# 12/09/2026). Trocar por um marcador tipo "RA_OCULTO" quebra o parser, que
+# exige digitos, e foi o que deixou esta suite vermelha ate 13/09/2026.
+TELA_INICIAL_REAL = """ALUNO DE TESTE
+RA: 00000000
 Início
 COM170 - Inteligência Artificial na Prática Acadêmica e Profissional
 CURSANDO
@@ -390,8 +394,8 @@ Período Estudo: 22/06/2026 à 19/12/2026
 Média: -
 """
 
-checa(RE_RA.search(TELA_INICIAL_REAL).group(1) == "RA_OCULTO",
-      "o RA é lido no formato novo ('RA: RA_OCULTO')")
+checa(RE_RA.search(TELA_INICIAL_REAL).group(1) == "00000000",
+      "o RA é lido no formato novo ('RA: <digitos>')")
 
 
 class PaginaDeTelaInicial:
@@ -421,7 +425,7 @@ class PaginaDeTelaInicial:
 
 
 tela_inicial = portal.ler_tela_inicial(PaginaDeTelaInicial(TELA_INICIAL_REAL))
-checa(tela_inicial["ra"] == "RA_OCULTO", "o RA sai junto com o resto da leitura")
+checa(tela_inicial["ra"] == "00000000", "o RA sai junto com o resto da leitura")
 checa([d["codigo"] for d in tela_inicial["disciplinas"]] == ["COM170", "MMB002"],
       "as duas disciplinas são achadas")
 checa(all(d["situacao"] == "CURSANDO" for d in tela_inicial["disciplinas"]),

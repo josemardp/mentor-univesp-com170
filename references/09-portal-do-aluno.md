@@ -73,8 +73,8 @@ O bloco **"Suas atividades"** é o que responde a pergunta que importa. Formato:
 ```
 Presencial
 2026 - COM100 - PENSAMENTO COMPUTACIONAL - 3 BIMESTRE
-De: 05/11 19:40
-Até 05/11 23:50
+De: 03/12 14:05
+Até 03/12 18:15
 ```
 
 O ano só aparece no título; a linha `De:` traz só dia e mês. Os valores do bloco

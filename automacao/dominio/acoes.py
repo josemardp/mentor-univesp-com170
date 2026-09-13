@@ -875,8 +875,8 @@ def provas_do_portal(dados, hoje, agora=None):
         )
         if urgencia == "vencido":
             continue
-        # Prova longe ainda sai como "acontece 05/11", sem hora, e para prova
-        # a hora é a informação que decide o dia dele: 19:40 no polo não é a
+        # Prova longe ainda sai como "acontece 03/12", sem hora, e para prova
+        # a hora é a informação que decide o dia dele: 14:05 no polo não é a
         # mesma coisa que "algum momento do dia 22".
         if urgencia == "depois":
             texto = f"{texto} às {datetime.fromisoformat(quando):%H:%M}"

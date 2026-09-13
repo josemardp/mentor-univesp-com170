@@ -43,28 +43,28 @@ CURSOS = [{"id": "18922", "code": "COM170"}]
 # Copiado do docs/data.json da rodada das 22:33 de 14/08/2026.
 EVENTOS = [
     {
-        "nome": "Q2 M6 - Revisão entre pares (colega) - prazo limite de envios",
+        "nome": "Q2 M6 - Revisão entre pares (Portfólio Individual) - prazo limite de envios",
         "quando": "2026-08-15T23:59:00-03:00",
         "curso_id": "18922",
-        "atividade": "Q2 M6 - Revisão entre pares (colega)",
+        "atividade": "Q2 M6 - Revisão entre pares (Portfólio Individual)",
         "url": "https://ava.univesp.br/mod/workshop/view.php?id=215609",
         "cmid": "215609",
         "tipo": "closesubmission",
     },
     {
-        "nome": "Q2 M6 - Revisão entre pares (colega) - início para avaliação",
+        "nome": "Q2 M6 - Revisão entre pares (Portfólio Individual) - início para avaliação",
         "quando": "2026-08-16T00:00:00-03:00",
         "curso_id": "18922",
-        "atividade": "Q2 M6 - Revisão entre pares (colega) - início para avaliação",
+        "atividade": "Q2 M6 - Revisão entre pares (Portfólio Individual) - início para avaliação",
         "url": "https://ava.univesp.br/mod/workshop/view.php?id=215609",
         "cmid": "215609",
         "tipo": "openassessment",
     },
     {
-        "nome": "Q2 M6 - Revisão entre pares (colega) - prazo limite para avaliação",
+        "nome": "Q2 M6 - Revisão entre pares (Portfólio Individual) - prazo limite para avaliação",
         "quando": "2026-08-18T23:59:00-03:00",
         "curso_id": "18922",
-        "atividade": "Q2 M6 - Revisão entre pares (colega)",
+        "atividade": "Q2 M6 - Revisão entre pares (Portfólio Individual)",
         "url": "https://ava.univesp.br/mod/workshop/view.php?id=215609",
         "cmid": "215609",
         "tipo": "closeassessment",
@@ -89,10 +89,10 @@ EVENTOS = [
     },
     # Quinzena 1, já vencida: não pode voltar como tarefa.
     {
-        "nome": "M6 - Revisão entre pares (colega) - prazo limite para avaliação",
+        "nome": "M6 - Revisão entre pares (Portfólio Individual) - prazo limite para avaliação",
         "quando": "2026-08-04T23:59:00-03:00",
         "curso_id": "18922",
-        "atividade": "M6 - Revisão entre pares (colega)",
+        "atividade": "M6 - Revisão entre pares (Portfólio Individual)",
         "url": "https://ava.univesp.br/mod/workshop/view.php?id=173854",
         "cmid": "173854",
         "tipo": "closeassessment",
@@ -117,7 +117,7 @@ checa(m6.get("abre_em") == "2026-08-16T00:00:00-03:00",
       f"o cartão diz quando a fase abre (veio {m6.get('abre_em')})")
 checa(m6.get("verbo") == "Avalie", "o verbo é avaliar, não entregar")
 checa(m6.get("conta_nota") is True, "vale nota: são 2 dos 10 itens da quinzena")
-checa(m6.get("o_que") == "Q2 M6 - Revisão entre pares (colega)",
+checa(m6.get("o_que") == "Q2 M6 - Revisão entre pares (Portfólio Individual)",
       f"o nome sai sem o sufixo de fase (veio {m6.get('o_que')!r})")
 checa(m6.get("curso") == "COM170", "achou o código do curso pelo curso_id")
 checa(m6.get("prazo_fonte") == "calendário do AVA", "a origem da data aparece")

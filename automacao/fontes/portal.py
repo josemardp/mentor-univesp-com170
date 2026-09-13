@@ -574,7 +574,7 @@ def ler_provas(page):
 
 
 def _iso(dia_mes, hora, ano):
-    """``05/11`` + ``19:40`` + ano viram data com fuso de Brasília.
+    """``03/12`` + ``14:05`` + ano viram data com fuso de Brasília.
 
     A tela não escreve o ano na linha da atividade; ele vem do título. Data
     que não fecha devolve ``None``, e prazo nenhum é melhor que prazo chutado.

@@ -147,7 +147,7 @@ bate com o número de itens.
 
 Josemar reportou, com print do próprio guia, que o Módulo 6 aparecia como
 pendente ("Entregue o trabalho: Módulo 6 · Fechamento das submissões") mesmo
-ele já tendo enviado o colega no AVA. Causa raiz, achada lendo
+ele já tendo enviado o Portfólio Individual no AVA. Causa raiz, achada lendo
 o código com ele:
 
 - A ação nascida do **aviso do facilitador** (`dominio/acoes.py`, casamento

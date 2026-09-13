@@ -4,8 +4,10 @@ Agente que acompanha um curso universitário a distância no lugar do aluno: ent
 ambiente virtual (Moodle) e nos sistemas satélite, lê o que mudou, cruza prazos, fóruns,
 notas e avisos, e entrega um briefing diário do que precisa ser feito.
 
-Construído para uso real, todo dia, num curso em andamento. Roda sozinho cinco vezes ao
-dia no GitHub Actions e envia o resumo por e-mail de manhã.
+Construído para uso real, todo dia, num curso em andamento. Rodou agendado no GitHub
+Actions até 12/09/2026, cinco vezes ao dia, publicando o painel e mandando o resumo por
+e-mail. Hoje roda na máquina do aluno, por comando: a publicação saiu porque o painel
+mostra post de fórum com nome de colega, e isso não pode ficar num repositório público.
 
 ## O que este repositório demonstra
 
@@ -21,7 +23,7 @@ dia no GitHub Actions e envia o resumo por e-mail de manhã.
 - **Testes onde o risco mora.** Doze suítes em `testes/`, incluindo um *golden test*
   que compara a saída contra um snapshot sanitizado, testes de parsing de prazos,
   de participação em fórum, de revisão entre pares e de login. Rodam antes de cada
-  execução agendada; se falham, a rodada não publica.
+  execução; se falham, a rodada para.
 - **Operação documentada como engenharia.** `STATUS.md` registra o estado real do
   sistema, sessão a sessão. Cinco rodadas de auditoria independente estão
   versionadas na raiz, com achados e correções. Decisões que não são óbvias no

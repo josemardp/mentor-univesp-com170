@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Regressão do bug relatado por Josemar em 30/07/2026: o guia continuava
-cobrando "Módulo 6" depois dele já ter enviado o colega no
+cobrando "Módulo 6" depois dele já ter enviado o Portfólio Individual no
 Laboratório de Avaliação. Causa raiz, achada lendo o código com ele:
 
 1. A ação nascida do aviso do facilitador (Módulo 6 · Fechamento das
@@ -125,7 +125,7 @@ checa(
 def curso_com_workshop(enviado, com_item_prazo=True):
     item = {
         "cmid": "173854",
-        "label": "M6 - Revisão entre pares (colega)",
+        "label": "M6 - Revisão entre pares (Portfólio Individual)",
         "type": "workshop",
         "status": "Pendente",
         "conta_nota": True,
@@ -278,13 +278,13 @@ print("\n== Ação por item (Entregue e avalie: M6 - ...) ==")
 
 itens_labels_pendente = {a["o_que"] for a in acoes if a["tipo"] == "workshop"}
 checa(
-    "M6 - Revisão entre pares (colega)" in itens_labels_pendente,
+    "M6 - Revisão entre pares (Portfólio Individual)" in itens_labels_pendente,
     "sem 'enviado', a ação do item aparece (comportamento de antes, preservado)",
 )
 
 itens_labels_enviado = {a["o_que"] for a in acoes_env if a["tipo"] == "workshop"}
 checa(
-    "M6 - Revisão entre pares (colega)" not in itens_labels_enviado,
+    "M6 - Revisão entre pares (Portfólio Individual)" not in itens_labels_enviado,
     "com enviado=True, a ação do item some mesmo com selo 'Pendente' do Moodle",
 )
 
@@ -292,7 +292,7 @@ dados_nao_enviado = {"courses": [curso_com_workshop(enviado=False)]}
 acoes_nao, *_ = C.montar_acoes(dados_nao_enviado, HOJE)
 itens_labels_nao = {a["o_que"] for a in acoes_nao if a["tipo"] == "workshop"}
 checa(
-    "M6 - Revisão entre pares (colega)" in itens_labels_nao,
+    "M6 - Revisão entre pares (Portfólio Individual)" in itens_labels_nao,
     "com enviado=False (confirmado que não enviou), a ação continua na fila",
 )
 
