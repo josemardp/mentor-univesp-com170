@@ -59,11 +59,27 @@ A privacidade é uma restrição arquitetural essencial deste projeto:
 
 ## Demonstração Visual (Dados Sintéticos)
 
-Exemplo de visualização do painel diário consolidado, gerado com dados de teste completamente sanitizados:
+O painel abaixo foi gerado agora, na máquina, rodando o motor sobre a fixture
+`testes/fixtures/snapshot_dourado_sanitizado.json` — a mesma que o *golden test* usa.
+Para reproduzir esta imagem, veja "Rodar na sua máquina", logo abaixo.
 
-![Briefing Acadêmico Sanitizado](docs/screenshots/briefing-academico.png)
+![Painel diário gerado a partir da fixture sintética](docs/screenshots/briefing-academico.png)
 
-*Nota: Todas as notas, títulos de disciplinas e datas exibidas na imagem acima foram gerados a partir de fixtures de teste sintéticas para fins de demonstração.*
+O que a tela mostra, e que é o ponto do projeto:
+
+- **Fila ordenada por urgência real**, não pela ordem do Moodle: duas coisas para amanhã,
+  uma mais pra frente.
+- **A dependência entre atividades aparece.** O quiz do Módulo 1 não tem prazo próprio,
+  mas é ele que destrava o Módulo 4, que vence amanhã. Sem isso, o aluno deixa para
+  depois a única tarefa que precisa ser feita primeiro.
+- **Toda data traz a origem** (`prazo do calendário do AVA`, `prazo do aviso de ...`).
+  Prazo sem fonte não entra: o guia diz que não sabe em vez de chutar.
+- **A idade do retrato é declarada em cima.** Aqui a fixture é de julho, então o aviso
+  avisa que o dado está velho — que é exatamente o comportamento correto.
+
+*Todos os nomes na imagem são sintéticos e vêm da fixture: "REG100", "Atividade avaliativa
+sanitizada", "M1 - Quiz sanitizado", "Equipe institucional". Nenhum dado real de curso,
+de colega ou de aluno é usado para gerar esta imagem.*
 
 ---
 
@@ -91,19 +107,53 @@ O repositório conta com **12 suítes de testes automatizados**, responsáveis p
 
 ### Instalação
 ```bash
-git clone https://github.com/esdraaline/mentor-univesp-com170.git
+git clone https://github.com/josemardp/mentor-univesp-com170.git
 cd mentor-univesp-com170
 pip install -r automacao/requirements.txt
 python -m playwright install chromium
 ```
 
 ### Executar os Testes
-Para rodar a verificação de integridade e o teste golden (utilizando apenas fixtures sintéticas):
+As suítes são scripts independentes: cada uma roda sozinha e devolve código 0 se passou.
+Nenhuma toca o AVA real — `test_login.py` sobe um servidor HTTP local com usuário e senha
+fictícios para testar o fluxo de autenticação.
+
 ```bash
+# uma suíte
 python testes/test_golden.py
-python testes/test_isolamento_fontes.py
-python testes/test_operacao.py
+
+# as doze, com o placar no fim
+for /f %f in ('dir /b testes	est_*.py') do @python testes\%f >nul 2>&1 && echo OK %f || echo FALHOU %f
 ```
+
+No Git Bash ou Linux:
+
+```bash
+for t in testes/test_*.py; do python "$t" >/dev/null 2>&1 && echo "OK $t" || echo "FALHOU $t"; done
+```
+
+Última execução completa: **12 de 12 suítes passaram**, em 13/09/2026, Python 3.14.5, Windows 11.
+
+### Reproduzir a imagem da demonstração
+O painel mostrado acima sai da fixture do *golden test*, sem tocar em nenhum sistema:
+
+```bash
+python - <<'EOF'
+import json, sys, datetime, pathlib
+sys.path.insert(0, 'automacao')
+fx = json.load(open('testes/fixtures/snapshot_dourado_sanitizado.json', encoding='utf-8'))
+dados, hoje = dict(fx['dados']), datetime.date.fromisoformat(fx['hoje'][:10])
+from dominio import acoes as C
+dados['acoes'], _, dados['higiene'], dados['confirmar'] = C.montar_acoes(dados, hoje)
+dados['snapshot_at'] = dados['checked_at'] = fx['hoje']
+pathlib.Path('docs').mkdir(exist_ok=True)
+pathlib.Path('docs/data.json').write_text(json.dumps(dados, ensure_ascii=False), encoding='utf-8')
+import render; render.main()
+EOF
+# abre docs/index.html no navegador
+```
+
+`docs/` está no `.gitignore`: o painel gerado fica na sua máquina e não volta para o repositório.
 
 ### Gerar o Briefing Localmente
 ```bash
