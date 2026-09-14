@@ -2,6 +2,13 @@
 
 Automação de processos educacionais e consolidação de rotina acadêmica via Playwright para ambientes virtuais de aprendizagem sem API pública.
 
+> **Painel: só local.** As URLs antigas `esdraaline.github.io/mentor-univesp-com170/` e
+> `josemardp.github.io/mentor-univesp-com170/` respondem 404 desde 11/09/2026 e não devem ser
+> religadas: o painel traz dados reais do aluno e `docs/` é ignorado pelo git. Em cada máquina,
+> gerar com `python automacao/gerar_guia.py` e abrir com
+> `.erramentasbrir-painel.ps1 univesp` (a partir de `C:\projetos\skills-pessoais`), em
+> `http://127.0.0.1:8790/`. Estado atual e última coleta: [STATUS.md](STATUS.md).
+
 ---
 
 ## Visão Geral
