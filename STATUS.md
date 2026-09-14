@@ -1,8 +1,20 @@
 # STATUS — Guia diário do AVA (mentor-univesp)
 
 > Doc de handoff. Qualquer máquina ou agente retoma a partir daqui.
-> Site: https://esdraaline.github.io/mentor-univesp-com170/ (conta GitHub `esdraaline`)
+> Remoto: https://github.com/josemardp/mentor-univesp-com170.git (conta GitHub `josemardp`)
+> Execução local: `python automacao/gerar_guia.py` | Servidor local: `http://127.0.0.1:8790/`
 > Histórico completo de sessões, auditorias e etapas concluídas: [`docs/HISTORICO.md`](docs/HISTORICO.md)
+
+## Coleta real executada e acesso local restabelecido no PC do trabalho (14/09/2026)
+
+- **Coleta ao vivo executada com sucesso** via `python automacao/gerar_guia.py`.
+- **Autenticação:** sessão renovada automaticamente via SSO com as credenciais salvas no ambiente.
+- **Disciplinas identificadas (4):** COM100 (Pensamento Computacional), SOC100 (Ética e Cidadania), LET110 (Leitura e Produção de Textos), COM170 (IA na Prática Acadêmica).
+- **Resultados:** 7 ações, 33 itens de higiene, 3 a confirmar, 8 encerradas, 17 eventos de calendário e 76 itens com prazo.
+- **Painel:** gerado em `docs/index.html` (186 KB) e `docs/data.json` (427 KB).
+- **Acesso local:** gerenciado via `C:\projetos\skills-pessoais\ferramentas\abrir-painel.ps1 univesp` na porta 8790 (127.0.0.1). Atalhos criados em `C:\projetos\atalhos\`.
+- **Privacidade e segurança:** dados reais permanecem ignorados pelo git (`.gitignore`); repositório 100% limpo e sem publicação em Pages público. 12 de 12 suítes de teste automatizadas verdes.
+
 
 ## Fonte Outlook removida do robô de vez, decisão fechada (06/09/2026)
 
