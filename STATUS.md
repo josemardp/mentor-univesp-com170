@@ -3,7 +3,114 @@
 > Doc de handoff. Qualquer máquina ou agente retoma a partir daqui.
 > Remoto: https://github.com/josemardp/mentor-univesp-com170.git (conta GitHub `josemardp`)
 > Execução local: `python automacao/gerar_guia.py` | Servidor local: `http://127.0.0.1:8790/`
+> Agendado no Windows (15/09/2026): `automacao\rodar_diario.ps1`, tarefas `Univesp - guia diario` 07:30, `Univesp - guia alerta` 13:00, `Univesp - vigia` 20:00. Log em `tmp/log/rodar_diario.log`.
 > Histórico completo de sessões, auditorias e etapas concluídas: [`docs/HISTORICO.md`](docs/HISTORICO.md)
+
+## O agendamento voltou, agora na máquina: três tarefas do Windows e o vigia lendo o arquivo local (15/09/2026)
+
+**O buraco.** Desligar o Pages em 11/09 levou junto os dois workflows, e o
+robô parou de rodar sozinho: desde então só lia o AVA quando alguém digitava
+o comando. Ficou provado caro logo na abertura desta sessão: o painel de
+ontem mostrava as duas revisões entre pares do COM170 (Q4 M6 e M7) vencendo
+**hoje às 23:59**, e isso só chegou ao Josemar porque a sessão abriu o
+`data.json` na mão. O `vigia.py`, que existe para pegar exatamente a rodada
+que não acontece, perguntava ao site público morto, então também estava
+cego. Sistema bom e silencioso é o pior dos dois mundos.
+
+**O que entrou.**
+
+- `automacao/rodar_diario.ps1` (novo): o que a tarefa do Windows dispara.
+  Três modos: `diario` (lê o AVA, gera o painel, manda o resumo), `alerta`
+  (relê e só fala se apareceu prazo novo e perto) e `vigia` (não lê o AVA,
+  só confere se o painel é de hoje). `-SemColeta` refaz só o painel. Log em
+  `tmp/log/rodar_diario.log`, pasta já ignorada pelo git.
+- Dois canais de aviso. E-mail, quando `SMTP_HOST/PORT/USER/PASS` e
+  `EMAIL_PARA` estiverem no ambiente do usuário (hoje **não estão**: o
+  script roda com `EMAIL_OPCIONAL=1` e pula). E notificação do Windows,
+  sempre que houver item para hoje ou amanhã, via balloon do `NotifyIcon`,
+  sem módulo externo. Conferida em captura de tela: aparece no canto
+  inferior direito com o título "Windows PowerShell".
+- Três tarefas no Agendador, executadas como o usuário logado (LogonType
+  Interactive, sem senha, e é por isso que a notificação na tela funciona):
+  `Univesp - guia diario` 07:30, `Univesp - guia alerta` 13:00,
+  `Univesp - vigia` 20:00. Todas com `StartWhenAvailable`: PC desligado na
+  hora só atrasa a rodada. Limite de 40 min para as duas de coleta.
+- `vigia.py` lê `docs/data.json` local por padrão; `VIGIA_URL` força HTTP
+  (a mecânica anti-cache ficou, custou uma rodada inteira em agosto). O
+  corpo do aviso passou a apontar o Agendador e o log, não mais o Actions.
+  Função renomeada de `ler_publicado` para `ler_retrato`; teste em
+  `test_operacao.py` ajustado, com dois casos novos: painel que nunca foi
+  gerado acorda o vigia, e sem `VIGIA_URL` a leitura é do arquivo.
+- `enviar_email.py`: `SITE` aponta para `http://127.0.0.1:8790/`.
+- README: seção "Agendamento local", e dois caminhos que tinham sido
+  commitados ontem com bytes de controle (`\f` e `\a` de
+  `\ferramentas\abrir-painel.ps1` viraram form feed e bell; `\t` de
+  `testes\test_*.py` virou tab). Mesma família do erro que apareceu nesta
+  sessão: o Bash da ferramenta come uma barra a cada par mesmo em heredoc
+  com aspas. **Texto com barra invertida vai por arquivo (Write), nunca por
+  heredoc.**
+
+**Verificado, não só contado.**
+
+- `-SemColeta` de ponta a ponta: render 0, e-mail pulado por falta de
+  SMTP, notificação mostrada. A primeira rodada de teste acusou falha num
+  render que tinha terminado com 0: `Escreve` usava `Write-Output`, que vai
+  para o pipeline e vira valor de retorno da função, então `Invoca`
+  devolvia um array. Trocado por `Write-Host`. Segundo tropeço: com
+  `$ErrorActionPreference='Stop'`, aviso do Python em stderr sob `2>&1`
+  derruba a função antes de ler o código de saída. Baixado para `Continue`
+  só dentro do `Invoca`.
+- Modo `vigia` nos dois sentidos: painel de hoje sai 0 sem falar;
+  `LIMITE_HORAS=0.01` sai 1, tenta o e-mail (código 2, sem SMTP) e mostra
+  a notificação.
+- Tarefa `guia alerta` disparada **pelo próprio Agendador**
+  (`Start-ScheduledTask`). A primeira tentativa morreu com `0xC000013A`
+  (processo interrompido) antes de escrever uma linha, provavelmente o
+  console da chamada anterior fechando em cima dela. A segunda rodou:
+  `0x41301` (em execução) e o log registrando `rodada 'alerta' comecou ->
+  gerar_guia`. Terminou às 09:42 com código 0 (29 min de coleta), e-mail
+  pulado por falta de SMTP, notificação mostrada.
+- 12 de 12 suítes verdes depois das mudanças.
+
+**A aba do Terminal que apareceu na tela (mesmo dia, 10h).** A rodada
+`alerta` disparada pelo Agendador abriu uma aba do Windows Terminal na
+frente do que o Josemar estava fazendo, com o log rolando. As tarefas
+tinham `-WindowStyle Hidden`, mas no Windows 11 com o Windows Terminal
+como console padrão esse parâmetro é ignorado. Ia acontecer três vezes
+por dia. Troca: as três tarefas passaram a chamar
+`conhost.exe --headless powershell.exe -NoProfile -ExecutionPolicy Bypass -File ...`
+em vez de `powershell.exe` direto. Testado antes em tarefa descartável
+(`-SemColeta`, duas rodadas, captura de tela sem janela nenhuma, código 0,
+notificação registrada no log), depois aplicado e conferido com a `vigia`
+disparada pelo Agendador: sem janela, código 0. Efeito colateral pego no
+log: sem o Terminal o console nasce em cp850 e os acentos do Python
+chegavam como `├®`; o script agora força `[Console]::OutputEncoding` em
+UTF-8. Não foi possível fotografar o balão da notificação porque o VS Code
+travou no exato momento da captura; a evidência é o log, sem exceção, e o
+mesmo caminho de código que já tinha sido conferido na tela de manhã.
+
+**Coleta ao vivo de hoje (08:40 e 11:40 UTC).** Sessão do AVA tinha
+expirado e relogou sozinha. 10 ações, 33 de higiene, 3 a confirmar, 8
+encerradas. Fila, em ordem:
+
+- **hoje 23:59:** Q4 M6 e Q4 M7, revisão entre pares do COM170 (as duas
+  valem ponto separado e não aceitam atraso);
+- **amanhã 16/09, sem horário:** "Semana 7 · entrega" nas três regulares
+  (COM100, LET110, SOC100). As avaliativas da S7 já estavam com 10/10 em
+  03/09; o que resta conferir é se esse prazo cobra algo além delas
+  `[VERIFICAR: o que a Semana 7 ainda cobra em cada disciplina]`;
+- 20/09: Q5 módulos 1 a 4 do COM170; 24/09 live do COM170; 26/09 entrega
+  da Q5.
+- Fora do repo, observado na tela: outro agente (Antigravity) estava
+  trabalhando as revisões entre pares em `tmp/` nesta manhã. `tmp/` é
+  ignorado pelo git; nada a reconciliar no código, mas o resultado das
+  revisões precisa ser conferido no AVA, não no relato dele.
+
+**Pendente que ficou.** SMTP no ambiente do usuário, para o e-mail voltar
+(senha de app do Gmail, gravada por `setx` ou pelo painel de variáveis,
+nunca no repo). Sem isso o aviso é só a notificação na tela, que exige o PC
+ligado e logado na hora. E a dívida antiga dos pesos das semanas continua
+na seção "Próximo passo".
 
 ## Coleta real executada e acesso local restabelecido no PC do trabalho (14/09/2026)
 
@@ -1623,7 +1730,7 @@ O **COM170 avançou para uma estrutura nova**: além das 4 Semanas do AIA, agora
 ## Manutenção recorrente
 
 - **Conferência quinzenal contra o AVA ao vivo.** Os nove defeitos de 04/08 só apareceram porque alguém comparou o site com o AVA na mão. Virada de quinzena (16/08) é o momento de maior risco.
-- **Confirmar que o e-mail das 8h chega.** É o único batimento cardíaco do sistema.
+- **Confirmar que a rodada das 07:30 aconteceu.** Desde 15/09/2026 o batimento cardíaco é a tarefa do Windows, não o e-mail: olhar `tmp/log/rodar_diario.log` ou o Histórico da tarefa. O vigia das 20:00 reclama na tela se o painel não for de hoje. E-mail só volta quando o SMTP estiver no ambiente.
 
 ## Decisões que valem lembrar
 

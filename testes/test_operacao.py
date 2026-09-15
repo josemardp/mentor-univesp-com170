@@ -1260,12 +1260,12 @@ _AGORA = datetime(2026, 8, 13, 21, 0, tzinfo=timezone.utc)
 
 
 def _com_publicado(retorno):
-    original = V.ler_publicado
-    V.ler_publicado = lambda **k: retorno
+    original = V.ler_retrato
+    V.ler_retrato = lambda **k: retorno
     try:
         return V.diagnostico(agora=_AGORA)
     finally:
-        V.ler_publicado = original
+        V.ler_retrato = original
 
 
 recente = datetime(2026, 8, 13, 18, 0, tzinfo=timezone.utc)
@@ -1283,8 +1283,21 @@ congelado, texto = _com_publicado((None, None, "o site não respondeu (URLError)
 checa(congelado is True and "não respondeu" in texto,
       "site que não responde acorda o vigia, não o deixa dormir")
 congelado, texto = _com_publicado(
-    (None, None, "o data.json publicado não diz quando foi lido"))
+    (None, None, "o data.json local não diz quando foi lido"))
 checa(congelado is True, "data.json sem carimbo também é motivo de aviso")
+
+# Painel local que nunca foi gerado é o caso novo de 15/09/2026: antes o vigia
+# só sabia perguntar ao site, e "arquivo não existe" era um estado impossível.
+congelado, texto = _com_publicado(
+    (None, None, "o painel local não existe ainda (data.json)"))
+checa(congelado is True and "não existe" in texto,
+      "painel que nunca foi gerado acorda o vigia")
+
+# A leitura local é o padrão, e o HTTP fica atrás de VIGIA_URL: se isso
+# inverter, o vigia volta a perguntar ao Pages desligado e aprova o silêncio.
+_fonte = V.ler_retrato(agora=_AGORA)
+checa(_fonte[2] is None or "site" not in (_fonte[2] or ""),
+      "sem VIGIA_URL o vigia lê o arquivo local, não a rede")
 
 _limite_antigo = os.environ.get("LIMITE_HORAS")
 os.environ["LIMITE_HORAS"] = "16"

@@ -6,7 +6,7 @@ Automação de processos educacionais e consolidação de rotina acadêmica via 
 > `josemardp.github.io/mentor-univesp-com170/` respondem 404 desde 11/09/2026 e não devem ser
 > religadas: o painel traz dados reais do aluno e `docs/` é ignorado pelo git. Em cada máquina,
 > gerar com `python automacao/gerar_guia.py` e abrir com
-> `.erramentasbrir-painel.ps1 univesp` (a partir de `C:\projetos\skills-pessoais`), em
+> `.\ferramentas\abrir-painel.ps1 univesp` (a partir de `C:\projetos\skills-pessoais`), em
 > `http://127.0.0.1:8790/`. Estado atual e última coleta: [STATUS.md](STATUS.md).
 
 ---
@@ -130,7 +130,7 @@ fictícios para testar o fluxo de autenticação.
 python testes/test_golden.py
 
 # as doze, com o placar no fim
-for /f %f in ('dir /b testes	est_*.py') do @python testes\%f >nul 2>&1 && echo OK %f || echo FALHOU %f
+for /f %f in ('dir /b testes\test_*.py') do @python testes\%f >nul 2>&1 && echo OK %f || echo FALHOU %f
 ```
 
 No Git Bash ou Linux:
@@ -169,6 +169,45 @@ python automacao/gerar_guia.py
 ```
 
 Não há execução agendada no GitHub: o painel e os dados são gerados na máquina do aluno (`python automacao/gerar_guia.py`) e nunca são publicados em repositório ou páginas públicas.
+
+### Agendamento local (Agendador de Tarefas do Windows)
+
+Desligar o Pages tirou o painel do ar e, junto, tirou o agendamento: o robô
+passou a rodar só quando alguém digitava o comando. Um guia de prazos que
+depende de lembrança não serve, então o agendamento voltou na própria máquina.
+
+```powershell
+# rodada da manhã: lê o AVA, gera o painel, manda o resumo
+powershell -ExecutionPolicy Bypass -File automacao\rodar_diario.ps1
+
+# rodada do meio do dia: só fala se apareceu prazo novo e perto
+powershell -ExecutionPolicy Bypass -File automacao\rodar_diario.ps1 -Modo alerta
+
+# à noite: não lê o AVA, só confere se o painel ainda é de hoje
+powershell -ExecutionPolicy Bypass -File automacao\rodar_diario.ps1 -Modo vigia
+```
+
+Três tarefas registradas no Agendador, executadas como o usuário logado:
+`Univesp - guia diario` (07:30), `Univesp - guia alerta` (13:00) e
+`Univesp - vigia` (20:00). Todas têm `StartWhenAvailable`, então o PC desligado
+na hora marcada apenas atrasa a rodada, não a cancela.
+
+As tarefas não chamam o `powershell.exe` direto: chamam
+`conhost.exe --headless powershell.exe -NoProfile -ExecutionPolicy Bypass -File ...`.
+No Windows 11 com o Windows Terminal como console padrão, `-WindowStyle Hidden`
+é ignorado e cada rodada abria uma aba do Terminal na frente do que estivesse
+na tela. O `conhost` sem janela resolve isso sem mexer no console padrão da
+máquina.
+
+O aviso sai por dois canais. E-mail, quando as variáveis `SMTP_HOST`,
+`SMTP_USER`, `SMTP_PASS`, `SMTP_PORT` e `EMAIL_PARA` estão no ambiente do
+usuário; e notificação do Windows, sempre que houver item para hoje ou amanhã.
+O segundo existe porque agendador que roda em silêncio não resolve o problema
+que ele foi criado para resolver.
+
+Quem confere se as rodadas continuam acontecendo é o `vigia.py`, que lê o
+carimbo do `docs/data.json` local (não mais um site público) e reclama quando
+ele passa de 16 horas.
 
 ---
 

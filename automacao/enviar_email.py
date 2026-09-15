@@ -34,7 +34,10 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA_PATH = ROOT / "docs" / "data.json"
 ULTIMO_ENVIO_PATH = ROOT / "automacao" / ".ultimo_email_enviado"
 ULTIMA_FALHA_PATH = ROOT / "automacao" / ".ultimo_aviso_falha"
-SITE = "https://esdraaline.github.io/mentor-univesp-com170/"
+# Painel local desde 11/09/2026: o Pages foi desligado porque publicava nome de
+# colega, e o endereço antigo responde 404. Quem serve este endereço é o
+# abrir-painel.ps1 do skills-pessoais, na máquina dele.
+SITE = "http://127.0.0.1:8790/"
 BR_TZ = timezone(timedelta(hours=-3))
 
 TITULOS = {
