@@ -1,0 +1,37 @@
+# Gerado pelo Mentor de Projetos. Não edite à mão: use `mentor update|action|blocker|stage|close`.
+schema_version: 1
+project:
+  id: b603205e-ad4f-4d8f-a0c8-6c415d5a88e6
+  slug: mentor-univesp
+  name: Mentor UNIVESP
+  summary: Automação de processos educacionais e consolidação de rotina acadêmica via Playwright para ambientes virtuais de aprendizagem sem API pública.
+  category: estudo
+  sensitivity: normal
+  repo_url: https://github.com/josemardp/mentor-univesp-com170.git
+  status_docs:
+    - README.md
+    - STATUS.md
+    - docs/
+status:
+  lifecycle: evolving
+  health: unknown
+  phase: null
+  priority: null
+  updated_at: 2026-09-16T06:56:30-03:00
+  last_session_at: null
+  confidence: inferred
+focus:
+  objective: null
+  current: null
+  last_completed: null
+  recommended_next_action: null
+next_actions: []
+blockers: []
+decisions_recent: []
+milestones: []
+review:
+  stale_after_days: null
+  snooze_until: null
+integration:
+  managed_by: mentor-de-projetos
+  protocol_version: 1
