@@ -16,8 +16,8 @@ status:
   lifecycle: evolving
   health: healthy
   phase: Operacao local com agendamento Windows
-  priority: null
-  updated_at: 2026-09-16T09:15:42-03:00
+  priority: 2
+  updated_at: 2026-09-16T09:40:08-03:00
   last_session_at: 2026-09-16T09:15:35-03:00
   confidence: inferred
 focus:
