@@ -14,20 +14,46 @@ project:
     - docs/
 status:
   lifecycle: evolving
-  health: unknown
-  phase: null
+  health: healthy
+  phase: Operacao local com agendamento Windows
   priority: null
-  updated_at: 2026-09-16T06:56:30-03:00
-  last_session_at: null
+  updated_at: 2026-09-16T08:16:31-03:00
+  last_session_at: 2026-09-16T08:16:31-03:00
   confidence: inferred
 focus:
-  objective: null
-  current: null
-  last_completed: null
-  recommended_next_action: null
-next_actions: []
+  objective: Guia diario, alertas e acompanhamento de prazos do AVA Univesp
+  current: Acompanhar execucao das tarefas agendadas em tmp/log/rodar_diario.log
+  last_completed: Mapeamento de estado, foco e próximas ações
+  recommended_next_action: act-002
+next_actions:
+  - id: act-001
+    title: Verificar integracao de envio de e-mail opcional via SMTP
+    status: pending
+    impact: null
+    urgency: null
+    effort: null
+    due_date: null
+    unblocks: []
+    blocked_by: []
+    created_at: 2026-09-16T08:16:30-03:00
+    done_at: null
+    note: null
+  - id: act-002
+    title: Acompanhar execucao das tarefas agendadas em tmp/log/rodar_diario.log
+    status: pending
+    impact: null
+    urgency: null
+    effort: null
+    due_date: null
+    unblocks: []
+    blocked_by: []
+    created_at: 2026-09-16T08:16:31-03:00
+    done_at: null
+    note: null
 blockers: []
-decisions_recent: []
+decisions_recent:
+  - date: 2026-09-16
+    text: Estado preenchido com base em STATUS.md de 15/09/2026
 milestones: []
 review:
   stale_after_days: null
