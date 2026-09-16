@@ -17,18 +17,18 @@ status:
   health: healthy
   phase: Operacao local com agendamento Windows
   priority: null
-  updated_at: 2026-09-16T08:16:31-03:00
-  last_session_at: 2026-09-16T08:16:31-03:00
+  updated_at: 2026-09-16T09:15:42-03:00
+  last_session_at: 2026-09-16T09:15:35-03:00
   confidence: inferred
 focus:
   objective: Guia diario, alertas e acompanhamento de prazos do AVA Univesp
-  current: Acompanhar execucao das tarefas agendadas em tmp/log/rodar_diario.log
-  last_completed: Mapeamento de estado, foco e próximas ações
-  recommended_next_action: act-002
+  current: Último commit (15/09/2026) implementou agendamento de tarefas local no Windows sem janela; coleta real e acesso local validados no dia 14/09.
+  last_completed: Agendamento local em segundo plano no Windows em 15/09/2026.
+  recommended_next_action: act-003
 next_actions:
   - id: act-001
     title: Verificar integracao de envio de e-mail opcional via SMTP
-    status: pending
+    status: dropped
     impact: null
     urgency: null
     effort: null
@@ -40,7 +40,7 @@ next_actions:
     note: null
   - id: act-002
     title: Acompanhar execucao das tarefas agendadas em tmp/log/rodar_diario.log
-    status: pending
+    status: dropped
     impact: null
     urgency: null
     effort: null
@@ -50,10 +50,24 @@ next_actions:
     created_at: 2026-09-16T08:16:31-03:00
     done_at: null
     note: null
+  - id: act-003
+    title: Validar rotina agendada de coleta automática em segundo plano no Windows
+    status: pending
+    impact: null
+    urgency: null
+    effort: null
+    due_date: null
+    unblocks: []
+    blocked_by: []
+    created_at: 2026-09-16T09:15:32-03:00
+    done_at: null
+    note: null
 blockers: []
 decisions_recent:
   - date: 2026-09-16
     text: Estado preenchido com base em STATUS.md de 15/09/2026
+  - date: 2026-09-16
+    text: 'Alinhar focus.current e próxima ação com evidência real: STATUS.md e commit 15/09/2026 ("feat(automacao): agendamento local...")'
 milestones: []
 review:
   stale_after_days: null
