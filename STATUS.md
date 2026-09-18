@@ -1383,6 +1383,8 @@ O alerta de prazo só dispara com prazo **novo** (comparação entre dois retrat
 
 Fora daqui, o alarme de verdade: **`josemardp/vigia-univesp`** (privado, outra conta), rodando 09h e 19h. Faz a mesma pergunta e avisa **falhando**, para o GitHub mandar a notificação nativa de workflow quebrado. Sem SMTP de propósito: alarme que depende de cinco segredos bem configurados tem cinco jeitos novos de quebrar em silêncio. Se o Actions desta conta parar por inteiro, o vigia interno para junto e o externo continua — que era exatamente o buraco anotado aqui desde 10/08.
 
+> **Superado em 18/09/2026:** o site público saiu do ar na limpeza de 14/09, o `vigia-univesp` falhou em 12 e 13/09, teve o workflow desligado e o repositório foi **arquivado** no GitHub. A função passou para o `vigia.py` local (tarefa `Univesp - vigia` das 20:00, ver o topo deste arquivo). O clone foi retirado das listas de sincronização.
+
 ## Auditoria de 19/08/2026 (noite): um prazo inventado e a mesma live duas vezes
 
 Varredura sobre o retrato das 17:29 (o das 20h29 UTC), com o site publicado conferido contra o `data.json` e o e-mail renderizado à mão. A mecânica estava impecável: `status: ok`, as dez fontes lidas ao vivo sem cache, o Pages servindo exatamente o artefato do último commit, dez suítes passando, nada quebrado em mobile nem em tema escuro. Os cinco defeitos são todos de conteúdo, e quatro deles são o guia afirmando mais do que leu.

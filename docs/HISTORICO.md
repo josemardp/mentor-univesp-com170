@@ -245,7 +245,7 @@ Nenhuma credencial no repositório (ele é público).
 ## Auditoria independente (25/07/2026)
 
 Uma segunda IA auditou o projeto com acesso ao AVA. Relatório em
-`AUDITORIA-INDEPENDENTE-2026-07-25.md`. Achados aceitos e já corrigidos:
+`docs/historico/AUDITORIA-INDEPENDENTE-2026-07-25.md`. Achados aceitos e já corrigidos:
 
 - **Falhava aberto:** coleta vazia era gravada como `ok` e o site dizia "tudo
   em dia". Agora há contrato de saúde: leitura suspeita preserva o último
@@ -268,7 +268,7 @@ Uma segunda IA auditou o projeto com acesso ao AVA. Relatório em
 ## Auditoria rodada 2 (25/07/2026)
 
 Segunda auditoria, focada em derrubar as correções da rodada 1. Relatório em
-`AUDITORIA-INDEPENDENTE-RODADA-2-2026-07-25.md`. **Sete achados, todos
+`docs/historico/AUDITORIA-INDEPENDENTE-RODADA-2-2026-07-25.md`. **Sete achados, todos
 reproduzidos e todos corrigidos:**
 
 - **Escopo do aviso não era encerrado.** "Módulo 4: até 26/07" seguido de
@@ -296,7 +296,7 @@ reproduzidos e todos corrigidos:**
 
 ## Auditoria rodada 3 (25/07/2026)
 
-Relatório em `AUDITORIA-INDEPENDENTE-RODADA-3-2026-07-25.md`. Sete achados,
+Relatório em `docs/historico/AUDITORIA-INDEPENDENTE-RODADA-3-2026-07-25.md`. Sete achados,
 sete reproduzidos, sete corrigidos. **Quatro caíram na mesma camada**: extração
 de prazo de texto livre. Terceiro round seguido em que o conserto resolve o
 caso relatado e abre o vizinho.
@@ -329,7 +329,7 @@ completa embaixo; assunto diz a decisão, não a contagem.
 
 ## Auditoria rodada 4 (25/07/2026)
 
-Relatório em `AUDITORIA-INDEPENDENTE-RODADA-4-2026-07-25.md`. Cinco achados
+Relatório em `docs/historico/AUDITORIA-INDEPENDENTE-RODADA-4-2026-07-25.md`. Cinco achados
 verificados: quatro procedem e foram corrigidos, um (colisão de identidade por
 rótulo) não reproduzi como falha concreta mas a chave era frágil e foi trocada.
 
@@ -358,7 +358,7 @@ não chegar, o robô parou. Vale saber disso.
 ## Auditoria rodada 5 — fase imediata (25/07/2026)
 
 Homologação adversarial das correções da rodada 4. Relatório em
-`AUDITORIA-INDEPENDENTE-RODADA-5-IMEDIATA-2026-07-25.md`. Os casos vizinhos
+`docs/historico/AUDITORIA-INDEPENDENTE-RODADA-5-IMEDIATA-2026-07-25.md`. Os casos vizinhos
 foram reproduzidos e corrigidos:
 
 - a primeira perda das fontes falhava fechado, mas gravava os zeros como nova
