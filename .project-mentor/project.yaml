@@ -17,14 +17,14 @@ status:
   health: healthy
   phase: Operacao local com agendamento Windows
   priority: 2
-  updated_at: 2026-09-19T22:45:46-03:00
-  last_session_at: 2026-09-19T14:23:07-03:00
+  updated_at: 2026-09-19T22:46:52-03:00
+  last_session_at: 2026-09-19T22:46:52-03:00
   confidence: inferred
 focus:
   objective: Guia diario, alertas e acompanhamento de prazos do AVA Univesp
-  current: Acompanhar execução automática das tarefas diárias e próximos prazos de entrega do COM170 em 26/09.
-  last_completed: Verificação de integridade via tarefa vigia confirmando guia em dia
-  recommended_next_action: act-005
+  current: Conferir amanhã (20/09) se as rodadas de 07:30 e 13:00 aconteceram sozinhas no
+  last_completed: só pelo nome, e conserta a que estiver divergente.
+  recommended_next_action: act-007
 next_actions:
   - id: act-001
     title: Verificar integracao de envio de e-mail opcional via SMTP
@@ -98,6 +98,18 @@ next_actions:
     created_at: 2026-09-19T22:25:18-03:00
     done_at: 2026-09-19T22:45:46-03:00
     note: null
+  - id: act-007
+    title: Conferir amanhã (20/09) se as rodadas de 07:30 e 13:00 aconteceram sozinhas no
+    status: pending
+    impact: null
+    urgency: null
+    effort: null
+    due_date: null
+    unblocks: []
+    blocked_by: []
+    created_at: 2026-09-19T22:46:52-03:00
+    done_at: null
+    note: null
 blockers: []
 decisions_recent:
   - date: 2026-09-16
@@ -106,6 +118,14 @@ decisions_recent:
     text: 'Alinhar focus.current e próxima ação com evidência real: STATUS.md e commit 15/09/2026 ("feat(automacao): agendamento local...")'
   - date: 2026-09-19
     text: Utilizar conhost.exe --headless nas tarefas agendadas para evitar que o Windows Terminal abra abas visíveis no Windows 11.
+  - date: 2026-09-19
+    text: "Rodada que encontra a trava tomada sai com código 0, não 1: não é falha, é"
+  - date: 2026-09-19
+    text: trabalho já em andamento, e encheria o histórico do Agendador de erro falso.
+  - date: 2026-09-19
+    text: A conta de idade do painel continua só no `vigia.py`, chamado com
+  - date: 2026-09-19
+    text: "`LIMITE_HORAS`, em vez de ser reescrita no script da rodada."
 milestones: []
 review:
   stale_after_days: null
