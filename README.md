@@ -192,6 +192,31 @@ Três tarefas registradas no Agendador, executadas como o usuário logado:
 `Univesp - vigia` (20:00). Todas têm `StartWhenAvailable`, então o PC desligado
 na hora marcada apenas atrasa a rodada, não a cancela.
 
+Esse atraso tem um efeito colateral que custou uma rodada em 19/09/2026: num PC
+que fica desligado às 07:30 **e** às 13:00, as duas rodadas atrasadas disparam
+no mesmo segundo quando ele liga. Duas leituras simultâneas do AVA derrubam
+uma à outra, porque o `MoodleSession` é sessão única. Por isso existe a trava
+`tmp/log/rodada.lock`: **uma coleta por vez na máquina**. Quem chega e encontra
+a trava tomada sai com código 0 e registra isso no log — não é falha, é
+trabalho já em andamento. O `-Modo vigia` também respeita a trava, senão
+acusaria painel congelado enquanto o retrato novo ainda está sendo escrito. E a
+rodada `alerta` nem relê o AVA se o painel tem menos de 1,5h.
+
+Num notebook há uma pegadinha que custou caro: `New-ScheduledTaskSettingsSet`
+liga `DisallowStartIfOnBatteries` e `StopIfGoingOnBatteries` por padrão. Com
+isso, **fora da tomada a tarefa não roda** — fica em `Queued`, sem erro e sem
+registro de falha — e a rodada em andamento morre se o notebook for
+desplugado. As tarefas são registradas com `-AllowStartIfOnBatteries
+-DontStopIfGoingOnBatteries`.
+
+Quem registra e confere as tarefas é `automacao\configurar_local.ps1`, chamado
+pelo "Atualizar todos os projetos". Ele compara a tarefa **por dentro**
+(programa, argumentos, limite de tempo, `StartWhenAvailable`, as duas regras de
+bateria e o horário) e refaz a que estiver fora do combinado, dizendo o que
+estava errado. Conferir só pelo nome era o que fazia ele reportar "já estão em
+dia" para tarefa existente com qualquer configuração velha. As duas coletas têm
+limite de 60 minutos; o vigia, de 5.
+
 As tarefas não chamam o `powershell.exe` direto: chamam
 `conhost.exe --headless powershell.exe -NoProfile -ExecutionPolicy Bypass -File ...`.
 No Windows 11 com o Windows Terminal como console padrão, `-WindowStyle Hidden`

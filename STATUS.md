@@ -6,6 +6,98 @@
 > Agendado no Windows (15/09/2026): `automacao\rodar_diario.ps1`, tarefas `Univesp - guia diario` 07:30, `Univesp - guia alerta` 13:00, `Univesp - vigia` 20:00. Log em `tmp/log/rodar_diario.log`.
 > Histórico completo de sessões, auditorias e etapas concluídas: [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
+## O robô não rodava fora da tomada, e duas rodadas no mesmo segundo derrubavam uma à outra (19/09/2026)
+
+### O defeito grande: notebook na bateria não roda tarefa nenhuma
+
+Achado enquanto se testava a correção da colisão, e é o que mais explica o PC
+do trabalho ser justamente o que falha. `New-ScheduledTaskSettingsSet` vem com
+`DisallowStartIfOnBatteries` e `StopIfGoingOnBatteries` **ligados por padrão**,
+e o `configurar_local.ps1` nunca os desligou. Consequência num notebook:
+
+- fora da tomada, a tarefa **não roda**. Ela fica em `Queued`, sem erro, sem
+  entrada de falha, sem nada para ninguém ver. Conferido nesta sessão: as duas
+  coletas disparadas à mão ficaram presas na fila, com `LastTaskResult 0`;
+- e a rodada que já estava rodando **morre** no instante em que o notebook sai
+  da tomada, com o mesmo `0x40010004` de tarefa morta pelo limite de tempo.
+
+Isso está ali desde 15/09, quando as tarefas nasceram. A máquina de casa não
+sentiu porque vive na tomada. Corrigido com `-AllowStartIfOnBatteries
+-DontStopIfGoingOnBatteries`, e o configurador agora conserta tarefa antiga que
+esteja com os dois ligados.
+
+### O defeito que começou a investigação: duas rodadas ao mesmo tempo
+
+**O que aconteceu.** No PC do trabalho (`LAPTOP-3NSQG27T`) o painel parou em
+18/09 às 13:00. A rodada de 19/09 começou às 14:44:55, escreveu
+`-> gerar_guia` no log e nunca mais escreveu nada. O Agendador registrou
+`0x40010004` na tarefa `Univesp - guia diario`: tarefa morta pelo limite de
+tempo, 40 minutos depois. O Josemar só soube às 22h, pelo vigia, que achou o
+painel com 33 horas.
+
+**Por que.** Este PC fica desligado às 07:30 e às 13:00. As três tarefas têm
+`StartWhenAvailable`, que é o certo: rodada perdida acontece quando a máquina
+liga. Só que, quando ele ligou às 14:44, **as duas rodadas atrasadas
+dispararam no mesmo segundo** (o Agendador marca 14:44:48 nas duas). Duas
+coletas ao mesmo tempo entram no AVA duas vezes, e o `MoodleSession` da
+segunda derruba o da primeira — é o mesmo cookie de sessão única que já tinha
+sido medido em agosto. A primeira passou o resto do tempo reabrindo página que
+voltava para o login, até ser morta.
+
+Dois agravantes esconderam o rastro, e os dois foram medidos nesta sessão:
+
+- **`Add-Content` concorrente perde linha calado.** Teste nesta máquina: três
+  processos gravando 400 linhas cada deixaram **649 das 1200**, sem um único
+  erro. Foi assim que a rodada `alerta` de 19/09 sumiu inteira do log, sem
+  deixar nem o "comecou" — e por isso a colisão não era visível.
+- **A saída do Python só ia para o log depois que ele voltava.** Rodada morta
+  no meio não deixava nada: 40 minutos de leitura perdidos, e um
+  `-> gerar_guia` que nunca fechou.
+
+**O que entrou.**
+
+- `rodar_diario.ps1`: **trava de arquivo** em `tmp/log/rodada.lock`, com posse
+  exclusiva. Uma coleta por vez na máquina; quem chega e acha a trava tomada
+  sai com 0 dizendo isso no log (não é falha, é trabalho já em andamento). O
+  vigia também respeita a trava: painel velho com coleta rodando não é painel
+  congelado, e alarme falso mata vigia.
+- `rodar_diario.ps1`: log gravado com posse exclusiva e repetição enquanto o
+  arquivo estiver tomado, no lugar do `Add-Content`. E saída do Python
+  transmitida **linha a linha** (`python -u`), para que rodada morta no meio
+  deixe o rastro do que já tinha lido.
+- `rodar_diario.ps1`: a rodada `alerta` não relê o AVA se o painel tem menos
+  de 1,5h. Quem responde é o próprio `vigia.py` com `LIMITE_HORAS`, para não
+  existir uma segunda versão da conta de idade do painel.
+- `configurar_local.ps1`: passou a conferir a tarefa **por dentro** (programa,
+  argumentos, limite de tempo, `StartWhenAvailable`, as duas regras de bateria
+  e o horário), não só pelo nome. Antes ele dizia "já estão em dia" para tarefa
+  existente com qualquer configuração errada, e era isso que o atualizador de
+  projetos vinha reportando neste PC.
+- Limite de tempo das duas coletas subiu de 40 para **60 minutos**: uma rodada
+  em rede lenta já tinha levado 29 minutos em 15/09, e 40 era pouca folga para
+  varrer mais de 60 fóruns.
+
+**Duas armadilhas na comparação**, as duas pegas porque o configurador foi
+rodado três vezes seguidas em vez de uma: o Windows normaliza `PT60M` para
+`PT1H` (comparar texto refazia as três tarefas em toda passada, para sempre), e
+a tarefa antiga guardava `conhost.exe` pelado enquanto o script monta o caminho
+completo. Agora a duração é comparada como `TimeSpan` e o programa, pelo nome
+do arquivo.
+
+**Conferido nesta máquina, não deduzido.**
+
+- As 12 suítes de teste passam.
+- `Add-Content` concorrente medido: 649 linhas de 1200, zero erro.
+- Coleta ao vivo sozinha: 12min37s, código 0.
+- Configurador: pega divergência plantada de propósito (limite de volta para
+  40 min) e conserta só a tarefa errada; três passadas seguidas depois disso
+  não mexem em nada.
+- As duas tarefas disparadas **no mesmo segundo** pelo Agendador (22:32:57), que
+  é o caso de 19/09: a `diario` pegou a trava e coletou, a `alerta` saiu com 0
+  dizendo "já tem outra rodada coletando", **as duas linhas ficaram no log** e a
+  saída do Python apareceu ao vivo, com a coleta ainda rodando.
+- `vigia` durante a coleta: "tem coleta rodando agora", sem alarme falso.
+
 ## O agendamento voltou, agora na máquina: três tarefas do Windows e o vigia lendo o arquivo local (15/09/2026)
 
 **O buraco.** Desligar o Pages em 11/09 levou junto os dois workflows, e o

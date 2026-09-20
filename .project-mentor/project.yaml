@@ -17,7 +17,7 @@ status:
   health: healthy
   phase: Operacao local com agendamento Windows
   priority: 2
-  updated_at: 2026-09-19T14:23:07-03:00
+  updated_at: 2026-09-19T22:45:46-03:00
   last_session_at: 2026-09-19T14:23:07-03:00
   confidence: inferred
 focus:
@@ -85,6 +85,18 @@ next_actions:
     blocked_by: []
     created_at: 2026-09-19T14:23:07-03:00
     done_at: null
+    note: null
+  - id: act-006
+    title: Corrigir colisao de rodadas do agendador no PC do trabalho (trava, log e configurador)
+    status: done_tested
+    impact: null
+    urgency: null
+    effort: null
+    due_date: null
+    unblocks: []
+    blocked_by: []
+    created_at: 2026-09-19T22:25:18-03:00
+    done_at: 2026-09-19T22:45:46-03:00
     note: null
 blockers: []
 decisions_recent:

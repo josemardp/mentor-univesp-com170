@@ -22,6 +22,10 @@ Canais de aviso, nesta ordem:
 O segundo existe porque um agendador que roda em silencio nao resolve o
 problema que ele foi criado para resolver.
 
+Uma coleta por vez, garantida por trava de arquivo em tmp\log\rodada.lock.
+Rodada que chega e encontra a trava tomada sai com 0 e diz isso no log: o AVA
+so aguenta uma sessao de cada vez, e duas leituras juntas derrubam as duas.
+
 As tarefas chamam este script por "conhost.exe --headless powershell.exe ...",
 e nao por powershell.exe direto. No Windows 11 com o Windows Terminal como
 console padrao, "-WindowStyle Hidden" e ignorado e cada rodada abria uma aba
@@ -50,13 +54,36 @@ $logDir = Join-Path $repo 'tmp\log'
 if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
 $log = Join-Path $logDir 'rodar_diario.log'
 
+# Gravacao crua no log, com posse exclusiva do arquivo e repeticao enquanto ele
+# estiver tomado. "Add-Content" foi o que estava aqui e nao serve: com duas
+# rodadas ao mesmo tempo ele nao reclama e nao para, ele PERDE linha calado.
+# Medido em 19/09/2026 nesta maquina: tres processos gravando 400 linhas cada
+# deixaram 649 das 1200 no arquivo, sem um unico erro. Foi assim que a rodada
+# 'alerta' daquele dia sumiu do log inteira, sem deixar nem o "comecou".
+function EscreveBruto($linha) {
+    for ($tentativa = 0; $tentativa -lt 50; $tentativa++) {
+        try {
+            $fs = [System.IO.File]::Open($log, 'Append', 'Write', 'None')
+            try {
+                $sw = New-Object System.IO.StreamWriter($fs, (New-Object System.Text.UTF8Encoding($false)))
+                $sw.WriteLine($linha)
+                $sw.Flush()
+                $sw.Dispose()
+            } finally { $fs.Dispose() }
+            return
+        } catch {
+            Start-Sleep -Milliseconds 60
+        }
+    }
+}
+
 # Write-Host, e nao Write-Output: o que vai para o pipeline vira valor de
 # retorno da funcao que chamou, e "Invoca" passaria a devolver um array em vez
 # do codigo de saida. Foi o que fez a primeira rodada de teste acusar falha num
 # render que tinha terminado com 0.
 function Escreve($texto) {
     $linha = "[{0:yyyy-MM-dd HH:mm:ss}] {1}" -f (Get-Date), $texto
-    Add-Content -Path $log -Value $linha -Encoding UTF8
+    EscreveBruto $linha
     Write-Host $linha
 }
 
@@ -65,10 +92,16 @@ function Invoca($titulo, $argumentos) {
     # Python escreve aviso em stderr e isso nao e erro; com 'Stop' o 2>&1
     # derrubaria a funcao antes de ler o codigo de saida.
     $ErrorActionPreference = 'Continue'
-    $saida = & python @argumentos 2>&1
+    # A saida vai para o log linha a linha, conforme sai. Antes ela era juntada
+    # numa variavel e so gravada depois que o python voltava, entao rodada
+    # morta no meio (o Agendador mata no limite de tempo) nao deixava rastro
+    # nenhum: em 19/09/2026 o log ficou com um "-> gerar_guia" que nunca
+    # fechou, e o que a coleta tinha lido em 40 minutos se perdeu junto.
+    # "-u" no python porque senao o proprio python segura a saida no buffer e
+    # a transmissao aqui nao adianta nada.
+    & python -u @argumentos 2>&1 | ForEach-Object { EscreveBruto ("    " + $_) }
     $codigo = $LASTEXITCODE
     $ErrorActionPreference = 'Stop'
-    foreach ($linha in $saida) { Add-Content -Path $log -Value "    $linha" -Encoding UTF8 }
     Escreve "<- $titulo terminou com codigo $codigo"
     return [int]$codigo
 }
@@ -122,6 +155,30 @@ if urgentes:
     return ($texto -join "`n").Trim()
 }
 
+# Trava de rodada: uma coleta por vez nesta maquina. O arquivo e aberto com
+# posse exclusiva e so e solto quando o processo termina, inclusive quando o
+# Agendador o mata no limite de tempo (o Windows fecha o descritor junto).
+#
+# Isto existe por causa de 19/09/2026, no PC do trabalho. As tres tarefas tem
+# "StartWhenAvailable", que e o certo: maquina desligada as 07:30 nao perde a
+# rodada, ela roda quando liga. So que naquele dia o PC so foi ligado as
+# 14:44, e ai as duas rodadas atrasadas (07:30 e 13:00) dispararam **no mesmo
+# segundo**. Duas coletas ao mesmo tempo entram no AVA duas vezes, e o
+# MoodleSession da segunda derruba o da primeira; a primeira passou o resto do
+# tempo tentando reabrir pagina que voltava para o login, ate o Agendador
+# mata-la nos 40 minutos (codigo 0x40010004). Resultado: painel parado em
+# 18/09 e ninguem soube ate o vigia das 20h.
+$travaCaminho = Join-Path $logDir 'rodada.lock'
+$trava = $null
+function PegaTrava {
+    try {
+        $script:trava = [System.IO.File]::Open($travaCaminho, 'OpenOrCreate', 'ReadWrite', 'None')
+        return $true
+    } catch {
+        return $false
+    }
+}
+
 Push-Location $repo
 try {
     Escreve "=== rodada '$Modo' comecou ==="
@@ -131,6 +188,14 @@ try {
         # fica fora dela: se morasse dentro do diario, sumiria junto com ele.
         # Exit 0 e painel em dia, e o vigia nao fala nada; vigia que fala todo
         # dia deixa de ser lido.
+        #
+        # Coleta em andamento e o unico caso em que painel velho nao e defeito:
+        # o retrato novo ainda esta sendo escrito. Gritar aqui seria alarme
+        # falso, e alarme falso e como se mata um vigia.
+        if (-not (PegaTrava)) {
+            Escreve '=== vigia: tem coleta rodando agora, nao e painel congelado ==='
+            exit 0
+        }
         $codigo = Invoca 'vigia' @('automacao/vigia.py')
         if ($codigo -ne 0) {
             Invoca 'vigia --avisar' @('automacao/vigia.py', '--avisar') | Out-Null
@@ -140,6 +205,29 @@ try {
         }
         Escreve '=== vigia: guia em dia ==='
         exit 0
+    }
+
+    if (-not (PegaTrava)) {
+        # Sair com 0 de proposito: nao aconteceu falha nenhuma, a leitura ja
+        # esta sendo feita pela outra rodada. Exit 1 aqui encheria o historico
+        # do Agendador de erro que nao e erro.
+        Escreve '=== ja tem outra rodada coletando; saio sem ler o AVA ==='
+        exit 0
+    }
+
+    # Rodada atrasada que cai em cima de outra nao precisa reler o AVA: o
+    # retrato acabou de ser feito. O limite vai para 1,5h e quem responde e o
+    # proprio vigia, que ja sabe medir idade de painel; escrever a conta de
+    # novo aqui seria criar uma segunda versao dela para divergir da primeira.
+    # Exit 0 do vigia = painel mais novo que o limite.
+    if ($Modo -eq 'alerta' -and -not $SemColeta) {
+        $env:LIMITE_HORAS = '1.5'
+        $recente = (Invoca 'vigia (painel ja esta fresco?)' @('automacao/vigia.py')) -eq 0
+        Remove-Item Env:\LIMITE_HORAS -ErrorAction SilentlyContinue
+        if ($recente) {
+            Escreve '=== painel lido ha menos de 1,5h; alerta nao rele o AVA ==='
+            exit 0
+        }
     }
 
     $falhou = $null
@@ -173,5 +261,6 @@ try {
     Escreve '=== rodada terminou ==='
     exit 0
 } finally {
+    if ($trava) { $trava.Dispose() }
     Pop-Location
 }
