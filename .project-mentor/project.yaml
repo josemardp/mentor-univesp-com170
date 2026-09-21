@@ -17,14 +17,14 @@ status:
   health: healthy
   phase: Operacao local com agendamento Windows
   priority: 2
-  updated_at: 2026-09-19T22:46:52-03:00
-  last_session_at: 2026-09-19T22:46:52-03:00
-  confidence: inferred
+  updated_at: 2026-09-21T14:35:53-03:00
+  last_session_at: 2026-09-21T14:35:53-03:00
+  confidence: confirmed
 focus:
   objective: Guia diario, alertas e acompanhamento de prazos do AVA Univesp
-  current: Conferir amanhã (20/09) se as rodadas de 07:30 e 13:00 aconteceram sozinhas no
-  last_completed: só pelo nome, e conserta a que estiver divergente.
-  recommended_next_action: act-007
+  current: Conferir no log de 22/09 se as rodadas entraram sem "sessão expirada" e, se houver falha, ler o motivo registrado.
+  last_completed: Guia regenerado com coleta completa das 4 disciplinas às 14:08
+  recommended_next_action: act-008
 next_actions:
   - id: act-001
     title: Verificar integracao de envio de e-mail opcional via SMTP
@@ -100,7 +100,7 @@ next_actions:
     note: null
   - id: act-007
     title: Conferir amanhã (20/09) se as rodadas de 07:30 e 13:00 aconteceram sozinhas no
-    status: pending
+    status: done_tested
     impact: null
     urgency: null
     effort: null
@@ -108,6 +108,18 @@ next_actions:
     unblocks: []
     blocked_by: []
     created_at: 2026-09-19T22:46:52-03:00
+    done_at: 2026-09-21T14:35:51-03:00
+    note: null
+  - id: act-008
+    title: Conferir no log de 22/09 se as rodadas entraram sem "sessão expirada" e, se houver falha, ler o motivo registrado.
+    status: pending
+    impact: null
+    urgency: null
+    effort: null
+    due_date: null
+    unblocks: []
+    blocked_by: []
+    created_at: 2026-09-21T14:35:53-03:00
     done_at: null
     note: null
 blockers: []
@@ -126,6 +138,8 @@ decisions_recent:
     text: A conta de idade do painel continua só no `vigia.py`, chamado com
   - date: 2026-09-19
     text: "`LIMITE_HORAS`, em vez de ser reescrita no script da rodada."
+  - date: 2026-09-21
+    text: Falha para entrar no AVA passa por uma segunda tentativa após 20 s antes de virar "sessão expirada".
 milestones: []
 review:
   stale_after_days: null
