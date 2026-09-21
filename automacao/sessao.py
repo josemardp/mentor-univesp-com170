@@ -167,12 +167,26 @@ def _fazer_login(page):
     return False, "enviei o login mas o AVA nao abriu o painel"
 
 
-def garantir(page):
+def garantir(page, tentativas=2):
     """Deixa a pagina logada no AVA.
 
     Devolve (ok, como): 'sessao' quando a sessao salva ainda valia,
     'login' quando precisou logar, e None com o motivo quando nao deu.
+    Tenta de novo antes de desistir: em 21/09/2026 a rodada das 13:00
+    falhou uma vez e o login seguinte, minutos depois, entrou normal.
     """
+    ok, como = False, ""
+    for tentativa in range(1, tentativas + 1):
+        ok, como = _garantir_uma_vez(page)
+        if ok:
+            return ok, como
+        print(f"  tentativa {tentativa}/{tentativas} de entrar no AVA falhou: {como}")
+        if tentativa < tentativas:
+            page.wait_for_timeout(20000)
+    return ok, como
+
+
+def _garantir_uma_vez(page):
     try:
         page.goto(PAINEL_URL, wait_until="domcontentloaded", timeout=60000)
         page.wait_for_timeout(1200)

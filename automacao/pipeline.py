@@ -271,6 +271,7 @@ def executar_coleta(estado, anterior=None):
         page = contexto.new_page()
         autenticado, como = sessao.garantir(page)
         if not autenticado:
+            print(f"  não entrei no AVA: {como}")
             navegador.close()
             return None, "session_expired"
         if como == "login":
