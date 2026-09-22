@@ -155,3 +155,29 @@ try {
 } catch {
     Write-Host "  [Mentor UNIVESP] Aviso ao verificar atalhos: $($_.Exception.Message)" -ForegroundColor Yellow
 }
+
+# 3. Atalho privado/ para o acervo no Google Drive
+#
+# O repositorio e publico (vitrine do LinkedIn). Coleta do AVA, gabarito e a
+# prova diagnostica da formacao complementar ficam no Drive, que tem o mesmo
+# caminho nas duas maquinas; so a letra da unidade pode mudar. A pasta
+# privado/ esta no .gitignore.
+try {
+    $relPrivado = "Meu Drive\10_JOSEMAR_PESSOAL\03_PROJETOS_ATIVOS\02_TECNOLOGIA_E_IA\mentor-univesp-privado"
+    $alvoPrivado = Get-PSDrive -PSProvider FileSystem |
+        ForEach-Object { Join-Path $_.Root $relPrivado } |
+        Where-Object { Test-Path -LiteralPath $_ } |
+        Select-Object -First 1
+    $linkPrivado = Join-Path $repo "privado"
+
+    if (-not $alvoPrivado) {
+        Write-Host "  [Mentor UNIVESP] Google Drive nao montado: privado/ nao foi criado." -ForegroundColor Yellow
+    } elseif (Test-Path -LiteralPath $linkPrivado) {
+        Write-Host "  [Mentor UNIVESP] privado/ ja existe." -ForegroundColor DarkGray
+    } else {
+        New-Item -ItemType Junction -Path $linkPrivado -Target $alvoPrivado | Out-Null
+        Write-Host "  [Mentor UNIVESP] privado/ criado, apontando para $alvoPrivado" -ForegroundColor Green
+    }
+} catch {
+    Write-Host "  [Mentor UNIVESP] Aviso ao criar privado/: $($_.Exception.Message)" -ForegroundColor Yellow
+}

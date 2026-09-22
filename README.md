@@ -236,6 +236,19 @@ ele passa de 16 horas.
 
 ---
 
+## Outras frentes deste repositório
+
+| Pasta | O que é |
+|---|---|
+| [`estudo/`](estudo/) | Revisão para as provas presenciais, uma pasta por bimestre. Guias para o NotebookLM, plano de estudo, apostila interativa de Scratch e a matriz de assimilação: `python estudo/ferramentas/assimilar.py status` mostra a prontidão por disciplina (IPP). |
+| [`formacao-complementar/`](formacao-complementar/) | Trilha técnica pessoal em IA e automação, estudada em paralelo ao curso: 30 módulos, de fundamentos e Python até RAG, agentes e MCP. |
+
+Material com conteúdo do AVA, gabaritos e autoavaliação fica fora do repositório, em
+`privado/` (atalho local para o Google Drive, criado por `automacao/configurar_local.ps1`
+e ignorado pelo git).
+
+---
+
 ## Sobre o Desenvolvimento
 
 Este projeto foi concebido como uma iniciativa pessoal e laboratório de aprendizagem em **automação de processos, integração de sistemas legados e resiliência de software**, buscando resolver um problema real de sobrecarga cognitiva e organização de estudos.

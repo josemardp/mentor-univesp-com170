@@ -6,6 +6,30 @@
 > Agendado no Windows (15/09/2026): `automacao\rodar_diario.ps1`, tarefas `Univesp - guia diario` 07:30, `Univesp - guia alerta` 13:00, `Univesp - vigia` 20:00. Log em `tmp/log/rodar_diario.log`.
 > Histórico completo de sessões, auditorias e etapas concluídas: [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
+## O repositório formacao-ia-automacao foi fundido aqui (22/09/2026)
+
+Pedido do Josemar: trazer tudo, com o currículo de IA numa pasta própria que ele chama
+quando quiser. Este repositório continua **público** (vitrine do LinkedIn), então a
+fusão separou o que pode aparecer do que não pode.
+
+- `estudo/2026-3bim/`: revisão das provas de 22/09 (COM100, SOC100, LET110), matriz de
+  assimilação e plano. `estudo/ferramentas/`: `assimilar.py` e o gerador da apostila de
+  Scratch. Testado: `assimilar.py status` dá o mesmo IPP de 80,0%, e o gerador refaz a
+  apostila byte a byte igual à original.
+- `formacao-complementar/`: o currículo inteiro (módulos 00 a 29, labs de Python, docs
+  vivos). Skill própria `formacao-complementar` no `skills-pessoais`, instalada também no Codex.
+- `privado/` (junction para o Drive, no `.gitignore`, criada pelo `configurar_local.ps1`):
+  14 arquivos que não podem ser públicos. São as 3 coletas brutas do AVA, as apostilas e o
+  resumo com gabarito, o roteiro de podcast do LET110, os dois geradores que produzem
+  esses arquivos (testado: o de LET110 regera igual) e a prova diagnóstica com as respostas.
+- Copiado **sem histórico git**: o histórico antigo tinha arquivos privados e continua só
+  no repositório de origem, que é privado.
+- A regra de revisão para prova (fonte inteira, questionários primeiro), escrita em
+  22/09 depois da prova, veio para o `CLAUDE.md` e o `AGENTS.md` daqui.
+
+**Pendente:** arquivar o slug `formacao-ia-automacao` no mentor e o repositório de origem
+no GitHub (esperando o sim dele); ação do guia de novembro migrada para cá.
+
 ## O robô não rodava fora da tomada, e duas rodadas no mesmo segundo derrubavam uma à outra (19/09/2026)
 
 ### O defeito grande: notebook na bateria não roda tarefa nenhuma

@@ -26,3 +26,9 @@ docs/provas.json
 docs/revisao.json
 entregas_s4/*.pdf
 entregas_s4/qa/
+
+# Acervo privado de estudo (coletas do AVA, gabaritos, prova diagnostica).
+# E um atalho (junction) para o Google Drive criado pelo configurar_local.ps1.
+# O repositorio e publico: nada daqui pode entrar no git.
+privado
+privado/
