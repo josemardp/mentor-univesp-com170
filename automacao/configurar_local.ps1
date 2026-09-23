@@ -35,11 +35,13 @@ $desejado = @(
        Descricao = "Rele o AVA no meio do dia e avisa se apareceu prazo novo." },
     @{ Nome = "Univesp - vigia"; Modo = "vigia"; Hora = "20:00"; Minutos = 5
        Descricao = "Nao le o AVA: confere se o painel local ainda e de hoje." },
-    # Semanal, nao diaria: so na segunda. 180 minutos porque, alem de ler o
-    # AVA, chama o Claude uma vez por disciplina (medido em 22/09/2026: 4 min
-    # por semana de disciplina) e pode ter que esperar a trava da rodada da manha.
+    # Trabalho semanal, gatilho diario: a guarda do rodar_diario.ps1 sai quieta
+    # se a semana ja foi feita, e o disparo das 10:00 de terca em diante
+    # recupera a segunda perdida sem depender de desbloqueio da tela
+    # (pendencia da auditoria do Codex, 23/09/2026). 180 minutos porque chama
+    # o Claude por disciplina (4 min por semana, medido em 22/09/2026).
     @{ Nome = "Univesp - revisao semanal"; Modo = "revisao"; Hora = "10:00"; Minutos = 180
-       Dia = "Monday"; Destravar = $true
+       Destravar = $true
        Descricao = "Segunda: junta o material da semana que terminou e monta a revisao de prova em privado\estudo." }
 )
 
@@ -94,6 +96,9 @@ try {
         } elseif ($alvo.Dia -and @($atual.Triggers | Where-Object { $_.DaysOfWeek -eq 2 }).Count -eq 0) {
             # DaysOfWeek e mascara de bits: domingo 1, segunda 2.
             $motivo = "nao estava so na segunda-feira"
+        } elseif (-not $alvo.Dia -and @($atual.Triggers | Where-Object {
+                    $_.CimClass.CimClassName -eq 'MSFT_TaskWeeklyTrigger' }).Count -gt 0) {
+            $motivo = "era semanal, agora e diaria com guarda"
         } elseif ($alvo.Destravar -and @($atual.Triggers | Where-Object {
                     $_.CimClass.CimClassName -eq 'MSFT_TaskSessionStateChangeTrigger' }).Count -eq 0) {
             $motivo = "nao tinha o gatilho de desbloqueio da tela"
@@ -148,7 +153,7 @@ try {
         Write-Host "  [Mentor UNIVESP] Tarefas ajustadas no Agendador do Windows:" -ForegroundColor Green
         foreach ($linha in $refeitas) { Write-Host "    - $linha" -ForegroundColor Green }
     } else {
-        Write-Host "  [Mentor UNIVESP] 4 tarefas agendadas conferidas por dentro e em dia (07:30, 13:00, 20:00 e segunda 10:00)." -ForegroundColor DarkGray
+        Write-Host "  [Mentor UNIVESP] 4 tarefas agendadas conferidas por dentro e em dia (07:30, 13:00, 20:00 e revisao 10:00)." -ForegroundColor DarkGray
     }
 } catch {
     Write-Host "  [Mentor UNIVESP] Aviso ao verificar tarefas agendadas: $($_.Exception.Message)" -ForegroundColor Yellow

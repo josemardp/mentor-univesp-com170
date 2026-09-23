@@ -6,6 +6,26 @@
 > Agendado no Windows (15/09/2026): `automacao\rodar_diario.ps1`, tarefas `Univesp - guia diario` 07:30, `Univesp - guia alerta` 13:00, `Univesp - vigia` 20:00. Log em `tmp/log/rodar_diario.log`.
 > Histórico completo de sessões, auditorias e etapas concluídas: [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
+## Auditoria do Codex na apostila, revisada e com ajustes (23/09/2026)
+
+A pedido dele, o Codex auditou o pipeline na branch `codex/auditoria-apostila`
+(`RELATORIO_AUDITORIA.md`); revisado e levado para a main. Entrou dele: falha
+de rede no vídeo não vira "sem legenda", página ou quiz vazio não conta como
+lido, PDF homônimo não sobrescreve, PDF sem texto vira "não lido", saída
+parcial do Claude é recusada, apostila só é publicada inteira, semana em página
+própria no resumo, cobertura da apostila vem do manifest.
+
+Ajustes meus sobre o trabalho dele:
+- fonte com falha em 3 rodadas vira "não lido" com o motivo
+  (`MAX_TENTATIVAS_FONTE`); sem isto, uma fonte quebrada prendia a semana e
+  avisava "problema" a cada desbloqueio;
+- retrato do dia atrasado sai com código 4 e o `rodar_diario.ps1` espera em
+  silêncio (antes seria alarme falso);
+- a tarefa da revisão passou a diária às 10:00 (mais logon e desbloqueio), com
+  a guarda semanal; recupera a segunda perdida sem depender da tela;
+- só uma máquina faz a revisão: `privado/estudo/MAQUINA_DA_REVISAO.txt`
+  (hoje `LAPTOP-3NSQG27T`); a outra sai quieta. Para trocar, editar o arquivo.
+
 ## Apostila de prova que engorda toda semana (23/09/2026)
 
 Pedido do Josemar: apostila bonita, colorida, funcional, na medida exata para a

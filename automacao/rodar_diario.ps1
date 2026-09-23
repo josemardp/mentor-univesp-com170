@@ -286,6 +286,13 @@ try {
         # deixava a notificação da semana passada parecer resultado novo.
         Remove-Item -LiteralPath $resumoArq -ErrorAction SilentlyContinue
         $codigo = Invoca 'revisao_semanal' @('automacao/revisao_semanal.py')
+        if ($codigo -eq 4) {
+            # O retrato do AVA de hoje ainda nao saiu (rodada diaria atrasada
+            # pela suspensao). Nao e falha: libera a proxima tentativa e sai.
+            Remove-Item -LiteralPath (MarcaArq 'revisao_tentativa') -ErrorAction SilentlyContinue
+            Escreve '=== revisao: aguardo a rodada diaria de hoje ==='
+            exit 0
+        }
         $resumo = if (Test-Path $resumoArq) { (Get-Content $resumoArq -Raw -Encoding UTF8) } else { '' }
         if ($resumo -and $resumo.Trim()) {
             Avisa 'Univesp: revisao da semana' $resumo.Trim()

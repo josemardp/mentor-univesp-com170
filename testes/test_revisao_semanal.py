@@ -237,6 +237,23 @@ with tempfile.TemporaryDirectory() as tmp:
         ok, _ = R._chamar_claude_uma_vez(pasta, "instrução sintética", "REVISAO.md")
     checa(not ok, "Claude com código de erro não confirma saída parcial")
 
+# ---------------------------------------------------------------------------
+print("\n== desistir de fonte quebrada e uma máquina só ==")
+f1 = R.aplicar_tentativas({"status": "falhou", "erro": "HTTP 404"}, None)
+f2 = R.aplicar_tentativas({"status": "falhou", "erro": "HTTP 404"}, f1)
+f3 = R.aplicar_tentativas({"status": "falhou", "erro": "HTTP 404"}, f2)
+checa(f1["status"] == f2["status"] == "falhou", "duas primeiras falhas ainda tentam de novo")
+checa(f3["status"] == "nao_lido" and "3 rodadas" in f3["erro"],
+      "na terceira falha a fonte vira não lido, sem prender a semana para sempre")
+checa("tentativas" not in R.aplicar_tentativas({"status": "lido"}, f2), "leitura boa zera o contador")
+with tempfile.TemporaryDirectory() as tmp:
+    arq = Path(tmp) / "MAQUINA_DA_REVISAO.txt"
+    checa(R.maquina_responsavel(arq, "LAPTOP-A") == (True, "LAPTOP-A"), "a primeira máquina assume")
+    checa(R.maquina_responsavel(arq, "laptop-a")[0], "a dona continua fazendo")
+    checa(R.maquina_responsavel(arq, "PC-CASA") == (False, "LAPTOP-A"), "a outra máquina sai quieta")
+checa("if ($codigo -eq 4)" in rotina and R.AGUARDA_RETRATO == 4,
+      "retrato do dia atrasado espera em silêncio, sem alarme de problema")
+
 print("\n" + "=" * 66)
 if falhas:
     print(f"{len(falhas)} teste(s) falharam.")

@@ -31,6 +31,7 @@ gabarito. O repositório é público.
 import argparse
 import hashlib
 import json
+import platform
 import re
 import subprocess
 import sys
@@ -57,6 +58,14 @@ INICIO_PADRAO = date(2026, 9, 28)
 # de 16 dias depois do início da semana (conferido em SOC100 S7, 31/08 a 16/09).
 DIAS_ATE_DESISTIR_DO_QUIZ = 21
 TEMPO_CLAUDE_S = 25 * 60
+# Fonte que falha em tantas rodadas seguidas vira "não lido" com o motivo.
+# Sem isto, um PDF que saiu do ar deixava a semana aberta para sempre e cada
+# desbloqueio de tela, depois de 3 h, relia o AVA e avisava "problema" (revisão
+# da auditoria do Codex, 23/09/2026).
+MAX_TENTATIVAS_FONTE = 3
+# Código de saída "o retrato do dia ainda não saiu": não é falha, é espera.
+AGUARDA_RETRATO = 4
+MAQUINA = RAIZ / "privado" / "estudo" / "MAQUINA_DA_REVISAO.txt"
 LIMITE_ATINGIDO = False
 
 SEMANA_RE = re.compile(r"^\s*semana\s+(\d+)\b", re.I)
@@ -203,6 +212,34 @@ def semana_em_dia(manifest, pasta, secao):
     import apostila
     return (manifest.get("ficha_de") == hash_arquivo(revisao)
             and apostila.ler_ficha(pasta) is not None)
+
+
+def aplicar_tentativas(fonte, anterior):
+    """Conta as falhas seguidas de uma fonte; na terceira, desiste dela e a
+    deixa como "não lido", para ele ler por conta própria."""
+    if fonte.get("status") != "falhou":
+        fonte.pop("tentativas", None)
+        return fonte
+    fonte["tentativas"] = ((anterior or {}).get("tentativas") or 0) + 1
+    if fonte["tentativas"] >= MAX_TENTATIVAS_FONTE:
+        fonte["status"] = "nao_lido"
+        fonte["erro"] = f"falhou em {fonte['tentativas']} rodadas: {fonte.get('erro', '')}"[:200]
+    return fonte
+
+
+def maquina_responsavel(arquivo, esta):
+    """Só uma máquina faz a revisão: as duas escrevem na mesma pasta do Drive,
+    e duas rodadas juntas gastariam o dobro da cota do Claude. A primeira que
+    rodar assume; para trocar, basta editar o arquivo."""
+    try:
+        dona = arquivo.read_text(encoding="utf-8").strip()
+    except OSError:
+        dona = ""
+    if not dona:
+        arquivo.parent.mkdir(parents=True, exist_ok=True)
+        arquivo.write_text(esta + "\n", encoding="utf-8")
+        return True, esta
+    return dona.upper() == esta.upper(), dona
 
 
 def retrato_em_dia(dados, hoje):
@@ -428,7 +465,7 @@ def coletar_semana(coletor, curso, n, inicio, secao, manifest, hoje):
             base.update(fazer())
         except Exception as erro:  # uma fonte ruim não derruba a semana
             base.update({"status": "falhou", "erro": f"{type(erro).__name__}: {erro}"[:200]})
-        novas.append(base)
+        novas.append(aplicar_tentativas(base, velho))
 
     def derivar(tipo, alvo, titulo, origem):
         if tipo == "youtube":
@@ -606,6 +643,12 @@ def main():
     if not PRIVADO.exists():
         print("privado/ não existe: rode automacao\\configurar_local.ps1 (Google Drive montado?)")
         return 3
+    manual = bool(args.semana or args.disciplina or args.hoje)
+    if not manual:
+        eu, dona = maquina_responsavel(MAQUINA, platform.node())
+        if not eu:
+            print(f"a revisão semanal é feita por {dona} (privado/estudo/MAQUINA_DA_REVISAO.txt)")
+            return 0
     if not DATA.exists():
         print("docs/data.json não existe: a rodada diária ainda não gerou o retrato do AVA")
         return 3
@@ -613,9 +656,10 @@ def main():
     if not args.hoje and not retrato_em_dia(dados, hoje):
         # 23/09/2026: no logon após suspensão, a revisão pode ganhar a trava
         # antes da rodada diária e ler uma lista de semanas desatualizada.
-        # Código 2 impede a guarda -Agendada de marcar a semana como feita.
+        # O código próprio faz o rodar_diario.ps1 esperar em silêncio, sem
+        # marcar a semana como feita e sem avisar "problema".
         print("docs/data.json ainda não foi atualizado hoje; aguardo a rodada diária")
-        return 2
+        return AGUARDA_RETRATO
 
     alvos = []
     for curso in dados.get("courses") or []:
