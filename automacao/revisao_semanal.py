@@ -61,6 +61,13 @@ SEMANA_RE = re.compile(r"^\s*semana\s+(\d+)\b", re.I)
 BIMESTRE_RE = re.compile(r"/(\d{4})/cronograma_\w+?_(\d)\.html")
 YOUTUBE_RE = re.compile(r"(?:youtube\.com/embed/|youtu\.be/|youtube\.com/watch\?v=)([\w-]{11})")
 LEITOR_EXTERNO = ("login_mb", "bvirtual", "pearson", "minhabiblioteca", "/mod/lti/")
+# Link de página que não é material: crédito de imagem e rede social.
+LIXO_EXTERNO = ("freepik", "unsplash", "pixabay", "pexels", "flaticon", "creativecommons",
+                "shutterstock", "istockphoto", "facebook.com", "instagram.com", "linkedin.com",
+                "twitter.com", "x.com/", "accessibility/resetall")
+# Revista acadêmica em OJS: ".../article/view/ARTIGO/ARQUIVO" é a página do
+# leitor; o PDF sai trocando "view" por "download" (LET110 S5, 23/09/2026).
+OJS_RE = re.compile(r"/article/view/(\d+)/(\d+)")
 
 
 # --------------------------------------------------------------- utilidades
@@ -112,6 +119,8 @@ def classificar_link(href):
         return None  # o vídeo em si; a legenda vem do YouTube
     if h.split("?")[0].endswith(".pdf"):
         return "pdf"
+    if any(x in h for x in LIXO_EXTERNO):
+        return None
     return "externo"
 
 
@@ -143,7 +152,10 @@ def texto_util(bruto):
 
 def cobertura_md(manifest):
     rotulo = {"lido": "lido", "nao_lido": "NÃO LIDO", "pendente": "pendente",
-              "sem_tentativa": "sem tentativa", "falhou": "FALHOU"}
+              "sem_tentativa": "sem tentativa", "sem_legenda": "SEM LEGENDA (assistir)",
+              "revisao_fechada": "feito, mas o AVA não mostra a revisão",
+              "encaminhado": "ver a fonte abaixo",
+              "falhou": "FALHOU"}
     linhas = [
         f"# Cobertura: {manifest['disciplina']} semana {manifest['semana']:02d}",
         "",
@@ -200,13 +212,66 @@ class Coletor:
         caminho.write_text(texto, encoding="utf-8")
         return f"fontes/{nome}", len(texto)
 
+    def _baixar(self, url):
+        # Site de universidade com certificado vencido é comum (UFPB, 22/09/2026);
+        # é material público, a checagem de certificado só impedia a leitura.
+        return self.page.request.get(url, timeout=60000, ignore_https_errors=True)
+
     def pdf(self, url, titulo):
-        nome = slug(Path(url.split("?")[0]).stem)
-        resp = self.page.request.get(url, timeout=60000)
+        resp = self._baixar(url)
         if not resp.ok:
             return {"status": "falhou", "erro": f"HTTP {resp.status}"}
+        return self._ler_pdf(resp.body(), url, titulo)
+
+    def externo(self, url, titulo):
+        """Link para fora do AVA: lê se for PDF (inclusive artigo de revista
+        OJS), senão fica "não lido" e aparece na cobertura."""
+        m = OJS_RE.search(url)
+        if m:
+            # O download de revista OJS é sempre PDF. O servidor da INEP
+            # devolveu página comum em vez do PDF de forma intermitente
+            # (texto-base da Orlandi, LET110 S6, 23/09/2026): três tentativas,
+            # e se nenhuma trouxer PDF é falha a repetir, nunca "não lido".
+            baixar = OJS_RE.sub(r"/article/download/\1/\2", url)
+            erro = None
+            for tentativa in range(3):
+                try:
+                    resp = self._baixar(baixar)
+                    corpo = resp.body() if resp.ok else b""
+                    if corpo[:5] == b"%PDF-":
+                        return self._ler_pdf(corpo, baixar, titulo)
+                    erro = f"HTTP {resp.status}, {resp.headers.get('content-type')}"
+                except Exception as e:
+                    erro = f"{type(e).__name__}: {e}"
+                self.page.wait_for_timeout(3000)
+            return {"status": "falhou", "erro": f"revista não entregou o PDF: {erro}"[:200]}
+        alvos = [url]
+        respondeu, erro = False, None
+        for alvo in alvos:
+            try:
+                resp = self._baixar(alvo)
+            except Exception as e:
+                erro = e
+                continue
+            if not resp.ok:
+                # Erro do servidor (5xx, 429) é passageiro como queda de rede.
+                erro = f"HTTP {resp.status}"
+                continue
+            respondeu = True
+            corpo = resp.body()
+            if corpo[:5] == b"%PDF-" or "pdf" in (resp.headers.get("content-type") or ""):
+                return self._ler_pdf(corpo, alvo, titulo)
+        # Rede que falhou não é "não lido": o texto da Orlandi (LET110 S6)
+        # ficou de fora assim em 23/09/2026 e isolado baixava normal. Falha é
+        # tentada de novo na rodada seguinte; "não lido" é definitivo.
+        if not respondeu:
+            return {"status": "falhou", "erro": str(erro)[:200] if isinstance(erro, str) else f"{type(erro).__name__}: {erro}"[:200]}
+        return {"status": "nao_lido"}
+
+    def _ler_pdf(self, corpo, url, titulo):
+        nome = slug(Path(url.split("?")[0]).stem)
         destino = self.fontes_dir / f"{nome}.pdf"
-        destino.write_bytes(resp.body())
+        destino.write_bytes(corpo)
         import fitz
         with fitz.open(destino) as doc:
             texto = "\n".join(p.get_text() for p in doc)
@@ -223,7 +288,9 @@ class Coletor:
             )
             vtts = list(Path(tmp).glob("*.vtt"))
             if not vtts:
-                return {"status": "falhou", "erro": "sem legenda automática"}
+                # Vídeo curto de abertura costuma não ter legenda. Não é falha
+                # a repetir toda segunda: fica registrado e a semana fecha.
+                return {"status": "sem_legenda"}
             texto = limpar_vtt(vtts[0].read_text(encoding="utf-8", errors="replace"))
         arquivo, chars = self._gravar(
             f"video-{vid}.txt",
@@ -235,8 +302,14 @@ class Coletor:
         info = self._abrir(item["url"])
         revisoes = sorted({h for _, h in info["links"] if "/mod/quiz/review.php" in h})
         if not revisoes:
+            # Tentativa feita sem link de revisão: o questionário esconde a
+            # revisão (COM100 S1, conferido em 23/09/2026: "Feito: Fazer
+            # tentativas: 1", nota 10, nenhum link). Pode abrir depois do
+            # fechamento, então só desiste no mesmo prazo do "sem tentativa".
+            texto = (info.get("texto") or "").lower()
+            tentou = "feito: fazer tentativas" in texto or "resumo das suas tentativas" in texto
             if hoje > inicio + timedelta(days=DIAS_ATE_DESISTIR_DO_QUIZ):
-                return {"status": "sem_tentativa"}
+                return {"status": "revisao_fechada" if tentou else "sem_tentativa"}
             return {"status": "pendente"}
         blocos = []
         for n, url in enumerate(revisoes, 1):
@@ -269,7 +342,7 @@ class Coletor:
             if ("ava.univesp.br" in href and ".pdf" not in href.lower()) or "simplesaml" in href:
                 continue
             tipo = classificar_link(href)
-            if tipo in ("pdf", "leitor"):
+            if tipo in ("pdf", "leitor", "externo"):
                 nome = Path(href.split("?")[0]).name
                 derivadas.append((tipo, href, rotulo or f"Slides {nome}" if tipo == "pdf" else rotulo or item["label"]))
         return {"status": "lido", "arquivo": arquivo, "chars": chars}, derivadas
@@ -296,7 +369,8 @@ def coletar_semana(coletor, curso, n, inicio, secao, manifest, hoje):
             return
         vistos.add(chave)
         velho = anteriores.get(chave)
-        if velho and velho["status"] in ("lido", "nao_lido", "sem_tentativa"):
+        if velho and velho["status"] in ("lido", "nao_lido", "sem_tentativa", "sem_legenda",
+                                         "revisao_fechada", "encaminhado"):
             novas.append(velho)
             puladas.add(chave)
             return
@@ -317,6 +391,8 @@ def coletar_semana(coletor, curso, n, inicio, secao, manifest, hoje):
             registrar(f"pdf:{alvo}", "pdf", titulo, alvo, lambda: coletor.pdf(alvo, titulo), origem)
         elif tipo == "leitor":
             registrar(f"leitor:{alvo}", "leitor externo", titulo, alvo, lambda: {"status": "nao_lido"}, origem)
+        elif tipo == "externo":
+            registrar(f"ext:{alvo}", "link externo", titulo, alvo, lambda: coletor.externo(alvo, titulo), origem)
 
     for item in secao.get("items") or []:
         tipo, rotulo, url = item.get("type"), item.get("label") or "", item.get("url")
@@ -338,14 +414,16 @@ def coletar_semana(coletor, curso, n, inicio, secao, manifest, hoje):
             # fonte própria. Leitor externo e site qualquer ficam "não lido".
             def ler_link(item=item):
                 alvo_tipo, alvo = coletor.alvo_de_url(item)
-                lido = alvo_tipo in ("pdf", "youtube")
-                return {"status": "lido" if lido else "nao_lido", "alvo": alvo, "alvo_tipo": alvo_tipo}
+                # Ponteiro para pdf, vídeo ou site: o conteúdo (e a situação
+                # real) fica na fonte derivada, na linha seguinte da cobertura.
+                encaminha = alvo_tipo in ("pdf", "youtube", "externo")
+                return {"status": "encaminhado" if encaminha else "nao_lido", "alvo": alvo, "alvo_tipo": alvo_tipo}
             registrar(chave, "link", rotulo, url, ler_link)
             reg = next((f for f in novas if f["chave"] == chave), {})
             if reg.get("alvo_tipo") == "youtube":
                 derivar("youtube", YOUTUBE_RE.search(reg["alvo"]).group(1), rotulo, chave)
-            elif reg.get("alvo_tipo") == "pdf":
-                derivar("pdf", reg["alvo"], rotulo, chave)
+            elif reg.get("alvo_tipo") in ("pdf", "externo"):
+                derivar(reg["alvo_tipo"], reg["alvo"], rotulo, chave)
         elif tipo == "quiz":
             registrar(chave, "questionário", rotulo, url, lambda item=item: coletor.quiz(item, inicio, hoje))
         elif tipo == "lti" and "live" not in rotulo.lower():

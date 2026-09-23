@@ -13,7 +13,9 @@ Estrutura do `REVISAO.md`:
 5. `### Questionário da semana`: cada questão distinta das tentativas (sem repetir as iguais), com a alternativa correta e o porquê, tirado do feedback. Se o questionário estiver pendente, escreva isso e deixe a seção para a próxima rodada.
 6. `### Pegadinhas`: onde é fácil confundir (conceitos parecidos, autores trocados, asserção verdadeira com justificativa falsa).
 7. `### Questões de treino`: 8 questões inéditas no formato da prova da Univesp (asserção-razão com "PORQUE", "I, II e III, está correto o que se afirma em", completar lacunas, alternativa correta de A a E), baseadas só nas fontes. O gabarito comentado vem depois de todas as questões, nunca junto delas.
-8. `### Cobertura`: copie a tabela da `COBERTURA.md` e liste com destaque o que ficou **não lido** (texto-base em leitor externo, por exemplo), para ele ler por conta própria.
+8. `### Cobertura`: copie a tabela da `COBERTURA.md`.
+
+Logo abaixo do título da seção 1, antes dos objetivos, ponha um quadro `> **Leia ou assista por conta própria:**` listando cada item marcado **NÃO LIDO** ou **SEM LEGENDA** na `COBERTURA.md`, com o título completo (autor, capítulo e páginas quando o título trouxer). É o que a revisão não cobre, e ele precisa ver isso primeiro. Se não houver nenhum, escreva que a semana foi lida por inteiro.
 
 Regras:
 - Use só o que está nas fontes. Não complete lacuna com conhecimento geral. Quando algo for incerto, marque `[VERIFICAR: ...]`.

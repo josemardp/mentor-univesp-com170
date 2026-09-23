@@ -29,6 +29,27 @@ montando o corpo de revisão, para não ficar tudo para novembro.
   passada: 6 s, "revisão já em dia". Disparo pelo Agendador: ok, e a segunda
   disparada sai com "revisão desta semana já feita". 13 de 13 suítes verdes.
 
+**Auditoria contra a prova de 22/09 (23/09/2026).** Pergunta dele: a automação
+teria coberto a prova? Coleta nova rodada sobre as 21 semanas do 3º bimestre
+(COM100, LET110, SOC100, `--desde 2026-07-01 --sem-montar`) e cruzada com as 19
+questões: **as 19 têm fonte no material coletado** (Geraldi, Flôres, Geertz/Tylor,
+1789 e a Orlandi em texto-base PDF; LLL, "deslize" e "botes" em slides; Calvin em
+transcrição; 20 de 21 questionários com revisão completa). Revisões montadas para
+as 9 semanas de onde saem as questões mais específicas: todas trazem o tema. A
+auditoria achou e corrigiu:
+- artigo de revista (OJS) linkado em página era ignorado calado; agora o PDF é
+  baixado pelo link `download` (Fávero, Arnemann, Barzotto, Orlandi), com 3
+  tentativas, e sem PDF vira "falhou" (tenta de novo), nunca "não lido";
+- link externo de página agora aparece na cobertura (crédito de imagem e rede
+  social ficam fora); erro de rede ou HTTP é falha a repetir, não "não lido";
+- questionário feito cuja revisão o AVA esconde (COM100 S1) dizia "sem
+  tentativa"; agora "feito, mas o AVA não mostra a revisão";
+- vídeo sem legenda automática fechava nunca ("falhou"); agora "SEM LEGENDA";
+- PDF com certificado vencido (UFPB) passa a ser baixado;
+- a `REVISAO.md` abre com "Leia ou assista por conta própria".
+Livro em Minha Biblioteca e Pearson **não** é lido de propósito: leitor protegido,
+com login próprio, e extrair livro licenciado fere os termos de uso. Fica listado.
+
 **Achado que vale para o robô inteiro (act-008):** em 22/09 o notebook ficou
 suspenso de 21/09 22:00 a 22/09 15:17 e as rodadas `diario` (07:30) e `alerta`
 (13:00) **não foram recuperadas**, apesar do `StartWhenAvailable`

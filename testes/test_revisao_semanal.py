@@ -77,6 +77,12 @@ checa(R.classificar_link("https://plataforma.bvirtual.com.br/Leitor/Publicacao/1
 checa(R.classificar_link("https://assets.univesp.br/videoaulas/download.php?disciplina=soc100&video=a.mp4") is None,
       "download do mp4 é ignorado")
 checa(R.classificar_link("javascript:void(0);") is None, "javascript é ignorado")
+checa(R.classificar_link("https://br.freepik.com/fotos-gratis/enfermeira.htm") is None,
+      "crédito de imagem não vira fonte")
+checa(R.classificar_link("https://seer.ufrgs.br/organon/article/view/81461/48749") == "externo",
+      "artigo de revista é link externo (tentado como PDF)")
+checa(R.OJS_RE.sub(r"/article/download/\1/\2", "https://seer.ufrgs.br/organon/article/view/81461/48749")
+      == "https://seer.ufrgs.br/organon/article/download/81461/48749", "OJS: view vira download")
 
 # ---------------------------------------------------------------------------
 print("\n== página: vídeo só pelo iframe, navegação fora ==")
@@ -148,6 +154,9 @@ manifest = {
 linha = [l for l in R.cobertura_md(manifest).splitlines() if "Gallo" in l][0]
 checa(linha.count("|") == 5, "título com '|' não abre coluna a mais")
 checa("NÃO LIDO" in linha, "não lido aparece em destaque")
+manifest["fontes"].append({"chave": "yt:x", "titulo": "S1 - Início (vídeo x)", "tipo": "videoaula",
+                           "status": "sem_legenda"})
+checa("SEM LEGENDA" in R.cobertura_md(manifest), "vídeo sem legenda aparece para ele assistir")
 a1 = R.assinatura(manifest)
 manifest["fontes"][0]["status"] = "lido"
 checa(R.assinatura(manifest) != a1, "mudança de status muda a assinatura (remonta a revisão)")
