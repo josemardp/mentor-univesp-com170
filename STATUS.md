@@ -6,6 +6,27 @@
 > Agendado no Windows (15/09/2026): `automacao\rodar_diario.ps1`, tarefas `Univesp - guia diario` 07:30, `Univesp - guia alerta` 13:00, `Univesp - vigia` 20:00. Log em `tmp/log/rodar_diario.log`.
 > Histórico completo de sessões, auditorias e etapas concluídas: [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
+## Apostila de prova que engorda toda semana (23/09/2026)
+
+Pedido do Josemar: apostila bonita, colorida, funcional, na medida exata para a
+prova, engordando toda semana, boa no celular e exportável em PDF.
+
+- Depois da `REVISAO.md`, a revisão semanal pede ao Claude a ficha da semana
+  (`apostila.json`, prompt `automacao/apostila_prompt.md`): formato fixo, limites
+  de itens e palavras, e a lista do que as semanas anteriores já definiram, para
+  não repetir. Refeita quando a `REVISAO.md` muda (`ficha_de` no manifest).
+- `automacao/apostila.py` valida as fichas (corta excesso, descarta questão
+  malformada) e monta sem IA `privado/estudo/<bim>/APOSTILA.html` (arquivo único
+  offline, claro e escuro, sumário, busca, questões clicáveis, progresso por
+  "semana revisada" guardado no navegador) e `APOSTILA_<COD>.pdf` A4 por
+  disciplina, com gabarito no fim. O PDF é o formato do celular (Drive não
+  renderiza HTML).
+- Chamada ao Claude agora tenta de novo após 2 min: em lote, algumas chamadas
+  seguidas falharam e a mesma semana saiu normal minutos depois.
+- Testado com as 9 semanas do 3º bimestre que já tinham revisão; conferido em
+  captura de tela no computador (claro e escuro), no celular e no PDF. Nova suíte
+  `test_apostila.py`; 14 de 14 verdes.
+
 ## Revisão semanal automática para a prova (22/09/2026)
 
 Pedido do Josemar: toda segunda, pegar o material da semana que passou e ir

@@ -46,6 +46,7 @@ DATA = RAIZ / "docs" / "data.json"
 LOG_DIR = RAIZ / "tmp" / "log"
 RESUMO = LOG_DIR / "revisao_resumo.txt"
 PROMPT = Path(__file__).resolve().parent / "revisao_semanal_prompt.md"
+PROMPT_FICHA = Path(__file__).resolve().parent / "apostila_prompt.md"
 
 # A automação nasceu para o 4º bimestre de 2026. Semanas anteriores só entram
 # com --desde, para a primeira rodada não remontar o bimestre inteiro que já
@@ -454,7 +455,45 @@ def montar_com_claude(pasta, manifest):
     """Pede ao Claude a REVISAO.md da semana. Devolve (ok, mensagem)."""
     instrucoes = PROMPT.read_text(encoding="utf-8").format(
         disciplina=manifest["disciplina"], semana=manifest["semana"])
-    alvo = pasta / "REVISAO.md"
+    ok, msg = chamar_claude(pasta, instrucoes, "REVISAO.md")
+    return ok, ("revisão montada" if ok else msg)
+
+
+def montar_ficha(pasta, manifest):
+    """Ficha curta da semana para a apostila (apostila.json), destilada da
+    REVISAO.md. Recebe o que as semanas anteriores já definiram, para não
+    repetir. Ficha que não passa na validação conta como não montada."""
+    import apostila
+    instrucoes = PROMPT_FICHA.read_text(encoding="utf-8").format(
+        disciplina=manifest["disciplina"], semana=manifest["semana"],
+        ja_vistos=apostila.ja_vistos(pasta.parent, manifest["semana"]))
+    ok, msg = chamar_claude(pasta, instrucoes, "apostila.json")
+    if not ok:
+        return False, msg
+    try:
+        apostila.validar(json.loads((pasta / "apostila.json").read_text(encoding="utf-8")))
+    except (ValueError, apostila.FichaInvalida) as erro:
+        return False, f"ficha da apostila inválida: {erro}"
+    return True, "ficha da apostila montada"
+
+
+def chamar_claude(pasta, instrucoes, nome_alvo, tentativas=2):
+    """Roda o Claude sem janela na pasta da semana. Ok = ele gravou o alvo.
+
+    Em 22 e 23/09/2026, em lotes de várias semanas seguidas, algumas chamadas
+    falharam e a mesma semana, rodada de novo minutos depois, saiu normal.
+    Por isso uma segunda tentativa depois de 2 minutos."""
+    import time
+    for vez in range(tentativas):
+        ok, msg = _chamar_claude_uma_vez(pasta, instrucoes, nome_alvo)
+        if ok or vez == tentativas - 1:
+            return ok, msg
+        print(f"   {nome_alvo}: {msg}; tento de novo em 2 min")
+        time.sleep(120)
+
+
+def _chamar_claude_uma_vez(pasta, instrucoes, nome_alvo):
+    alvo = pasta / nome_alvo
     antes = alvo.stat().st_mtime if alvo.exists() else 0
     # As instruções vão pela entrada padrão: texto de várias linhas não
     # sobrevive à linha de comando do Windows. As ferramentas ficam restritas
@@ -473,8 +512,12 @@ def montar_com_claude(pasta, manifest):
     except subprocess.TimeoutExpired:
         return False, f"Claude passou de {TEMPO_CLAUDE_S // 60} min"
     if alvo.exists() and alvo.stat().st_mtime > antes:
-        return True, "revisão montada"
-    return False, f"Claude não escreveu a REVISAO.md (código {proc.returncode}): {(proc.stdout or proc.stderr)[-300:]}"
+        return True, "ok"
+    return False, f"Claude não escreveu {nome_alvo} (código {proc.returncode}): {(proc.stdout or proc.stderr)[-300:]}"
+
+
+def hash_arquivo(caminho):
+    return hashlib.sha1(caminho.read_bytes()).hexdigest() if caminho.exists() else None
 
 
 def refazer_corpo(pasta_disciplina, codigo):
@@ -525,6 +568,7 @@ def main():
             arq = pasta / "manifest.json"
             manifest = json.loads(arq.read_text(encoding="utf-8")) if arq.exists() else {}
             if manifest.get("fechada") and manifest.get("montado_hash") == assinatura(manifest) \
+                    and manifest.get("ficha_de") == hash_arquivo(pasta / "REVISAO.md") \
                     and not args.semana:
                 continue
             alvos.append((curso, n, inicio, secao, pasta, manifest))
@@ -563,6 +607,7 @@ def main():
         navegador.close()
 
     linhas = []
+    bimestres_mudados = set()
     for codigo, n, conta, pasta, manifest in resumo:
         situacao = "coletada"
         if not args.sem_montar and conta.get("lido"):
@@ -579,6 +624,21 @@ def main():
                     situacao = "revisão NÃO montada"
             else:
                 situacao = "revisão já em dia"
+            # Ficha da apostila: refeita quando a REVISAO.md muda ou quando
+            # não existe ficha válida (inclusive a de semana montada antes
+            # de a apostila existir).
+            revisao = pasta / "REVISAO.md"
+            if revisao.exists() and (manifest.get("ficha_de") != hash_arquivo(revisao)
+                                     or not (pasta / "apostila.json").exists()):
+                ok, msg = montar_ficha(pasta, manifest)
+                print(f"   {codigo} S{n}: {msg}")
+                if ok:
+                    manifest["ficha_de"] = hash_arquivo(revisao)
+                    (pasta / "manifest.json").write_text(
+                        json.dumps(manifest, ensure_ascii=False, indent=1), encoding="utf-8")
+                    bimestres_mudados.add(pasta.parent.parent.name)
+                else:
+                    situacao += ", ficha da apostila NÃO montada"
         extra = []
         if conta.get("pendente"):
             extra.append("questionário pendente")
@@ -587,6 +647,14 @@ def main():
         if conta.get("falhou"):
             extra.append(f"{conta['falhou']} falha(s)")
         linhas.append(f"{codigo} S{n}: {situacao}" + (f" ({', '.join(extra)})" if extra else ""))
+
+    for bim in sorted(bimestres_mudados):
+        import apostila
+        try:
+            feitos = apostila.gerar(bim)
+            linhas.append(f"Apostila {bim} atualizada ({len(feitos) - 1} PDF)")
+        except Exception as erro:  # a apostila não derruba a revisão
+            linhas.append(f"Apostila {bim} NÃO montada: {type(erro).__name__}: {erro}"[:200])
 
     RESUMO.parent.mkdir(parents=True, exist_ok=True)
     RESUMO.write_text("\n".join(linhas), encoding="utf-8")

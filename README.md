@@ -92,7 +92,7 @@ de colega ou de aluno é usado para gerar esta imagem.*
 
 ## Qualidade e Testes Automatizados
 
-O repositório conta com **13 suítes de testes automatizados**, responsáveis por garantir que as heurísticas de extração e os cálculos de prazo permaneçam íntegros mesmo após mudanças de layout nos sistemas de origem:
+O repositório conta com **14 suítes de testes automatizados**, responsáveis por garantir que as heurísticas de extração e os cálculos de prazo permaneçam íntegros mesmo após mudanças de layout nos sistemas de origem:
 
 | Suíte | Foco da Validação |
 |---|---|
@@ -102,6 +102,7 @@ O repositório conta com **13 suítes de testes automatizados**, responsáveis p
 | `test_revisao_entre_pares.py` | Regras complexas de workshops e avaliações mútuas de estudantes. |
 | `test_quadro.py` | Montagem da grade semanal e quinzenal de tarefas. |
 | `test_operacao.py` | Políticas de publicação local, integridade de logging e guardrails de segurança. |
+| `test_apostila.py` | Apostila de prova: ficha ruim não quebra a apostila, texto da IA não vira HTML, PDF leva o gabarito e a tela esconde a resposta. |
 | `test_revisao_semanal.py` | Revisão semanal: só semana encerrada entra, vídeo não é transcrito em triplicata, navegação do AVA não vira fonte. |
 | Outras 6 suítes | Login simulado, workshop enviado, portal, fórum e webmail institucional. |
 
@@ -130,7 +131,7 @@ fictícios para testar o fluxo de autenticação.
 # uma suíte
 python testes/test_golden.py
 
-# as treze, com o placar no fim
+# as catorze, com o placar no fim
 for /f %f in ('dir /b testes\test_*.py') do @python testes\%f >nul 2>&1 && echo OK %f || echo FALHOU %f
 ```
 
@@ -204,6 +205,17 @@ desbloqueio da tela: em 22/09/2026 o notebook passou a manhã suspenso e o
 Windows **não** recuperou as rodadas perdidas, apesar do `StartWhenAvailable`.
 Uma marca em `tmp/log/revisao_feita.txt` faz os gatilhos extras saírem quietos
 quando a semana já foi feita.
+
+**Apostila de prova** (`automacao/apostila.py`). Depois da `REVISAO.md`, o Claude
+destila a semana numa ficha curta de formato fixo (`apostila.json`: ideia central,
+conceitos, autores, comparações, exemplos, o que o questionário cobrou, pegadinhas,
+4 questões de treino e o que ler por conta própria), com limite de itens e de
+palavras e sabendo o que as semanas anteriores já definiram, para não repetir. O
+desenho não é da IA: `apostila.py` valida as fichas e monta sempre igual um
+`APOSTILA.html` do bimestre (arquivo único, sem internet, tema claro e escuro,
+sumário, busca, questões clicáveis, "semana revisada" com progresso) e um PDF A4 por
+disciplina, com gabarito no fim, que é o que abre no celular pelo Google Drive.
+`python automacao/apostila.py --bimestre 2026-4bim` remonta à mão.
 
 Três tarefas registradas no Agendador, executadas como o usuário logado:
 `Univesp - guia diario` (07:30), `Univesp - guia alerta` (13:00) e
@@ -288,4 +300,4 @@ O desenvolvimento foi realizado com **apoio intensivo de ferramentas de Intelig�
 
 - **Fase:** Funcional em execução local assistida.
 - **Segurança:** 100% livre de credenciais, cookies ou dados de terceiros no repositório.
-- **Suítes de Teste:** 13 suítes de teste verdes.
+- **Suítes de Teste:** 14 suítes de teste verdes.
