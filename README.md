@@ -213,8 +213,10 @@ conceitos, autores, comparações, exemplos, o que o questionário cobrou, pegad
 palavras e sabendo o que as semanas anteriores já definiram, para não repetir. O
 desenho não é da IA: `apostila.py` valida as fichas e monta sempre igual um
 `APOSTILA.html` do bimestre (arquivo único, sem internet, tema claro e escuro,
-sumário, busca, questões clicáveis, "semana revisada" com progresso) e um PDF A4 por
-disciplina, com gabarito no fim, que é o que abre no celular pelo Google Drive.
+sumário, busca, questões clicáveis, "semana revisada" com progresso) e, por
+disciplina, o resumo `APOSTILA_<COD>.pdf` (A4 em duas colunas, meta de uma página
+por semana, sem questões) e o caderno `TREINO_<COD>.pdf` (questões, gabarito no
+fim). O PDF é o que abre no celular pelo Google Drive.
 `python automacao/apostila.py --bimestre 2026-4bim` remonta à mão.
 
 Três tarefas registradas no Agendador, executadas como o usuário logado:

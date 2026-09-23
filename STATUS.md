@@ -26,6 +26,21 @@ prova, engordando toda semana, boa no celular e exportável em PDF.
 - Testado com as 9 semanas do 3º bimestre que já tinham revisão; conferido em
   captura de tela no computador (claro e escuro), no celular e no PDF. Nova suíte
   `test_apostila.py`; 14 de 14 verdes.
+- **Primeira versão recusada por tamanho:** SOC100 com 3 semanas deu 19 páginas,
+  umas 45 no bimestre ("muito demais para um resumo"). Refeita: limites menores
+  (6 conceitos, 5 autores, 1 tabela de até 5 linhas, 3 exemplos, 5 pontos
+  cobrados, 3 pegadinhas, frases de até 20 palavras), meta explícita de uma
+  página por semana no prompt, PDF de resumo denso em duas colunas e sem as
+  questões, que foram para `TREINO_<COD>.pdf`.
+  Resultado: LET110 e COM100 com 2 semanas em 2 páginas cada (uma semana por
+  página, com capa). Bimestre de 7 semanas: cerca de 8 páginas por disciplina.
+- **As falhas "intermitentes" do Claude eram o limite de uso do plano** ("You've
+  hit your session limit · resets 5pm"): a automação e as sessões interativas
+  gastam a mesma cota. Ao bater o limite, a rodada para de chamar o Claude
+  (`LIMITE_ATINGIDO`) e a guarda do `rodar_diario.ps1` repete 3 h depois. Segunda
+  de manhã com sessão pesada de Claude aberta pode adiar a revisão da semana.
+  Das 9 fichas de teste do 3º bimestre, 4 foram refeitas no formato curto
+  (COM100 S1 e S3, LET110 S1 e S3); as outras 5 esperam o limite voltar.
 
 ## Revisão semanal automática para a prova (22/09/2026)
 

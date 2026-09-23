@@ -57,6 +57,7 @@ INICIO_PADRAO = date(2026, 9, 28)
 # de 16 dias depois do início da semana (conferido em SOC100 S7, 31/08 a 16/09).
 DIAS_ATE_DESISTIR_DO_QUIZ = 21
 TEMPO_CLAUDE_S = 25 * 60
+LIMITE_ATINGIDO = False
 
 SEMANA_RE = re.compile(r"^\s*semana\s+(\d+)\b", re.I)
 BIMESTRE_RE = re.compile(r"/(\d{4})/cronograma_\w+?_(\d)\.html")
@@ -484,8 +485,18 @@ def chamar_claude(pasta, instrucoes, nome_alvo, tentativas=2):
     falharam e a mesma semana, rodada de novo minutos depois, saiu normal.
     Por isso uma segunda tentativa depois de 2 minutos."""
     import time
+    global LIMITE_ATINGIDO
+    if LIMITE_ATINGIDO:
+        return False, "limite de uso do plano do Claude atingido nesta rodada"
     for vez in range(tentativas):
         ok, msg = _chamar_claude_uma_vez(pasta, instrucoes, nome_alvo)
+        # Limite de uso do plano ("You've hit your session limit · resets
+        # 5pm", 23/09/2026) não volta em minutos: era ele por trás das falhas
+        # "intermitentes" dos lotes. Para a rodada inteira de chamar o Claude;
+        # a guarda do rodar_diario.ps1 repete em 3 h.
+        if not ok and "limit" in msg.lower():
+            LIMITE_ATINGIDO = True
+            return False, "limite de uso do plano do Claude atingido: " + msg.split(": ", 1)[-1][:120]
         if ok or vez == tentativas - 1:
             return ok, msg
         print(f"   {nome_alvo}: {msg}; tento de novo em 2 min")

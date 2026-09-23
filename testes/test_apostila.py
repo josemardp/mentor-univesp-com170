@@ -9,8 +9,9 @@ O que este teste protege, em ordem de importância:
    questão malformada cai fora, ficha sem tema é recusada.
 2. **Texto da ficha não vira HTML.** Só **negrito** e *itálico* passam; o resto
    é escapado.
-3. **Impresso tem gabarito, tela não entrega a resposta de cara.** O PDF leva
-   o gabarito no fim da disciplina; a tela esconde a resposta até o clique.
+3. **O resumo impresso é resumo.** Sem questões nem gabarito (a primeira versão,
+   com treino dentro, deu 45 páginas no bimestre e foi recusada). O treino sai
+   num caderno próprio, com gabarito no fim; a tela esconde a resposta até o clique.
 4. **Não repetir entre semanas.** A ficha nova recebe o que as anteriores já
    definiram.
 
@@ -58,7 +59,7 @@ def ficha(**extra):
 # ---------------------------------------------------------------------------
 print("\n== validação da ficha ==")
 f = A.validar(ficha())
-checa(len(f["conceitos"]) == 8, "conceitos cortados no limite de 8")
+checa(len(f["conceitos"]) == 6, "conceitos cortados no limite de 6 (resumo de 1 página por semana)")
 checa(len(f["treino"]) == 1 and f["treino"][0]["correta"] == "C",
       "só a questão bem-formada fica, com a letra normalizada")
 checa(f["comparacoes"][0]["linhas"][0] == ["Cultura", "todo complexo", ""],
@@ -105,9 +106,13 @@ with tempfile.TemporaryDirectory() as tmp:
     checa("Leia ou assista por conta própria" in tela, "o que não foi lido aparece na semana")
     checa("—" not in tela, "sem travessão no texto da apostila")
 
-    papel = A.montar_html("2026-4bim", [discs[1]], imprimir=True)
-    checa("Gabarito do treino · SOC100" in papel and '<details class="gab">' not in papel,
-          "impresso leva o gabarito no fim e não o botão")
+    treino = A.montar_html("2026-4bim", [discs[1]], modo="treino")
+    checa("Gabarito do treino · SOC100" in treino and '<details class="gab">' not in treino,
+          "caderno de treino leva o gabarito no fim e não o botão")
+    checa("Conceitos-chave" not in treino, "caderno de treino só tem as questões")
+    resumo = A.montar_html("2026-4bim", [discs[1]], modo="resumo")
+    checa('class="questao"' not in resumo and "Gabarito" not in resumo and "Conceitos-chave" in resumo,
+          "resumo impresso não leva questões nem gabarito")
 
     vistos = A.ja_vistos(Path(tmp) / "2026-4bim" / "soc100", 4)
     checa("Termo 0" in vistos and "Clifford Geertz" in vistos, "semana 4 recebe o que a semana 2 já definiu")

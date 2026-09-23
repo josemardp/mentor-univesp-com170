@@ -11,8 +11,9 @@ Como: a revisão semanal pede ao Claude uma ficha curta por semana
 `apostila_prompt.md`). Este módulo valida as fichas e monta, sempre com o
 mesmo desenho, sem IA:
 
-  privado/estudo/<bimestre>/APOSTILA.html          todas as disciplinas
-  privado/estudo/<bimestre>/APOSTILA_<COD>.pdf     uma por disciplina, A4
+  privado/estudo/<bimestre>/APOSTILA.html          tela: tudo, com questões clicáveis
+  privado/estudo/<bimestre>/APOSTILA_<COD>.pdf     resumo A4, meta de 1 página por semana
+  privado/estudo/<bimestre>/TREINO_<COD>.pdf       questões de treino, gabarito no fim
 
 O HTML é um arquivo só, sem nada da internet: abre sem rede. O PDF é o que
 serve no celular (o app do Google Drive mostra PDF, não HTML).
@@ -33,8 +34,11 @@ RAIZ = Path(__file__).resolve().parent.parent
 ESTUDO = RAIZ / "privado" / "estudo"
 DATA = RAIZ / "docs" / "data.json"
 
-LIMITES = {"conceitos": 8, "autores": 8, "comparacoes": 2, "exemplos": 5,
-           "cobrado": 8, "pegadinhas": 5, "treino": 4}
+# Meta: uma página A4 por semana no resumo. A primeira versão (8 conceitos,
+# 8 autores, treino dentro) deu 19 páginas para 3 semanas de SOC100, umas 45
+# no bimestre, e ele recusou: "muito demais para um resumo" (23/09/2026).
+LIMITES = {"conceitos": 6, "autores": 5, "comparacoes": 1, "exemplos": 3,
+           "cobrado": 5, "pegadinhas": 3, "treino": 4}
 LETRAS = "ABCDE"
 CORES = {"com100": "#3b5bdb", "let110": "#e8590c", "soc100": "#0c8599",
          "com170": "#9c36b5", "mmb002": "#2b8a3e", "int100": "#c2255c"}
@@ -80,7 +84,7 @@ def validar(bruto):
         if not isinstance(c, dict):
             continue
         colunas = [_texto(x) for x in c.get("colunas") or []]
-        linhas = [[_texto(x) for x in l] for l in c.get("linhas") or [] if isinstance(l, list)]
+        linhas = [[_texto(x) for x in l] for l in c.get("linhas") or [] if isinstance(l, list)][:5]
         linhas = [l[: len(colunas)] + [""] * (len(colunas) - len(l)) for l in linhas]
         if len(colunas) >= 2 and linhas:
             f["comparacoes"].append({"titulo": _texto(c.get("titulo")), "colunas": colunas, "linhas": linhas})
@@ -197,8 +201,13 @@ def iniciais(nome):
     return ((partes[0][0] + (partes[-1][0] if len(partes) > 1 else "")) if partes else "?").upper()
 
 
-def secao_semana(d, s, imprimir):
+def secao_semana(d, s, modo="tela"):
     sid = f"{d['cod']}-s{s['n']:02d}"
+    if modo == "treino":
+        s = {**s, "ideia_central": "", "ler_por_conta": [], "conceitos": [], "autores": [],
+             "comparacoes": [], "exemplos": [], "cobrado": [], "pegadinhas": []}
+    elif modo == "resumo":
+        s = {**s, "treino": []}
     h = [f'<section class="semana" id="{sid}" data-busca="">']
     h.append(f'''<header class="sem-head">
   <span class="sem-num">S{s["n"]}</span>
@@ -237,7 +246,7 @@ def secao_semana(d, s, imprimir):
         qs = []
         for i, q in enumerate(s["treino"], 1):
             alts = "".join(f'<li><button type="button" data-letra="{LETRAS[j]}"><b>{LETRAS[j]}</b><span>{md(a)}</span></button></li>' for j, a in enumerate(q["alternativas"]))
-            gab = "" if imprimir else f'<details class="gab"><summary>Ver resposta</summary><p><strong>{q["correta"]}.</strong> {md(q["comentario"])}</p></details>'
+            gab = "" if modo != "tela" else f'<details class="gab"><summary>Ver resposta</summary><p><strong>{q["correta"]}.</strong> {md(q["comentario"])}</p></details>'
             qs.append(f'<div class="questao" data-correta="{q["correta"]}"><div class="enun"><span class="qn">{i}</span><div>{md_bloco(quebrar_enunciado(q["enunciado"]))}</div></div><ol class="alts">{alts}</ol>{gab}</div>')
         h.append(f'<h4>Treino</h4>{"".join(qs)}')
     h.append("</section>")
@@ -342,7 +351,7 @@ tr:last-child>*{border-bottom:0}
 @media (max-width:560px){.semana{padding:16px 14px 4px;border-radius:14px}.sem-head{flex-wrap:wrap}.revisado{order:3}
 .sem-num{width:40px;height:40px}.sem-head h3{font-size:19px}.topo .marca{display:none}.disc-cab{padding:18px}}
 @media print{
-@page{size:A4;margin:14mm 13mm 16mm}
+@page{size:A4;margin:11mm 12mm 12mm}
 :root{--bg:#fff;--sup:#fff;--sup2:#fafafa;--tinta:#16161a;--suave:#555;--linha:#dcdcdc;--sombra:none}
 body{font-size:11pt;line-height:1.45;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .topo,nav.sumario,.no-print,.gab,.capa .chips{display:none!important}
@@ -352,7 +361,54 @@ body{font-size:11pt;line-height:1.45;-webkit-print-color-adjust:exact;print-colo
 .card,.peg,.questao,.exemplo,.autores li,tr,.ler,.ideia{break-inside:avoid}
 h4,.sem-head{break-after:avoid}.grade{grid-template-columns:repeat(2,1fr)}
 .alts button{padding:5px 9px;font-size:10.5pt}.questao{padding:10px}
-.gabarito{break-before:page}}
+.gabarito{break-before:page}
+html[data-modo="resumo"] body{font-size:9pt;line-height:1.32}
+html[data-modo="resumo"] .capa{padding:0 0 4mm}html[data-modo="resumo"] .capa h1{font-size:15pt;margin:0}
+html[data-modo="resumo"] .capa p{font-size:8pt;margin:1mm 0 0}
+html[data-modo="resumo"] .disc-cab{padding:6px 12px;border-radius:8px;margin:0 0 4mm}
+html[data-modo="resumo"] .disc-cab p{font-size:7pt}html[data-modo="resumo"] .disc-cab h2{font-size:13pt;margin:0}
+html[data-modo="resumo"] .semana{border:0;border-top:2px solid var(--acc);border-radius:0;padding:2mm 0 0;margin:0 0 5mm}
+html[data-modo="resumo"] .sem-head{gap:8px;margin:0 0 2mm}
+html[data-modo="resumo"] .sem-num{width:24px;height:24px;border-radius:6px;font-size:9pt}
+html[data-modo="resumo"] .kicker{font-size:6.5pt}html[data-modo="resumo"] .sem-head h3{font-size:11.5pt;margin:0}
+html[data-modo="resumo"] .ideia{font:italic 9.5pt/1.35 var(--serif);padding:4px 8px;margin:0 0 2mm;border-left-width:3px;border-radius:4px}
+html[data-modo="resumo"] h4{font-size:6.8pt;margin:2.5mm 0 1mm}
+html[data-modo="resumo"] h4::before{width:6px;height:6px;margin-right:5px}
+html[data-modo="resumo"] .grade,html[data-modo="resumo"] .autores,html[data-modo="resumo"] .cobrado{display:block;column-count:2;column-gap:6mm}
+html[data-modo="resumo"] .card{border:0;background:none;padding:0;margin:0 0 1.2mm;border-radius:0}
+html[data-modo="resumo"] .card h5{display:inline;font-size:9pt}html[data-modo="resumo"] .card h5::after{content:": ";color:var(--tinta)}
+html[data-modo="resumo"] .card p{display:inline;font-size:9pt}
+html[data-modo="resumo"] .autores li{display:block;margin:0 0 1.2mm;break-inside:avoid}html[data-modo="resumo"] .ini{display:none}
+html[data-modo="resumo"] .autores li>div,html[data-modo="resumo"] .autores p{display:inline;font-size:9pt}
+html[data-modo="resumo"] .ref{font-size:7.5pt;margin:0 3px}
+html[data-modo="resumo"] .aut strong::after{content:""}
+html[data-modo="resumo"] .cobrado li{padding-left:13px;margin:0 0 1mm;font-size:9pt;break-inside:avoid}
+html[data-modo="resumo"] .cobrado li::before{width:9px;height:9px;font-size:6pt;border-radius:2px;top:2px}
+html[data-modo="resumo"] table{font-size:8pt}html[data-modo="resumo"] th,html[data-modo="resumo"] td{padding:2px 6px}
+html[data-modo="resumo"] .tabela{border-radius:4px}
+html[data-modo="resumo"] .exemplo{padding:2px 8px;margin:0 0 1mm;border:0;border-left:2px solid var(--acc-linha);border-radius:0}
+html[data-modo="resumo"] .exemplo .ex{display:inline;font-size:9pt}html[data-modo="resumo"] .exemplo .ex::after{content:"” "}
+html[data-modo="resumo"] .exemplo p{display:inline;font-size:8.5pt;color:var(--suave)}
+html[data-modo="resumo"] .pegs{gap:1mm}html[data-modo="resumo"] .peg{display:flex;border:0;border-radius:4px}
+html[data-modo="resumo"] .peg p{flex:1;padding:2px 6px;font-size:8.5pt;gap:5px}
+html[data-modo="resumo"] .peg span{font-size:6pt;padding:0 4px}
+html[data-modo="resumo"] .ler{padding:2px 8px;margin:0 0 1mm;border-radius:4px}
+html[data-modo="resumo"] .ler .rot{display:inline;font-size:6.8pt;margin-right:4px}
+html[data-modo="resumo"] .ler ul{display:inline;padding:0;font-size:8pt}
+html[data-modo="resumo"] .ler li{display:inline}html[data-modo="resumo"] .ler li+li::before{content:" · "}
+html[data-modo="resumo"] .rodape{display:none}
+html[data-modo="treino"] body{font-size:9.5pt;line-height:1.35}
+html[data-modo="treino"] .capa h1{font-size:15pt;margin:0}html[data-modo="treino"] .capa p{font-size:8pt;margin:1mm 0 3mm}
+html[data-modo="treino"] .disc-cab{padding:6px 12px;border-radius:8px;margin:0 0 4mm}html[data-modo="treino"] .disc-cab h2{font-size:13pt;margin:0}
+html[data-modo="treino"] .semana{border:0;border-top:2px solid var(--acc);border-radius:0;padding:2mm 0 0;margin:0 0 3mm}
+html[data-modo="treino"] .sem-num{width:22px;height:22px;font-size:8.5pt;border-radius:6px}html[data-modo="treino"] .sem-head h3{font-size:11pt;margin:0}
+html[data-modo="treino"] .kicker{font-size:6.5pt}html[data-modo="treino"] h4{display:none}
+html[data-modo="treino"] .questao{border:0;background:none;padding:0;margin:0 0 3mm}
+html[data-modo="treino"] .qn{width:18px;height:18px;font-size:8pt;border-radius:5px}
+html[data-modo="treino"] .enun p{margin:0 0 1mm;font-size:9.5pt}
+html[data-modo="treino"] .alts{gap:0;margin:1mm 0 0 28px}
+html[data-modo="treino"] .alts button{border:0;background:none;padding:0.4mm 0;font-size:9pt;gap:6px}
+html[data-modo="treino"] .gabarito ol{font-size:8.5pt;gap:1.5mm}html[data-modo="treino"] .rodape{display:none}}
 """
 
 JS = r"""
@@ -405,12 +461,14 @@ JS = r"""
 """
 
 
-def montar_html(bimestre, disciplinas, imprimir=False):
+def montar_html(bimestre, disciplinas, modo="tela"):
     agora = datetime.now()
     total = sum(len(d["semanas"]) for d in disciplinas)
     num_bim = re.search(r"(\d)bim", bimestre)
     ano = bimestre[:4]
     titulo = f"Apostila de prova · {num_bim.group(1)}º bimestre {ano}" if num_bim else f"Apostila {bimestre}"
+    if modo == "treino":
+        titulo = titulo.replace("Apostila de prova", "Caderno de treino")
 
     chips = "".join(
         f'<a class="chip disc" style="--acc:{d["cor"]}" href="#{d["cod"]}"><b>{d["cod"].upper()}</b>'
@@ -424,13 +482,13 @@ def montar_html(bimestre, disciplinas, imprimir=False):
     for d in disciplinas:
         corpo.append(f'<div class="disc" id="{d["cod"]}" data-cod="{d["cod"]}" style="--acc:{d["cor"]}">')
         corpo.append(f'<header class="disc-cab"><p>{d["cod"].upper()} · {len(d["semanas"])} semanas</p><h2>{html.escape(d["nome"])}</h2></header>')
-        corpo += [secao_semana(d, s, imprimir) for s in d["semanas"]]
-        if imprimir:
+        corpo += [secao_semana(d, s, modo) for s in d["semanas"]]
+        if modo == "treino":
             corpo.append(gabarito(d))
         corpo.append("</div>")
 
     return f"""<!doctype html>
-<html lang="pt-BR" data-bim="{html.escape(bimestre)}">
+<html lang="pt-BR" data-bim="{html.escape(bimestre)}" data-modo="{modo}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -461,38 +519,50 @@ def montar_html(bimestre, disciplinas, imprimir=False):
 # --------------------------------------------------------------- saída
 
 def gerar(bimestre, pdf=True):
-    """Gera APOSTILA.html e um PDF por disciplina. Devolve a lista de arquivos."""
+    """Gera APOSTILA.html (tela) e, por disciplina, APOSTILA_<COD>.pdf (resumo,
+    sem questões) e TREINO_<COD>.pdf (questões com gabarito no fim)."""
     base = ESTUDO / bimestre
     disciplinas = coletar(bimestre)
     if not disciplinas:
         return []
+    # PDF de disciplina que ficou sem ficha válida sairia velho, desencontrado
+    # do HTML (visto em 23/09/2026 ao refazer as fichas de SOC100).
+    atuais = {d["cod"].upper() for d in disciplinas}
+    for velho in list(base.glob("APOSTILA_*.pdf")) + list(base.glob("TREINO_*.pdf")):
+        if velho.stem.split("_", 1)[1] not in atuais:
+            velho.unlink(missing_ok=True)
     saida = base / "APOSTILA.html"
     saida.write_text(montar_html(bimestre, disciplinas), encoding="utf-8")
     feitos = [saida]
-    if pdf:
-        from playwright.sync_api import sync_playwright
-        with sync_playwright() as pw:
-            navegador = pw.chromium.launch(headless=True)
-            page = navegador.new_page()
-            for d in disciplinas:
-                temp = base / f".apostila_{d['cod']}_impressao.html"
-                temp.write_text(montar_html(bimestre, [d], imprimir=True), encoding="utf-8")
+    if not pdf:
+        return feitos
+    from playwright.sync_api import sync_playwright
+    with sync_playwright() as pw:
+        navegador = pw.chromium.launch(headless=True)
+        page = navegador.new_page()
+        for d in disciplinas:
+            for modo, prefixo in (("resumo", "APOSTILA"), ("treino", "TREINO")):
+                if modo == "treino" and not any(s["treino"] for s in d["semanas"]):
+                    continue
+                temp = base / f".apostila_{d['cod']}_{modo}.html"
+                temp.write_text(montar_html(bimestre, [d], modo=modo), encoding="utf-8")
                 page.goto(temp.as_uri())
                 page.emulate_media(media="print")
-                destino = base / f"APOSTILA_{d['cod'].upper()}.pdf"
+                destino = base / f"{prefixo}_{d['cod'].upper()}.pdf"
+                rotulo = "resumo" if modo == "resumo" else "treino"
                 page.pdf(
                     path=str(destino), format="A4", print_background=True,
                     display_header_footer=True, header_template="<span></span>",
                     footer_template=(
-                        '<div style="width:100%;font-size:8px;color:#888;padding:0 13mm;'
+                        '<div style="width:100%;font-size:7px;color:#888;padding:0 12mm;'
                         'display:flex;justify-content:space-between;font-family:system-ui,sans-serif">'
-                        f'<span>{d["cod"].upper()} · {html.escape(d["nome"])}</span>'
+                        f'<span>{d["cod"].upper()} · {html.escape(d["nome"])} · {rotulo}</span>'
                         '<span><span class="pageNumber"></span> / <span class="totalPages"></span></span></div>'),
-                    margin={"top": "14mm", "bottom": "16mm", "left": "13mm", "right": "13mm"},
+                    margin={"top": "11mm", "bottom": "12mm", "left": "12mm", "right": "12mm"},
                 )
                 temp.unlink(missing_ok=True)
                 feitos.append(destino)
-            navegador.close()
+        navegador.close()
     return feitos
 
 
