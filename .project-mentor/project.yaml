@@ -17,14 +17,14 @@ status:
   health: healthy
   phase: Operacao local com agendamento Windows
   priority: 2
-  updated_at: 2026-09-21T14:35:53-03:00
-  last_session_at: 2026-09-21T14:35:53-03:00
+  updated_at: 2026-09-22T21:17:40-03:00
+  last_session_at: 2026-09-22T21:17:40-03:00
   confidence: confirmed
 focus:
   objective: Guia diario, alertas e acompanhamento de prazos do AVA Univesp
-  current: Conferir no log de 22/09 se as rodadas entraram sem "sessão expirada" e, se houver falha, ler o motivo registrado.
-  last_completed: Guia regenerado com coleta completa das 4 disciplinas às 14:08
-  recommended_next_action: act-008
+  current: Montar o guia das provas de 09 a 19/11 seguindo a Regra de revisão
+  last_completed: formacao-ia-automacao movido para projetos-aposentados.txt no central_automacoes
+  recommended_next_action: act-009
 next_actions:
   - id: act-001
     title: Verificar integracao de envio de e-mail opcional via SMTP
@@ -122,10 +122,32 @@ next_actions:
     created_at: 2026-09-21T14:35:53-03:00
     done_at: null
     note: null
+  - id: act-009
+    title: "Provas de 09-19/11/2026: montar guia do 4o bimestre seguindo a Regra de revisao (fonte inteira, revisoes dos questionarios em privado/)"
+    status: pending
+    impact: null
+    urgency: null
+    effort: null
+    due_date: null
+    unblocks: []
+    blocked_by: []
+    created_at: 2026-09-22T20:56:21-03:00
+    done_at: null
+    note: null
+  - id: act-010
+    title: "Formacao complementar: seguir do modulo atual (formacao-complementar/README.md) quando ele chamar"
+    status: pending
+    impact: null
+    urgency: null
+    effort: null
+    due_date: null
+    unblocks: []
+    blocked_by: []
+    created_at: 2026-09-22T20:56:22-03:00
+    done_at: null
+    note: null
 blockers: []
 decisions_recent:
-  - date: 2026-09-16
-    text: Estado preenchido com base em STATUS.md de 15/09/2026
   - date: 2026-09-16
     text: 'Alinhar focus.current e próxima ação com evidência real: STATUS.md e commit 15/09/2026 ("feat(automacao): agendamento local...")'
   - date: 2026-09-19
@@ -140,6 +162,12 @@ decisions_recent:
     text: "`LIMITE_HORAS`, em vez de ser reescrita no script da rodada."
   - date: 2026-09-21
     text: Falha para entrar no AVA passa por uma segunda tentativa após 20 s antes de virar "sessão expirada".
+  - date: 2026-09-22
+    text: Repositório continua público; material sensível vai para privado/ no Drive (opção B)
+  - date: 2026-09-22
+    text: Pasta do currículo chama formacao-complementar e só é aberta quando ele chamar
+  - date: 2026-09-22
+    text: Origem apagada, com cópia do histórico em privado/formacao-ia-automacao.bundle
 milestones: []
 review:
   stale_after_days: null
