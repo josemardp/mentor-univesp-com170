@@ -92,7 +92,7 @@ de colega ou de aluno é usado para gerar esta imagem.*
 
 ## Qualidade e Testes Automatizados
 
-O repositório conta com **12 suítes de testes automatizados**, responsáveis por garantir que as heurísticas de extração e os cálculos de prazo permaneçam íntegros mesmo após mudanças de layout nos sistemas de origem:
+O repositório conta com **13 suítes de testes automatizados**, responsáveis por garantir que as heurísticas de extração e os cálculos de prazo permaneçam íntegros mesmo após mudanças de layout nos sistemas de origem:
 
 | Suíte | Foco da Validação |
 |---|---|
@@ -102,6 +102,7 @@ O repositório conta com **12 suítes de testes automatizados**, responsáveis p
 | `test_revisao_entre_pares.py` | Regras complexas de workshops e avaliações mútuas de estudantes. |
 | `test_quadro.py` | Montagem da grade semanal e quinzenal de tarefas. |
 | `test_operacao.py` | Políticas de publicação local, integridade de logging e guardrails de segurança. |
+| `test_revisao_semanal.py` | Revisão semanal: só semana encerrada entra, vídeo não é transcrito em triplicata, navegação do AVA não vira fonte. |
 | Outras 6 suítes | Login simulado, workshop enviado, portal, fórum e webmail institucional. |
 
 ---
@@ -129,7 +130,7 @@ fictícios para testar o fluxo de autenticação.
 # uma suíte
 python testes/test_golden.py
 
-# as doze, com o placar no fim
+# as treze, com o placar no fim
 for /f %f in ('dir /b testes\test_*.py') do @python testes\%f >nul 2>&1 && echo OK %f || echo FALHOU %f
 ```
 
@@ -185,7 +186,24 @@ powershell -ExecutionPolicy Bypass -File automacao\rodar_diario.ps1 -Modo alerta
 
 # à noite: não lê o AVA, só confere se o painel ainda é de hoje
 powershell -ExecutionPolicy Bypass -File automacao\rodar_diario.ps1 -Modo vigia
+
+# segunda-feira: monta a revisão de prova da semana que terminou
+powershell -ExecutionPolicy Bypass -File automacao\rodar_diario.ps1 -Modo revisao
 ```
+
+**Revisão semanal** (`automacao/revisao_semanal.py`, tarefa `Univesp - revisao
+semanal`, segunda 10:00). Para cada semana encerrada, lê no AVA as páginas, os
+slides em PDF, a legenda das videoaulas e a revisão de todas as tentativas do
+questionário, registra o que ficou em leitor externo como "não lido" e chama o
+Claude Code sem janela (`claude -p`, só com ferramentas de arquivo e preso à
+pasta da semana) para escrever a `REVISAO.md` a partir dessas fontes. Tudo vai
+para `privado/estudo/<bimestre>/`, fora do git, porque é conteúdo do curso e
+gabarito. Questionário ainda não feito fica pendente e a semana é remontada
+quando ele entra. Além da segunda 10:00, a tarefa dispara no logon e no
+desbloqueio da tela: em 22/09/2026 o notebook passou a manhã suspenso e o
+Windows **não** recuperou as rodadas perdidas, apesar do `StartWhenAvailable`.
+Uma marca em `tmp/log/revisao_feita.txt` faz os gatilhos extras saírem quietos
+quando a semana já foi feita.
 
 Três tarefas registradas no Agendador, executadas como o usuário logado:
 `Univesp - guia diario` (07:30), `Univesp - guia alerta` (13:00) e
@@ -261,4 +279,4 @@ O desenvolvimento foi realizado com **apoio intensivo de ferramentas de Intelig�
 
 - **Fase:** Funcional em execução local assistida.
 - **Segurança:** 100% livre de credenciais, cookies ou dados de terceiros no repositório.
-- **Suítes de Teste:** 12 suítes de teste verdes.
+- **Suítes de Teste:** 13 suítes de teste verdes.

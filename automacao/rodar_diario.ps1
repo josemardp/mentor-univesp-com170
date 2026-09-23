@@ -15,6 +15,8 @@ Windows dispara.
   .\rodar_diario.ps1 -SemColeta   so refaz o painel com o que ja foi lido
   .\rodar_diario.ps1 -Modo vigia  nao le o AVA: so confere se o painel local
                                   ainda e de hoje, e reclama se nao for
+  .\rodar_diario.ps1 -Modo revisao segunda-feira: monta a revisao de prova da
+                                  semana que terminou (automacao\revisao_semanal.py)
 
 Canais de aviso, nesta ordem:
   1. e-mail, se as variaveis SMTP_* estiverem no ambiente (o canal original);
@@ -34,7 +36,7 @@ conhost sem janela resolve sem trocar o console padrao da maquina.
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('diario', 'alerta', 'vigia')]
+    [ValidateSet('diario', 'alerta', 'vigia', 'revisao')]
     [string]$Modo = 'diario',
     [switch]$SemColeta
 )
@@ -204,6 +206,60 @@ try {
             exit 1
         }
         Escreve '=== vigia: guia em dia ==='
+        exit 0
+    }
+
+    if ($Modo -eq 'revisao') {
+        # Revisao semanal (segunda-feira): junta o material da semana que
+        # terminou e monta o corpo de revisao em privado\estudo.
+        #
+        # A tarefa tem, alem da segunda 10:00, gatilho no logon e no
+        # desbloqueio da tela. Motivo, medido em 22/09/2026: o notebook ficou
+        # suspenso de 21/09 22:00 a 22/09 15:17 e as rodadas das 07:30 e 13:00
+        # NAO foram recuperadas, apesar do StartWhenAvailable (suspensao
+        # moderna do Windows). Sem os gatilhos extras, segunda com notebook
+        # fechado seria semana perdida. Para eles nao rodarem a toda hora:
+        # semana ja feita sai quieto, e tentativa com falha so se repete depois
+        # de 3 horas.
+        $feitaArq = Join-Path $logDir 'revisao_feita.txt'
+        $tentativaArq = Join-Path $logDir 'revisao_tentativa.txt'
+        $segunda = (Get-Date).Date.AddDays(-(([int](Get-Date).DayOfWeek + 6) % 7))
+        if (Test-Path $feitaArq) {
+            $feita = [datetime]::ParseExact((Get-Content $feitaArq -Raw).Trim(), 'yyyy-MM-dd', $null)
+            if ($feita -ge $segunda) { Escreve '=== revisao desta semana ja feita ==='; exit 0 }
+        }
+        if (Test-Path $tentativaArq) {
+            $ultima = [datetime]::ParseExact((Get-Content $tentativaArq -Raw).Trim(), 'yyyy-MM-dd HH:mm', $null)
+            if (((Get-Date) - $ultima).TotalHours -lt 3) { Escreve '=== revisao tentada ha menos de 3h; nao repito ==='; exit 0 }
+        }
+        Set-Content -Path $tentativaArq -Value (Get-Date -Format 'yyyy-MM-dd HH:mm') -Encoding ASCII
+
+        # Ela tambem entra no AVA, entao respeita a mesma trava; mas, em vez
+        # de desistir na hora, espera ate 40 minutos, porque na segunda ela
+        # costuma cair logo atras da rodada da manha.
+        $pegou = $false
+        for ($i = 0; $i -lt 40; $i++) {
+            if (PegaTrava) { $pegou = $true; break }
+            if ($i -eq 0) { Escreve 'revisao: outra rodada lendo o AVA; espero ela terminar' }
+            Start-Sleep -Seconds 60
+        }
+        if (-not $pegou) {
+            Escreve '=== revisao: trava nao soltou em 40 min; fica para a proxima segunda ==='
+            exit 0
+        }
+        $codigo = Invoca 'revisao_semanal' @('automacao/revisao_semanal.py')
+        $resumoArq = Join-Path $logDir 'revisao_resumo.txt'
+        $resumo = if (Test-Path $resumoArq) { (Get-Content $resumoArq -Raw -Encoding UTF8) } else { '' }
+        if ($resumo -and $resumo.Trim()) {
+            Avisa 'Univesp: revisao da semana' $resumo.Trim()
+        }
+        if ($codigo -ne 0) {
+            Avisa 'Univesp: revisao semanal com problema' 'Veja tmp\log\rodar_diario.log.'
+            Escreve "=== revisao terminou com codigo $codigo ==="
+            exit 1
+        }
+        Set-Content -Path $feitaArq -Value (Get-Date -Format 'yyyy-MM-dd') -Encoding ASCII
+        Escreve '=== revisao terminou ==='
         exit 0
     }
 

@@ -6,6 +6,36 @@
 > Agendado no Windows (15/09/2026): `automacao\rodar_diario.ps1`, tarefas `Univesp - guia diario` 07:30, `Univesp - guia alerta` 13:00, `Univesp - vigia` 20:00. Log em `tmp/log/rodar_diario.log`.
 > Histórico completo de sessões, auditorias e etapas concluídas: [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
+## Revisão semanal automática para a prova (22/09/2026)
+
+Pedido do Josemar: toda segunda, pegar o material da semana que passou e ir
+montando o corpo de revisão, para não ficar tudo para novembro.
+
+- `automacao/revisao_semanal.py`: para cada semana encerrada das disciplinas de
+  cronograma semanal, lê páginas, slides (PDF), legenda das videoaulas (yt-dlp) e a
+  revisão de todas as tentativas do questionário; leitor externo fica "não lido".
+  Depois chama `claude -p` (só Read/Write/Edit/Glob/Grep, preso à pasta da semana)
+  com `automacao/revisao_semanal_prompt.md` e grava `REVISAO.md`, `COBERTURA.md`,
+  `manifest.json` e `fontes/` em `privado/estudo/<bimestre>/<disciplina>/semana-NN/`,
+  e o `CORPO_REVISAO.md` da disciplina. Começa no 4º bimestre (`INICIO_PADRAO`
+  28/09/2026); a primeira semana real sai na segunda 05/10.
+- Tarefa `Univesp - revisao semanal`: segunda 10:00 **e** logon **e** desbloqueio
+  da tela, com marca semanal (`tmp/log/revisao_feita.txt`) e intervalo de 3h entre
+  tentativas com falha. `rodar_diario.ps1 -Modo revisao` espera até 40 min pela
+  trava do AVA.
+- **Testado ao vivo** em SOC100 semana 7 (3º bimestre, `--desde 2026-07-01`): 10
+  fontes lidas, 3 não lidas (textos-base em leitor externo), 12 questões distintas
+  das 3 tentativas; `REVISAO.md` de 286 linhas em 4 min, sem travessão. Segunda
+  passada: 6 s, "revisão já em dia". Disparo pelo Agendador: ok, e a segunda
+  disparada sai com "revisão desta semana já feita". 13 de 13 suítes verdes.
+
+**Achado que vale para o robô inteiro (act-008):** em 22/09 o notebook ficou
+suspenso de 21/09 22:00 a 22/09 15:17 e as rodadas `diario` (07:30) e `alerta`
+(13:00) **não foram recuperadas**, apesar do `StartWhenAvailable`
+(`NumberOfMissedRuns 1`, `LastRunTime` 21/09). O vigia acusou guia congelado
+às 15:26 e às 20:00. A revisão semanal já tem o remédio (gatilho de logon e de
+desbloqueio). Aplicar o mesmo às tarefas diárias é a próxima decisão.
+
 ## O repositório formacao-ia-automacao foi fundido aqui (22/09/2026)
 
 Pedido do Josemar: trazer tudo, com o currículo de IA numa pasta própria que ele chama
