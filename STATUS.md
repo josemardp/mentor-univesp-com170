@@ -33,8 +33,12 @@ montando o corpo de revisão, para não ficar tudo para novembro.
 suspenso de 21/09 22:00 a 22/09 15:17 e as rodadas `diario` (07:30) e `alerta`
 (13:00) **não foram recuperadas**, apesar do `StartWhenAvailable`
 (`NumberOfMissedRuns 1`, `LastRunTime` 21/09). O vigia acusou guia congelado
-às 15:26 e às 20:00. A revisão semanal já tem o remédio (gatilho de logon e de
-desbloqueio). Aplicar o mesmo às tarefas diárias é a próxima decisão.
+às 15:26 e às 20:00. **Remédio aplicado (com o sim dele):** `guia diario`,
+`guia alerta` e `revisao semanal` disparam também no logon e no desbloqueio da
+tela; as tarefas passam `-Agendada` e o `rodar_diario.ps1` sai quieto se ainda é
+antes do horário, se a rodada já foi feita no período ou se houve tentativa na
+última hora (3 h na revisão). Marcas em `tmp/log/<modo>_feita.txt`. O vigia
+continua só às 20:00.
 
 ## O repositório formacao-ia-automacao foi fundido aqui (22/09/2026)
 

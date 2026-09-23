@@ -17,7 +17,7 @@ status:
   health: healthy
   phase: Operacao local com agendamento Windows
   priority: 2
-  updated_at: 2026-09-22T21:17:40-03:00
+  updated_at: 2026-09-22T22:03:42-03:00
   last_session_at: 2026-09-22T21:17:40-03:00
   confidence: confirmed
 focus:
@@ -112,7 +112,7 @@ next_actions:
     note: null
   - id: act-008
     title: Conferir no log de 22/09 se as rodadas entraram sem "sessão expirada" e, se houver falha, ler o motivo registrado.
-    status: pending
+    status: done_tested
     impact: null
     urgency: null
     effort: null
@@ -120,7 +120,7 @@ next_actions:
     unblocks: []
     blocked_by: []
     created_at: 2026-09-21T14:35:53-03:00
-    done_at: null
+    done_at: 2026-09-22T22:03:42-03:00
     note: null
   - id: act-009
     title: "Provas de 09-19/11/2026: montar guia do 4o bimestre seguindo a Regra de revisao (fonte inteira, revisoes dos questionarios em privado/)"

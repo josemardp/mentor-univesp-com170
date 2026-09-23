@@ -38,7 +38,11 @@ conhost sem janela resolve sem trocar o console padrao da maquina.
 param(
     [ValidateSet('diario', 'alerta', 'vigia', 'revisao')]
     [string]$Modo = 'diario',
-    [switch]$SemColeta
+    [switch]$SemColeta,
+    # Posto pelas tarefas do Agendador. Liga a guarda de "ja feita hoje", que
+    # existe por causa dos gatilhos de logon e desbloqueio. Rodada digitada a
+    # mao nao passa este switch e roda sempre.
+    [switch]$Agendada
 )
 
 $ErrorActionPreference = 'Stop'
@@ -181,6 +185,54 @@ function PegaTrava {
     }
 }
 
+# Guarda dos gatilhos de logon e desbloqueio da tela.
+#
+# Medido em 22/09/2026: o notebook ficou em suspensao moderna de 21/09 22:00 a
+# 22/09 15:17 e as rodadas das 07:30 e 13:00 NAO foram recuperadas, apesar do
+# StartWhenAvailable (NumberOfMissedRuns 1, LastRunTime do dia anterior). O
+# vigia so gritou as 15:26. Por isso diario, alerta e revisao tambem disparam
+# no logon e no desbloqueio, e esta guarda decide se ainda ha o que fazer:
+# antes do horario marcado nao faz nada (a tarefa do horario faz), rodada ja
+# feita no periodo sai quieta, e tentativa recente nao se repete. Sai sem
+# escrever no log de proposito: desbloqueio acontece dezenas de vezes por dia.
+function MarcaArq($nome) { Join-Path $logDir ($nome + '.txt') }
+function JaFeita($nome, $desde) {
+    $arq = MarcaArq ($nome + '_feita')
+    if (-not (Test-Path $arq)) { return $false }
+    try { return ([datetime]::ParseExact((Get-Content $arq -Raw).Trim(), 'yyyy-MM-dd', $null) -ge $desde) }
+    catch { return $false }
+}
+function MarcaFeita($nome) {
+    Set-Content -Path (MarcaArq ($nome + '_feita')) -Value (Get-Date -Format 'yyyy-MM-dd') -Encoding ASCII
+}
+function TentouHaPouco($nome, $horas) {
+    $arq = MarcaArq ($nome + '_tentativa')
+    if (Test-Path $arq) {
+        try {
+            $ultima = [datetime]::ParseExact((Get-Content $arq -Raw).Trim(), 'yyyy-MM-dd HH:mm', $null)
+            if (((Get-Date) - $ultima).TotalHours -lt $horas) { return $true }
+        } catch { }
+    }
+    Set-Content -Path $arq -Value (Get-Date -Format 'yyyy-MM-dd HH:mm') -Encoding ASCII
+    return $false
+}
+
+if ($Agendada -and $Modo -ne 'vigia') {
+    $agora = Get-Date
+    $horario = @{ diario = '07:30'; alerta = '13:00'; revisao = '10:00' }[$Modo]
+    if ($Modo -eq 'revisao') {
+        $desde = $agora.Date.AddDays(-(([int]$agora.DayOfWeek + 6) % 7))   # segunda desta semana
+        $cedo = ($agora.DayOfWeek -eq 'Monday') -and ($agora.TimeOfDay -lt [TimeSpan]$horario)
+        $espera = 3
+    } else {
+        $desde = $agora.Date
+        $cedo = $agora.TimeOfDay -lt [TimeSpan]$horario
+        $espera = 1
+    }
+    if ($cedo -or (JaFeita $Modo $desde)) { exit 0 }
+    if (TentouHaPouco $Modo $espera) { exit 0 }
+}
+
 Push-Location $repo
 try {
     Escreve "=== rodada '$Modo' comecou ==="
@@ -213,26 +265,8 @@ try {
         # Revisao semanal (segunda-feira): junta o material da semana que
         # terminou e monta o corpo de revisao em privado\estudo.
         #
-        # A tarefa tem, alem da segunda 10:00, gatilho no logon e no
-        # desbloqueio da tela. Motivo, medido em 22/09/2026: o notebook ficou
-        # suspenso de 21/09 22:00 a 22/09 15:17 e as rodadas das 07:30 e 13:00
-        # NAO foram recuperadas, apesar do StartWhenAvailable (suspensao
-        # moderna do Windows). Sem os gatilhos extras, segunda com notebook
-        # fechado seria semana perdida. Para eles nao rodarem a toda hora:
-        # semana ja feita sai quieto, e tentativa com falha so se repete depois
-        # de 3 horas.
-        $feitaArq = Join-Path $logDir 'revisao_feita.txt'
-        $tentativaArq = Join-Path $logDir 'revisao_tentativa.txt'
-        $segunda = (Get-Date).Date.AddDays(-(([int](Get-Date).DayOfWeek + 6) % 7))
-        if (Test-Path $feitaArq) {
-            $feita = [datetime]::ParseExact((Get-Content $feitaArq -Raw).Trim(), 'yyyy-MM-dd', $null)
-            if ($feita -ge $segunda) { Escreve '=== revisao desta semana ja feita ==='; exit 0 }
-        }
-        if (Test-Path $tentativaArq) {
-            $ultima = [datetime]::ParseExact((Get-Content $tentativaArq -Raw).Trim(), 'yyyy-MM-dd HH:mm', $null)
-            if (((Get-Date) - $ultima).TotalHours -lt 3) { Escreve '=== revisao tentada ha menos de 3h; nao repito ==='; exit 0 }
-        }
-        Set-Content -Path $tentativaArq -Value (Get-Date -Format 'yyyy-MM-dd HH:mm') -Encoding ASCII
+        # Semana ja feita e tentativa recente sao barradas pela guarda do
+        # inicio do script (gatilhos de logon e desbloqueio).
 
         # Ela tambem entra no AVA, entao respeita a mesma trava; mas, em vez
         # de desistir na hora, espera ate 40 minutos, porque na segunda ela
@@ -258,7 +292,7 @@ try {
             Escreve "=== revisao terminou com codigo $codigo ==="
             exit 1
         }
-        Set-Content -Path $feitaArq -Value (Get-Date -Format 'yyyy-MM-dd') -Encoding ASCII
+        MarcaFeita 'revisao'
         Escreve '=== revisao terminou ==='
         exit 0
     }
@@ -282,6 +316,7 @@ try {
         Remove-Item Env:\LIMITE_HORAS -ErrorAction SilentlyContinue
         if ($recente) {
             Escreve '=== painel lido ha menos de 1,5h; alerta nao rele o AVA ==='
+            MarcaFeita 'alerta'
             exit 0
         }
     }
@@ -314,6 +349,7 @@ try {
         Escreve 'Nada para hoje ou amanha; nao notifico na tela.'
     }
 
+    MarcaFeita $Modo
     Escreve '=== rodada terminou ==='
     exit 0
 } finally {

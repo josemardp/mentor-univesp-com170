@@ -210,6 +210,15 @@ Três tarefas registradas no Agendador, executadas como o usuário logado:
 `Univesp - vigia` (20:00). Todas têm `StartWhenAvailable`, então o PC desligado
 na hora marcada apenas atrasa a rodada, não a cancela.
 
+Isso não vale para notebook **suspenso**: em 22/09/2026 ele passou de 22:00 a
+15:17 em suspensão moderna e as rodadas das 07:30 e 13:00 simplesmente não
+aconteceram. Por isso diário, alerta e revisão também disparam **no logon e no
+desbloqueio da tela**. As tarefas chamam o script com `-Agendada`, que liga uma
+guarda: antes do horário marcado não faz nada, rodada já feita no dia (na semana,
+para a revisão) sai sem escrever no log, e tentativa recente não se repete
+(marcas em `tmp/log/<modo>_feita.txt` e `<modo>_tentativa.txt`). Rodada digitada
+à mão não passa `-Agendada` e roda sempre. O vigia fica só no horário das 20:00.
+
 Esse atraso tem um efeito colateral que custou uma rodada em 19/09/2026: num PC
 que fica desligado às 07:30 **e** às 13:00, as duas rodadas atrasadas disparam
 no mesmo segundo quando ele liga. Duas leituras simultâneas do AVA derrubam

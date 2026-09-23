@@ -25,9 +25,13 @@ $conhost   = "$env:SystemRoot\System32\conhost.exe"
 # rede lenta ja tinha levado 29 minutos em 15/09, e 40 era pouca folga para
 # uma leitura que varre mais de 60 foruns.
 $desejado = @(
-    @{ Nome = "Univesp - guia diario"; Modo = $null; Hora = "07:30"; Minutos = 60
+    # Destravar: tambem dispara no logon e no desbloqueio da tela, porque o
+    # horario fixo perdido em suspensao nao e recuperado (22/09/2026). O vigia
+    # fica so no horario: ele e quem denuncia a falha, e no desbloqueio da
+    # manha acusaria painel velho antes de a rodada do dia acontecer.
+    @{ Nome = "Univesp - guia diario"; Modo = $null; Hora = "07:30"; Minutos = 60; Destravar = $true
        Descricao = "Le o AVA, gera o painel e envia o resumo do dia." },
-    @{ Nome = "Univesp - guia alerta"; Modo = "alerta"; Hora = "13:00"; Minutos = 60
+    @{ Nome = "Univesp - guia alerta"; Modo = "alerta"; Hora = "13:00"; Minutos = 60; Destravar = $true
        Descricao = "Rele o AVA no meio do dia e avisa se apareceu prazo novo." },
     @{ Nome = "Univesp - vigia"; Modo = "vigia"; Hora = "20:00"; Minutos = 5
        Descricao = "Nao le o AVA: confere se o painel local ainda e de hoje." },
@@ -42,6 +46,9 @@ $desejado = @(
 function ArgumentosDe($modoArg) {
     $texto = "--headless powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$ps1Rotina`""
     if ($modoArg) { $texto += " -Modo $modoArg" }
+    # -Agendada liga a guarda de "ja feita" do rodar_diario.ps1 (gatilhos de
+    # logon e desbloqueio); rodada digitada a mao nao passa e roda sempre.
+    $texto += " -Agendada"
     return $texto
 }
 
