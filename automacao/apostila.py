@@ -27,6 +27,7 @@ import html
 import json
 import re
 import sys
+import tempfile
 from datetime import date, datetime
 from pathlib import Path
 
@@ -56,6 +57,11 @@ def _texto(v):
     return " ".join(str(v).split()) if isinstance(v, (str, int, float)) else ""
 
 
+def _lista(v):
+    # 23/09/2026: JSON válido da IA ainda pode trazer objeto no lugar de lista.
+    return v if isinstance(v, list) else []
+
+
 def validar(bruto):
     """Confere e normaliza a ficha. Corta excesso em vez de recusar; recusa só
     o que quebraria a apostila (sem tema, treino malformado)."""
@@ -67,7 +73,7 @@ def validar(bruto):
 
     def lista(chave, campos):
         saida = []
-        for x in (bruto.get(chave) or [])[: LIMITES[chave]]:
+        for x in _lista(bruto.get(chave))[: LIMITES[chave]]:
             if isinstance(x, dict) and all(_texto(x.get(c)) for c in campos[:1]):
                 saida.append({c: _texto(x.get(c)) for c in campos})
         return saida
@@ -76,24 +82,24 @@ def validar(bruto):
     f["autores"] = lista("autores", ["nome", "referencia", "ideia"])
     f["exemplos"] = lista("exemplos", ["exemplo", "explicacao"])
     f["pegadinhas"] = lista("pegadinhas", ["confusao", "certo"])
-    f["cobrado"] = [_texto(x) for x in (bruto.get("cobrado") or [])[: LIMITES["cobrado"]] if _texto(x)]
-    f["ler_por_conta"] = [_texto(x) for x in (bruto.get("ler_por_conta") or []) if _texto(x)]
+    f["cobrado"] = [_texto(x) for x in _lista(bruto.get("cobrado"))[: LIMITES["cobrado"]] if _texto(x)]
+    f["ler_por_conta"] = [_texto(x) for x in _lista(bruto.get("ler_por_conta")) if _texto(x)]
 
     f["comparacoes"] = []
-    for c in (bruto.get("comparacoes") or [])[: LIMITES["comparacoes"]]:
+    for c in _lista(bruto.get("comparacoes"))[: LIMITES["comparacoes"]]:
         if not isinstance(c, dict):
             continue
-        colunas = [_texto(x) for x in c.get("colunas") or []]
-        linhas = [[_texto(x) for x in l] for l in c.get("linhas") or [] if isinstance(l, list)][:5]
+        colunas = [_texto(x) for x in _lista(c.get("colunas"))[:3]]
+        linhas = [[_texto(x) for x in l] for l in _lista(c.get("linhas")) if isinstance(l, list)][:5]
         linhas = [l[: len(colunas)] + [""] * (len(colunas) - len(l)) for l in linhas]
         if len(colunas) >= 2 and linhas:
             f["comparacoes"].append({"titulo": _texto(c.get("titulo")), "colunas": colunas, "linhas": linhas})
 
     f["treino"] = []
-    for q in (bruto.get("treino") or [])[: LIMITES["treino"]]:
+    for q in _lista(bruto.get("treino"))[: LIMITES["treino"]]:
         if not isinstance(q, dict):
             continue
-        alts = [_texto(a) for a in q.get("alternativas") or []]
+        alts = [_texto(a) for a in _lista(q.get("alternativas"))]
         correta = _texto(q.get("correta")).upper()[:1]
         if _texto(q.get("enunciado")) and len(alts) == 5 and all(alts) and correta in LETRAS:
             f["treino"].append({"enunciado": str(q["enunciado"]).strip(), "alternativas": alts,
@@ -107,7 +113,7 @@ def ler_ficha(pasta):
         return None
     try:
         return validar(json.loads(arq.read_text(encoding="utf-8")))
-    except (ValueError, FichaInvalida):
+    except (OSError, ValueError, TypeError, FichaInvalida):
         return None
 
 
@@ -149,12 +155,30 @@ def coletar(bimestre):
     for pasta in sorted(p for p in base.iterdir() if p.is_dir()):
         semanas = []
         for sem in sorted(pasta.glob("semana-*")):
+            if not re.fullmatch(r"semana-\d+", sem.name) or not sem.is_dir():
+                continue
             ficha = ler_ficha(sem)
             if not ficha:
                 continue
             inicio = None
             try:
-                inicio = json.loads((sem / "manifest.json").read_text(encoding="utf-8")).get("inicio")
+                manifest = json.loads((sem / "manifest.json").read_text(encoding="utf-8"))
+                inicio = manifest.get("inicio")
+                # A cobertura vem da coleta, não da escolha editorial da IA.
+                # 23/09/2026: omitir um leitor externo na ficha escondia a lacuna.
+                avisos = []
+                for fonte in manifest.get("fontes", []):
+                    situacao = fonte.get("status")
+                    if situacao in ("nao_lido", "sem_legenda"):
+                        avisos.append(fonte.get("titulo") or "Fonte sem título")
+                    elif situacao in ("falhou", "pendente"):
+                        avisos.append(f"Fonte ainda não conferida: {fonte.get('titulo') or 'sem título'}")
+                    elif situacao in ("revisao_fechada", "sem_tentativa"):
+                        avisos.append(f"Questionário sem revisão disponível: {fonte.get('titulo') or 'sem título'}")
+                if "fontes" in manifest:
+                    # O manifesto é a fonte da situação, inclusive quando o
+                    # texto da ficha repete o mesmo título com outro prefixo.
+                    ficha["ler_por_conta"] = list(dict.fromkeys(avisos))
             except (OSError, ValueError):
                 pass
             semanas.append({"n": int(sem.name.split("-")[1]), "inicio": inicio, **ficha})
@@ -368,6 +392,7 @@ html[data-modo="resumo"] .capa p{font-size:8pt;margin:1mm 0 0}
 html[data-modo="resumo"] .disc-cab{padding:6px 12px;border-radius:8px;margin:0 0 4mm}
 html[data-modo="resumo"] .disc-cab p{font-size:7pt}html[data-modo="resumo"] .disc-cab h2{font-size:13pt;margin:0}
 html[data-modo="resumo"] .semana{border:0;border-top:2px solid var(--acc);border-radius:0;padding:2mm 0 0;margin:0 0 5mm}
+html[data-modo="resumo"] .semana+.semana{break-before:page}
 html[data-modo="resumo"] .sem-head{gap:8px;margin:0 0 2mm}
 html[data-modo="resumo"] .sem-num{width:24px;height:24px;border-radius:6px;font-size:9pt}
 html[data-modo="resumo"] .kicker{font-size:6.5pt}html[data-modo="resumo"] .sem-head h3{font-size:11.5pt;margin:0}
@@ -525,45 +550,50 @@ def gerar(bimestre, pdf=True):
     disciplinas = coletar(bimestre)
     if not disciplinas:
         return []
-    # PDF de disciplina que ficou sem ficha válida sairia velho, desencontrado
-    # do HTML (visto em 23/09/2026 ao refazer as fichas de SOC100).
-    atuais = {d["cod"].upper() for d in disciplinas}
-    for velho in list(base.glob("APOSTILA_*.pdf")) + list(base.glob("TREINO_*.pdf")):
-        if velho.stem.split("_", 1)[1] not in atuais:
-            velho.unlink(missing_ok=True)
     saida = base / "APOSTILA.html"
-    saida.write_text(montar_html(bimestre, disciplinas), encoding="utf-8")
-    feitos = [saida]
-    if not pdf:
+    with tempfile.TemporaryDirectory(prefix=".apostila-", dir=base) as tmp:
+        temporarios = Path(tmp)
+        (temporarios / saida.name).write_text(montar_html(bimestre, disciplinas), encoding="utf-8")
+        feitos = [saida]
+        if pdf:
+            from playwright.sync_api import sync_playwright
+            with sync_playwright() as pw:
+                navegador = pw.chromium.launch(headless=True)
+                try:
+                    page = navegador.new_page()
+                    for d in disciplinas:
+                        for modo, prefixo in (("resumo", "APOSTILA"), ("treino", "TREINO")):
+                            if modo == "treino" and not any(s["treino"] for s in d["semanas"]):
+                                continue
+                            temp = temporarios / f"{d['cod']}_{modo}.html"
+                            temp.write_text(montar_html(bimestre, [d], modo=modo), encoding="utf-8")
+                            page.goto(temp.as_uri())
+                            page.emulate_media(media="print")
+                            destino = base / f"{prefixo}_{d['cod'].upper()}.pdf"
+                            rotulo = "resumo" if modo == "resumo" else "treino"
+                            page.pdf(
+                                path=str(temporarios / destino.name), format="A4", print_background=True,
+                                display_header_footer=True, header_template="<span></span>",
+                                footer_template=(
+                                    '<div style="width:100%;font-size:7px;color:#888;padding:0 12mm;'
+                                    'display:flex;justify-content:space-between;font-family:system-ui,sans-serif">'
+                                    f'<span>{d["cod"].upper()} · {html.escape(d["nome"])} · {rotulo}</span>'
+                                    '<span><span class="pageNumber"></span> / <span class="totalPages"></span></span></div>'),
+                                margin={"top": "11mm", "bottom": "12mm", "left": "12mm", "right": "12mm"},
+                            )
+                            feitos.append(destino)
+                finally:
+                    navegador.close()
+        # 23/09/2026: falha no Playwright não pode deixar PDF parcial nem HTML
+        # novo apontando para treino antigo. Só publica depois de gerar tudo.
+        for destino in feitos:
+            (temporarios / destino.name).replace(destino)
+        if pdf:
+            atuais = {p.name for p in feitos}
+            for velho in list(base.glob("APOSTILA_*.pdf")) + list(base.glob("TREINO_*.pdf")):
+                if velho.name not in atuais:
+                    velho.unlink(missing_ok=True)
         return feitos
-    from playwright.sync_api import sync_playwright
-    with sync_playwright() as pw:
-        navegador = pw.chromium.launch(headless=True)
-        page = navegador.new_page()
-        for d in disciplinas:
-            for modo, prefixo in (("resumo", "APOSTILA"), ("treino", "TREINO")):
-                if modo == "treino" and not any(s["treino"] for s in d["semanas"]):
-                    continue
-                temp = base / f".apostila_{d['cod']}_{modo}.html"
-                temp.write_text(montar_html(bimestre, [d], modo=modo), encoding="utf-8")
-                page.goto(temp.as_uri())
-                page.emulate_media(media="print")
-                destino = base / f"{prefixo}_{d['cod'].upper()}.pdf"
-                rotulo = "resumo" if modo == "resumo" else "treino"
-                page.pdf(
-                    path=str(destino), format="A4", print_background=True,
-                    display_header_footer=True, header_template="<span></span>",
-                    footer_template=(
-                        '<div style="width:100%;font-size:7px;color:#888;padding:0 12mm;'
-                        'display:flex;justify-content:space-between;font-family:system-ui,sans-serif">'
-                        f'<span>{d["cod"].upper()} · {html.escape(d["nome"])} · {rotulo}</span>'
-                        '<span><span class="pageNumber"></span> / <span class="totalPages"></span></span></div>'),
-                    margin={"top": "11mm", "bottom": "12mm", "left": "12mm", "right": "12mm"},
-                )
-                temp.unlink(missing_ok=True)
-                feitos.append(destino)
-        navegador.close()
-    return feitos
 
 
 def bimestre_mais_recente():

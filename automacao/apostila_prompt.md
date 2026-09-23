@@ -19,9 +19,9 @@ Formato exato do `apostila.json` (JSON válido, UTF-8, sem comentários):
   "cobrado": ["afirmação correta que o questionário cobrou, até 20 palavras"],
   "pegadinhas": [{{"confusao": "o erro comum, até 15 palavras", "certo": "o certo, até 15 palavras"}}],
   "treino": [{{"enunciado": "...", "alternativas": ["...", "...", "...", "...", "..."], "correta": "A", "comentario": "por que, até 40 palavras"}}],
-  "ler_por_conta": ["título completo do que ficou NÃO LIDO ou SEM LEGENDA na COBERTURA.md"]
+  "ler_por_conta": ["título completo do que ficou NÃO LIDO, SEM LEGENDA, FALHOU ou pendente na COBERTURA.md; inclua questionário sem revisão disponível"]
 }}
 
 Limites: conceitos até 6; autores até 5 (os que a prova cobra, não todo nome citado); comparacoes até 1, com no máximo 5 linhas (só quando houver contraste que a prova explora, como dois autores ou duas concepções); exemplos até 3; cobrado até 5 (os mais prováveis na prova, sem repetir conceito já dito); pegadinhas até 3; treino **exatamente 4** questões inéditas no formato da prova da Univesp (asserção-razão com PORQUE, "I, II e III", lacunas, alternativa correta), com 5 alternativas cada e `correta` de "A" a "E". Lista vazia é permitida quando não houver o que pôr.
 
-Estilo: português do Brasil, frases curtas e diretas. Pode usar `**negrito**` para o termo-chave dentro de uma frase, com parcimônia. Sem travessão (o caractere —), sem emoji, sem HTML. Não invente nada que não esteja na `REVISAO.md`; o que lá estiver marcado `[VERIFICAR]` fica de fora. Não mencione a profissão do aluno.
+Estilo: português do Brasil, frases curtas e diretas. Pode usar `**negrito**` para o termo-chave dentro de uma frase, com parcimônia. Sem travessão (o caractere —), sem emoji, sem HTML. Não invente nada que não esteja na `REVISAO.md`; o que lá estiver marcado `[VERIFICAR]` fica de fora dos fatos e questões, mas a lacuna continua em `ler_por_conta`. Se não houver revisão acessível do questionário, deixe `cobrado` vazio. Não mencione a profissão do aluno.

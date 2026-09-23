@@ -69,6 +69,8 @@ try:
     checa(False, "ficha sem tema é recusada")
 except A.FichaInvalida:
     checa(True, "ficha sem tema é recusada")
+checa(A.validar(ficha(comparacoes={"errado": 1}, treino="errado", conceitos={"errado": 1}))["treino"] == [],
+      "listas com formato errado não derrubam a montagem")
 
 # ---------------------------------------------------------------------------
 print("\n== texto seguro ==")
@@ -89,7 +91,9 @@ with tempfile.TemporaryDirectory() as tmp:
         p = Path(tmp) / "2026-4bim" / disc / f"semana-{n:02d}"
         p.mkdir(parents=True)
         (p / "apostila.json").write_text(json.dumps(ficha(tema=f"Tema {disc} {n}")), encoding="utf-8")
-        (p / "manifest.json").write_text(json.dumps({"inicio": "2026-10-05"}), encoding="utf-8")
+        (p / "manifest.json").write_text(json.dumps({"inicio": "2026-10-05", "fontes": [
+            {"status": "nao_lido", "titulo": "Leitor sintético"},
+            {"status": "falhou", "titulo": "PDF sintético"}]}), encoding="utf-8")
     ruim = Path(tmp) / "2026-4bim" / "soc100" / "semana-05"
     ruim.mkdir()
     (ruim / "apostila.json").write_text("{ isso não é json", encoding="utf-8")
@@ -97,6 +101,11 @@ with tempfile.TemporaryDirectory() as tmp:
     discs = A.coletar("2026-4bim")
     checa([d["cod"] for d in discs] == ["let110", "soc100"], "disciplinas em ordem")
     checa([s["n"] for s in discs[1]["semanas"]] == [2, 4], "ficha quebrada é pulada, as outras entram")
+    checa("Fonte ainda não conferida: PDF sintético" in discs[1]["semanas"][0]["ler_por_conta"],
+          "lacuna da cobertura aparece mesmo se a IA omitir na ficha")
+    checa(discs[1]["semanas"][0]["ler_por_conta"] ==
+          ["Leitor sintético", "Fonte ainda não conferida: PDF sintético"],
+          "manifesto substitui lista da IA e evita aviso duplicado")
 
     tela = A.montar_html("2026-4bim", discs)
     checa('id="soc100-s04"' in tela and 'id="let110-s01"' in tela, "cada semana tem âncora para o sumário")
@@ -113,10 +122,27 @@ with tempfile.TemporaryDirectory() as tmp:
     resumo = A.montar_html("2026-4bim", [discs[1]], modo="resumo")
     checa('class="questao"' not in resumo and "Gabarito" not in resumo and "Conceitos-chave" in resumo,
           "resumo impresso não leva questões nem gabarito")
+    checa(".semana+.semana{break-before:page}" in resumo,
+          "cada semana começa em página nova no resumo")
 
     vistos = A.ja_vistos(Path(tmp) / "2026-4bim" / "soc100", 4)
     checa("Termo 0" in vistos and "Clifford Geertz" in vistos, "semana 4 recebe o que a semana 2 já definiu")
     checa("primeira semana" in A.ja_vistos(Path(tmp) / "2026-4bim" / "soc100", 2), "primeira semana não herda nada")
+
+    feitos = A.gerar("2026-4bim")
+    checa(any(p.name == "TREINO_SOC100.pdf" for p in feitos), "treino sintético gera PDF próprio")
+    for p in (Path(tmp) / "2026-4bim").glob("*/semana-*/apostila.json"):
+        try:
+            bruto = json.loads(p.read_text(encoding="utf-8"))
+        except ValueError:
+            continue
+        bruto["treino"] = []
+        p.write_text(json.dumps(bruto), encoding="utf-8")
+    A.gerar("2026-4bim")
+    checa(not (Path(tmp) / "2026-4bim" / "TREINO_SOC100.pdf").exists(),
+          "treino antigo sai quando não restam questões")
+    checa(not list((Path(tmp) / "2026-4bim").glob(".apostila-*")),
+          "temporários da montagem são removidos")
 
 print("\n" + "=" * 66)
 if falhas:
