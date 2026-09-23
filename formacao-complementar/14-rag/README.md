@@ -10,9 +10,9 @@ você aprendeu no caminho. Este arquivo existe para marcar o lugar e guardar o p
 
 ## Quando
 
-**Fase 4** do [PLANO_GERAL.md](../PLANO_GERAL.md).
+**Fase 4** do [roteiro](../README.md#roteiro).
 
-**Pré-requisito:** concluir `13-vector-database` com nota 4 ou mais no [MAPA_DE_COMPETENCIAS.md](../MAPA_DE_COMPETENCIAS.md).
+**Pré-requisito:** concluir `13-vector-database` com nota 4 ou mais no mapa de competências (acervo privado).
 
 ## O que vai cobrir
 

@@ -22,6 +22,10 @@ fusão separou o que pode aparecer do que não pode.
   14 arquivos que não podem ser públicos. São as 3 coletas brutas do AVA, as apostilas e o
   resumo com gabarito, o roteiro de podcast do LET110, os dois geradores que produzem
   esses arquivos (testado: o de LET110 regera igual) e a prova diagnóstica com as respostas.
+- Vitrine da formação: o `README.md` de `formacao-complementar/` foi reescrito para quem
+  vem do LinkedIn. Plano, progresso, diário, mapa com as notas e diagnóstico foram para
+  `privado/formacao-complementar/` (entrada: `PAINEL_PESSOAL.md`). Eles ficaram públicos
+  no commit `9e6e5a1` por alguns minutos e seguem no histórico desse commit.
 - Copiado **sem histórico git**: o histórico antigo tinha arquivos privados e continua só
   no repositório de origem, que é privado.
 - A regra de revisão para prova (fonte inteira, questionários primeiro), escrita em

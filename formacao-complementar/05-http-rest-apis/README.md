@@ -10,9 +10,9 @@ você aprendeu no caminho. Este arquivo existe para marcar o lugar e guardar o p
 
 ## Quando
 
-**Fase 2** do [PLANO_GERAL.md](../PLANO_GERAL.md).
+**Fase 2** do [roteiro](../README.md#roteiro).
 
-**Pré-requisito:** concluir `04-git-github` com nota 4 ou mais no [MAPA_DE_COMPETENCIAS.md](../MAPA_DE_COMPETENCIAS.md).
+**Pré-requisito:** concluir `04-git-github` com nota 4 ou mais no mapa de competências (acervo privado).
 
 ## O que vai cobrir
 
