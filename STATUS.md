@@ -31,8 +31,11 @@ fusão separou o que pode aparecer do que não pode.
 - A regra de revisão para prova (fonte inteira, questionários primeiro), escrita em
   22/09 depois da prova, veio para o `CLAUDE.md` e o `AGENTS.md` daqui.
 
-**Pendente:** arquivar o slug `formacao-ia-automacao` no mentor e o repositório de origem
-no GitHub (esperando o sim dele); ação do guia de novembro migrada para cá.
+**Origem apagada (22/09/2026, com o sim dele):** repositório `josemardp/formacao-ia-automacao`
+excluído do GitHub, pasta local apagada, projeto tirado do registro do mentor. Cópia do
+histórico inteiro em `privado/formacao-ia-automacao.bundle`. O projeto entrou em
+`central_automacoes/.../projetos-aposentados.txt`: o "atualizar todos os projetos" do PC de
+casa tira do mentor e move a pasta para `C:\projetos-quarentena\`, se ela estiver limpa.
 
 ## O robô não rodava fora da tomada, e duas rodadas no mesmo segundo derrubavam uma à outra (19/09/2026)
 
