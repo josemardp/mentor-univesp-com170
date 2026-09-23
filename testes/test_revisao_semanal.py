@@ -65,6 +65,14 @@ checa(nums(date(2026, 10, 19), desde=date(2026, 10, 5)) == [2, 3], "--desde cort
 checa(R.bimestre_de(CURSO) == "2026-4bim", "bimestre sai do nome do cronograma")
 checa(R.bimestre_de({"code": "COM170", "cronograma": None}) is None,
       "sem cronograma semanal (COM170 quinzenal) fica de fora")
+checa(R.retrato_em_dia({"checked_at": "2026-10-05T13:00:00+00:00"}, date(2026, 10, 5)),
+      "retrato do mesmo dia libera a revisão")
+checa(not R.retrato_em_dia({"checked_at": "2026-10-04T13:00:00+00:00"}, date(2026, 10, 5)),
+      "retrato antigo não marca semana como feita")
+rotina = (ROOT / "automacao" / "rodar_diario.ps1").read_text(encoding="utf-8")
+trecho = rotina.split("$resumoArq = Join-Path $logDir 'revisao_resumo.txt'", 1)[1]
+checa(trecho.index("Remove-Item -LiteralPath $resumoArq") < trecho.index("Invoca 'revisao_semanal'"),
+      "falha inicial da rodada não reenvia resumo antigo")
 
 # ---------------------------------------------------------------------------
 print("\n== classificação de link ==")
@@ -103,6 +111,8 @@ class PaginaFalsa:
 
 
 import tempfile  # noqa: E402
+import json  # noqa: E402
+from unittest.mock import patch  # noqa: E402
 
 with tempfile.TemporaryDirectory() as tmp:
     info = {
@@ -160,6 +170,72 @@ checa("SEM LEGENDA" in R.cobertura_md(manifest), "vídeo sem legenda aparece par
 a1 = R.assinatura(manifest)
 manifest["fontes"][0]["status"] = "lido"
 checa(R.assinatura(manifest) != a1, "mudança de status muda a assinatura (remonta a revisão)")
+
+# ---------------------------------------------------------------------------
+print("\n== falhas de coleta e retomada ==")
+with tempfile.TemporaryDirectory() as tmp:
+    pasta = Path(tmp)
+    col = R.Coletor(PaginaFalsa({"texto": "", "links": [], "iframes": []}), pasta)
+    vazio, _ = col.pagina({"cmid": "1", "label": "Página sintética", "url": "https://exemplo.test/page"})
+    checa(vazio["status"] == "falhou", "página vazia não conta como lida")
+
+    with patch.object(R.subprocess, "run") as run:
+        run.return_value.returncode = 1
+        run.return_value.stderr = b"falha de rede"
+        checa(col.video("abcdefghijk", "Vídeo sintético")["status"] == "falhou",
+              "erro do yt-dlp volta na próxima rodada, sem virar sem legenda")
+
+    class QuizFalso(PaginaFalsa):
+        def evaluate(self, js):
+            return {"links": [["Revisão", "https://ava.exemplo.test/mod/quiz/review.php?attempt=1"]]} if js == R.JS_PAGINA else ""
+
+    quiz = R.Coletor(QuizFalso({}), pasta).quiz(
+        {"cmid": "7", "label": "Quiz sintético", "url": "https://ava.exemplo.test/quiz"},
+        date(2026, 9, 28), date(2026, 10, 5))
+    checa(quiz["status"] == "falhou", "revisão sem .que não fecha o questionário")
+
+    fontes = [{"chave": "cm:1", "status": "lido", "sha256": "a"}]
+    base = {"fontes": fontes, "fechada": True, "inventario": R.inventario({"items": []})}
+    base["montado_hash"] = R.assinatura(base)
+    rev = pasta / "REVISAO.md"
+    rev.write_text("Revisão sintética", encoding="utf-8")
+    base["ficha_de"] = R.hash_arquivo(rev)
+    (pasta / "apostila.json").write_text(json.dumps({"tema": "Tema sintético"}), encoding="utf-8")
+    checa(R.semana_em_dia(base, pasta, {"items": []}), "semana íntegra é pulada")
+    checa(not R.semana_em_dia(base, pasta, {"items": [{"cmid": 2}]}),
+          "item novo no AVA reabre a semana")
+    fontes[0]["sha256"] = "b"
+    checa(not R.semana_em_dia(base, pasta, {"items": []}),
+          "fonte alterada com o mesmo tamanho remonta a revisão")
+    fontes[0]["sha256"] = "a"
+    (pasta / "apostila.json").write_text("{quebrado", encoding="utf-8")
+    checa(not R.semana_em_dia(base, pasta, {"items": []}), "ficha corrompida é refeita")
+    (pasta / "apostila.json").unlink()
+    checa(not R.semana_em_dia(base, pasta, {"items": []}), "ficha apagada é refeita")
+
+    import fitz
+    pdf = fitz.open()
+    pdf.new_page().insert_text((50, 50), "Texto sintetico")
+    corpo = pdf.tobytes()
+    pdf.close()
+    p1 = col._ler_pdf(corpo, "https://exemplo.test/a/slides.pdf", "Slides A")
+    p2 = col._ler_pdf(corpo, "https://exemplo.test/b/slides.pdf", "Slides B")
+    checa(p1["arquivo"] != p2["arquivo"] and (pasta / p1["arquivo"]).exists(),
+          "PDFs homônimos preservam os dois textos")
+    vazio_pdf = fitz.open()
+    vazio_pdf.new_page()
+    sem_texto = col._ler_pdf(vazio_pdf.tobytes(), "https://exemplo.test/scan.pdf", "PDF sintético")
+    vazio_pdf.close()
+    checa(sem_texto["status"] == "nao_lido", "PDF sem texto extraível não conta como fonte lida")
+
+    def escreveu_e_falhou(*args, **kwargs):
+        (pasta / "REVISAO.md").write_text("saída sintética", encoding="utf-8")
+        return type("Processo", (), {"returncode": 1, "stdout": "erro", "stderr": ""})()
+
+    rev.unlink()
+    with patch.object(R.subprocess, "run", side_effect=escreveu_e_falhou):
+        ok, _ = R._chamar_claude_uma_vez(pasta, "instrução sintética", "REVISAO.md")
+    checa(not ok, "Claude com código de erro não confirma saída parcial")
 
 print("\n" + "=" * 66)
 if falhas:

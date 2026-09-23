@@ -179,8 +179,39 @@ def cobertura_md(manifest):
 def assinatura(manifest):
     # Ordenada: na segunda passada as fontes derivadas de página já lida
     # entram no fim da lista, e a ordem diferente remontava a revisão à toa.
-    base = sorted((f["chave"], f["status"], f.get("chars")) for f in manifest["fontes"])
+    base = sorted((f["chave"], f["status"], f.get("sha256") or f.get("chars"))
+                  for f in manifest["fontes"])
     return hashlib.sha1(json.dumps(base, ensure_ascii=False).encode()).hexdigest()
+
+
+def inventario(secao):
+    """Detecta material novo no retrato diário sem reler toda semana fechada."""
+    itens = [(i.get("cmid"), i.get("type"), i.get("label"), i.get("url"))
+             for i in secao.get("items") or []]
+    return hashlib.sha256(json.dumps(itens, ensure_ascii=False).encode()).hexdigest()
+
+
+def semana_em_dia(manifest, pasta, secao):
+    """O manifesto sozinho não prova que a revisão e a ficha ainda existem."""
+    if not manifest.get("fechada") or manifest.get("inventario") != inventario(secao):
+        return False
+    revisao = pasta / "REVISAO.md"
+    if not revisao.is_file() or not revisao.stat().st_size:
+        return False
+    if manifest.get("montado_hash") != assinatura(manifest):
+        return False
+    import apostila
+    return (manifest.get("ficha_de") == hash_arquivo(revisao)
+            and apostila.ler_ficha(pasta) is not None)
+
+
+def retrato_em_dia(dados, hoje):
+    """A lista de seções vem da rodada diária, não do AVA aberto aqui."""
+    try:
+        carimbo = datetime.fromisoformat(dados["checked_at"])
+        return carimbo.astimezone().date() == hoje
+    except (KeyError, TypeError, ValueError):
+        return False
 
 
 # --------------------------------------------------------------- leitura AVA
@@ -212,7 +243,7 @@ class Coletor:
     def _gravar(self, nome, texto):
         caminho = self.fontes_dir / nome
         caminho.write_text(texto, encoding="utf-8")
-        return f"fontes/{nome}", len(texto)
+        return f"fontes/{nome}", len(texto), hashlib.sha256(texto.encode("utf-8")).hexdigest()
 
     def _baixar(self, url):
         # Site de universidade com certificado vencido é comum (UFPB, 22/09/2026);
@@ -271,34 +302,42 @@ class Coletor:
         return {"status": "nao_lido"}
 
     def _ler_pdf(self, corpo, url, titulo):
-        nome = slug(Path(url.split("?")[0]).stem)
+        # 23/09/2026: slides e textos-base distintos podem ter o mesmo nome
+        # de arquivo. A URL na chave evita que um sobrescreva a fonte do outro.
+        nome = f"{slug(Path(url.split('?')[0]).stem)}-{hashlib.sha256(url.encode()).hexdigest()[:10]}"
         destino = self.fontes_dir / f"{nome}.pdf"
         destino.write_bytes(corpo)
         import fitz
         with fitz.open(destino) as doc:
             texto = "\n".join(p.get_text() for p in doc)
-        arquivo, chars = self._gravar(f"{nome}.pdf.txt", f"# {titulo}\nFonte: {url}\n\n{texto}")
-        return {"status": "lido", "arquivo": arquivo, "chars": chars}
+        if not texto.strip():
+            # 23/09/2026: PDF sem camada de texto não foi lido de verdade.
+            return {"status": "nao_lido", "erro": "PDF sem texto extraível; ler por conta própria"}
+        arquivo, chars, sha256 = self._gravar(f"{nome}.pdf.txt", f"# {titulo}\nFonte: {url}\n\n{texto}")
+        return {"status": "lido", "arquivo": arquivo, "chars": chars, "sha256": sha256}
 
     def video(self, vid, titulo):
         with tempfile.TemporaryDirectory() as tmp:
-            subprocess.run(
+            proc = subprocess.run(
                 [sys.executable, "-m", "yt_dlp", "--skip-download", "--write-auto-sub",
                  "--sub-lang", "pt", "--sub-format", "vtt", "-q", "--no-warnings",
                  "-o", str(Path(tmp) / "v.%(ext)s"), f"https://www.youtube.com/watch?v={vid}"],
                 capture_output=True, timeout=180,
             )
+            if proc.returncode != 0:
+                # 23/09/2026: erro de rede/login não equivale a vídeo sem legenda.
+                return {"status": "falhou", "erro": (proc.stderr or b"erro do yt-dlp")[-200:].decode("utf-8", errors="replace")}
             vtts = list(Path(tmp).glob("*.vtt"))
             if not vtts:
                 # Vídeo curto de abertura costuma não ter legenda. Não é falha
                 # a repetir toda segunda: fica registrado e a semana fecha.
                 return {"status": "sem_legenda"}
             texto = limpar_vtt(vtts[0].read_text(encoding="utf-8", errors="replace"))
-        arquivo, chars = self._gravar(
+        arquivo, chars, sha256 = self._gravar(
             f"video-{vid}.txt",
             f"# {titulo}\nFonte: https://youtu.be/{vid} (legenda automática: "
             f"nome próprio pode vir errado)\n\n{texto}")
-        return {"status": "lido", "arquivo": arquivo, "chars": chars}
+        return {"status": "lido", "arquivo": arquivo, "chars": chars, "sha256": sha256}
 
     def quiz(self, item, inicio, hoje):
         info = self._abrir(item["url"])
@@ -317,18 +356,24 @@ class Coletor:
         for n, url in enumerate(revisoes, 1):
             self.page.goto(url, timeout=60000)
             self.page.wait_for_timeout(1500)
-            blocos.append(f"## Tentativa {n}\n\n" + self.page.evaluate(JS_QUESTOES))
-        arquivo, chars = self._gravar(
+            questoes = self.page.evaluate(JS_QUESTOES)
+            if not questoes or not questoes.strip():
+                # 23/09/2026: mudança no seletor .que não pode fechar o quiz.
+                return {"status": "falhou", "erro": f"revisão da tentativa {n} sem questões"}
+            blocos.append(f"## Tentativa {n}\n\n" + questoes)
+        arquivo, chars, sha256 = self._gravar(
             f"quiz-{item['cmid']}.txt",
             f"# {item['label']}\nRevisão de {len(revisoes)} tentativa(s). "
             f"Fonte: {item['url']}\n\n" + "\n\n".join(blocos))
-        return {"status": "lido", "arquivo": arquivo, "chars": chars}
+        return {"status": "lido", "arquivo": arquivo, "chars": chars, "sha256": sha256}
 
     def pagina(self, item):
         """Lê a página e devolve (resultado, fontes derivadas: vídeos, PDFs, leitores)."""
         info = self._abrir(item["url"])
         texto = texto_util(info["texto"])
-        arquivo, chars = self._gravar(
+        if not texto:
+            return {"status": "falhou", "erro": "página sem texto; verificar layout ou sessão"}, []
+        arquivo, chars, sha256 = self._gravar(
             f"pagina-{item['cmid']}.txt", f"# {item['label']}\nFonte: {item['url']}\n\n{texto}")
         derivadas = []
         # Vídeo só pelo iframe: os links "Audiodescrição" e "Vídeo sem Libras"
@@ -347,7 +392,7 @@ class Coletor:
             if tipo in ("pdf", "leitor", "externo"):
                 nome = Path(href.split("?")[0]).name
                 derivadas.append((tipo, href, rotulo or f"Slides {nome}" if tipo == "pdf" else rotulo or item["label"]))
-        return {"status": "lido", "arquivo": arquivo, "chars": chars}, derivadas
+        return {"status": "lido", "arquivo": arquivo, "chars": chars, "sha256": sha256}, derivadas
 
     def alvo_de_url(self, item):
         """O link externo que um item "url" do Moodle abre."""
@@ -444,6 +489,7 @@ def coletar_semana(coletor, curso, n, inicio, secao, manifest, hoje):
         "semana": n,
         "inicio": inicio.isoformat(),
         "coletado_em": datetime.now().isoformat(timespec="minutes"),
+        "inventario": inventario(secao),
         "fontes": novas,
     })
     manifest["fechada"] = not any(f["status"] in ("pendente", "falhou") for f in novas)
@@ -505,7 +551,7 @@ def chamar_claude(pasta, instrucoes, nome_alvo, tentativas=2):
 
 def _chamar_claude_uma_vez(pasta, instrucoes, nome_alvo):
     alvo = pasta / nome_alvo
-    antes = alvo.stat().st_mtime if alvo.exists() else 0
+    antes = alvo.stat().st_mtime_ns if alvo.exists() else 0
     # As instruções vão pela entrada padrão: texto de várias linhas não
     # sobrevive à linha de comando do Windows. As ferramentas ficam restritas
     # a ler e escrever arquivo, e a pasta da semana é a única liberada.
@@ -522,7 +568,7 @@ def _chamar_claude_uma_vez(pasta, instrucoes, nome_alvo):
         return False, "comando claude não encontrado"
     except subprocess.TimeoutExpired:
         return False, f"Claude passou de {TEMPO_CLAUDE_S // 60} min"
-    if alvo.exists() and alvo.stat().st_mtime > antes:
+    if proc.returncode == 0 and alvo.exists() and alvo.stat().st_size and alvo.stat().st_mtime_ns > antes:
         return True, "ok"
     return False, f"Claude não escreveu {nome_alvo} (código {proc.returncode}): {(proc.stdout or proc.stderr)[-300:]}"
 
@@ -564,6 +610,12 @@ def main():
         print("docs/data.json não existe: a rodada diária ainda não gerou o retrato do AVA")
         return 3
     dados = json.loads(DATA.read_text(encoding="utf-8"))
+    if not args.hoje and not retrato_em_dia(dados, hoje):
+        # 23/09/2026: no logon após suspensão, a revisão pode ganhar a trava
+        # antes da rodada diária e ler uma lista de semanas desatualizada.
+        # Código 2 impede a guarda -Agendada de marcar a semana como feita.
+        print("docs/data.json ainda não foi atualizado hoje; aguardo a rodada diária")
+        return 2
 
     alvos = []
     for curso in dados.get("courses") or []:
@@ -578,9 +630,7 @@ def main():
             pasta = PRIVADO / "estudo" / bim / curso["code"].lower() / f"semana-{n:02d}"
             arq = pasta / "manifest.json"
             manifest = json.loads(arq.read_text(encoding="utf-8")) if arq.exists() else {}
-            if manifest.get("fechada") and manifest.get("montado_hash") == assinatura(manifest) \
-                    and manifest.get("ficha_de") == hash_arquivo(pasta / "REVISAO.md") \
-                    and not args.semana:
+            if semana_em_dia(manifest, pasta, secao) and not args.semana:
                 continue
             alvos.append((curso, n, inicio, secao, pasta, manifest))
 
@@ -622,7 +672,9 @@ def main():
     for codigo, n, conta, pasta, manifest in resumo:
         situacao = "coletada"
         if not args.sem_montar and conta.get("lido"):
-            if manifest.get("montado_hash") != assinatura(manifest):
+            if (manifest.get("montado_hash") != assinatura(manifest)
+                    or not (pasta / "REVISAO.md").is_file()
+                    or not (pasta / "REVISAO.md").stat().st_size):
                 ok, msg = montar_com_claude(pasta, manifest)
                 print(f"   {codigo} S{n}: {msg}")
                 if ok:
@@ -639,8 +691,9 @@ def main():
             # não existe ficha válida (inclusive a de semana montada antes
             # de a apostila existir).
             revisao = pasta / "REVISAO.md"
+            import apostila
             if revisao.exists() and (manifest.get("ficha_de") != hash_arquivo(revisao)
-                                     or not (pasta / "apostila.json").exists()):
+                                     or apostila.ler_ficha(pasta) is None):
                 ok, msg = montar_ficha(pasta, manifest)
                 print(f"   {codigo} S{n}: {msg}")
                 if ok:
@@ -670,7 +723,9 @@ def main():
     RESUMO.parent.mkdir(parents=True, exist_ok=True)
     RESUMO.write_text("\n".join(linhas), encoding="utf-8")
     print("\n".join(linhas))
-    return 1 if any("NÃO montada" in l for l in linhas) else 0
+    # 23/09/2026: a guarda semanal só repete em 3 h se o processo falhar.
+    # Fonte com falha não pode marcar a revisão como feita por sete dias.
+    return 1 if any("NÃO montada" in l or "falha(s)" in l for l in linhas) else 0
 
 
 if __name__ == "__main__":

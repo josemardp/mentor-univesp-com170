@@ -281,8 +281,11 @@ try {
             Escreve '=== revisao: trava nao soltou em 40 min; fica para a proxima segunda ==='
             exit 0
         }
-        $codigo = Invoca 'revisao_semanal' @('automacao/revisao_semanal.py')
         $resumoArq = Join-Path $logDir 'revisao_resumo.txt'
+        # 23/09/2026: erro antes da escrita do resumo (retrato velho/login)
+        # deixava a notificação da semana passada parecer resultado novo.
+        Remove-Item -LiteralPath $resumoArq -ErrorAction SilentlyContinue
+        $codigo = Invoca 'revisao_semanal' @('automacao/revisao_semanal.py')
         $resumo = if (Test-Path $resumoArq) { (Get-Content $resumoArq -Raw -Encoding UTF8) } else { '' }
         if ($resumo -and $resumo.Trim()) {
             Avisa 'Univesp: revisao da semana' $resumo.Trim()
