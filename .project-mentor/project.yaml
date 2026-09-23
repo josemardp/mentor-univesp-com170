@@ -17,13 +17,13 @@ status:
   health: healthy
   phase: Operacao local com agendamento Windows
   priority: 2
-  updated_at: 2026-09-22T22:03:42-03:00
-  last_session_at: 2026-09-22T21:17:40-03:00
+  updated_at: 2026-09-23T17:39:13-03:00
+  last_session_at: 2026-09-23T17:39:13-03:00
   confidence: confirmed
 focus:
   objective: Guia diario, alertas e acompanhamento de prazos do AVA Univesp
-  current: Montar o guia das provas de 09 a 19/11 seguindo a Regra de revisão
-  last_completed: formacao-ia-automacao movido para projetos-aposentados.txt no central_automacoes
+  current: Em 05/10, conferir a REVISAO.md e a apostila da Semana 1 do 4º bimestre
+  last_completed: Rodada para de chamar o Claude ao bater o limite de uso do plano
   recommended_next_action: act-009
 next_actions:
   - id: act-001
@@ -148,12 +148,6 @@ next_actions:
     note: null
 blockers: []
 decisions_recent:
-  - date: 2026-09-16
-    text: 'Alinhar focus.current e próxima ação com evidência real: STATUS.md e commit 15/09/2026 ("feat(automacao): agendamento local...")'
-  - date: 2026-09-19
-    text: Utilizar conhost.exe --headless nas tarefas agendadas para evitar que o Windows Terminal abra abas visíveis no Windows 11.
-  - date: 2026-09-19
-    text: "Rodada que encontra a trava tomada sai com código 0, não 1: não é falha, é"
   - date: 2026-09-19
     text: trabalho já em andamento, e encheria o histórico do Agendador de erro falso.
   - date: 2026-09-19
@@ -168,6 +162,12 @@ decisions_recent:
     text: Pasta do currículo chama formacao-complementar e só é aberta quando ele chamar
   - date: 2026-09-22
     text: Origem apagada, com cópia do histórico em privado/formacao-ia-automacao.bundle
+  - date: 2026-09-23
+    text: Livros da Minha Biblioteca e da Pearson não são extraídos (termos de uso); ficam listados para leitura própria
+  - date: 2026-09-23
+    text: Resumo sem questões; treino em PDF separado, depois que a versão de 45 páginas foi recusada
+  - date: 2026-09-23
+    text: Automação começa no 4º bimestre (28/09); primeira revisão real em 05/10
 milestones: []
 review:
   stale_after_days: null
