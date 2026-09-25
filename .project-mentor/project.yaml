@@ -17,14 +17,14 @@ status:
   health: healthy
   phase: Operacao local com agendamento Windows
   priority: 2
-  updated_at: 2026-09-23T17:39:13-03:00
-  last_session_at: 2026-09-23T17:39:13-03:00
+  updated_at: 2026-09-25T20:30:26-03:00
+  last_session_at: 2026-09-25T20:30:09-03:00
   confidence: confirmed
 focus:
   objective: Guia diario, alertas e acompanhamento de prazos do AVA Univesp
-  current: Em 05/10, conferir a REVISAO.md e a apostila da Semana 1 do 4º bimestre
-  last_completed: Rodada para de chamar o Claude ao bater o limite de uso do plano
-  recommended_next_action: act-009
+  current: Fazer a act-012 por entrevista e revisar a alteração pendente em automacao/ava_vivo.py
+  last_completed: Refazer Portfolio Individual Q5 M6 conforme guia oficial e artigo
+  recommended_next_action: act-013
 next_actions:
   - id: act-001
     title: Verificar integracao de envio de e-mail opcional via SMTP
@@ -146,10 +146,44 @@ next_actions:
     created_at: 2026-09-22T20:56:22-03:00
     done_at: null
     note: null
+  - id: act-011
+    title: Refazer Portfolio Individual Q5 M6 conforme guia oficial e artigo
+    status: done_tested
+    impact: null
+    urgency: null
+    effort: null
+    due_date: null
+    unblocks: []
+    blocked_by: []
+    created_at: 2026-09-24T20:53:09-03:00
+    done_at: 2026-09-24T21:02:50-03:00
+    note: null
+  - id: act-012
+    title: Refazer Portfolio Individual Q5 M6 do zero, preenchendo por entrevista com o aluno
+    status: pending
+    impact: null
+    urgency: null
+    effort: null
+    due_date: null
+    unblocks: []
+    blocked_by: []
+    created_at: 2026-09-24T21:06:29-03:00
+    done_at: null
+    note: null
+  - id: act-013
+    title: Fazer a act-012 por entrevista e revisar a alteração pendente em automacao/ava_vivo.py
+    status: dropped
+    impact: null
+    urgency: null
+    effort: null
+    due_date: null
+    unblocks: []
+    blocked_by: []
+    created_at: 2026-09-25T20:30:09-03:00
+    done_at: null
+    note: null
 blockers: []
 decisions_recent:
-  - date: 2026-09-19
-    text: trabalho já em andamento, e encheria o histórico do Agendador de erro falso.
   - date: 2026-09-19
     text: A conta de idade do painel continua só no `vigia.py`, chamado com
   - date: 2026-09-19
@@ -168,6 +202,8 @@ decisions_recent:
     text: Resumo sem questões; treino em PDF separado, depois que a versão de 45 páginas foi recusada
   - date: 2026-09-23
     text: Automação começa no 4º bimestre (28/09); primeira revisão real em 05/10
+  - date: 2026-09-25
+    text: "Encerramento sem transcrição da sessão original: o detalhe do que o Codex fez não está disponível"
 milestones: []
 review:
   stale_after_days: null
