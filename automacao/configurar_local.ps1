@@ -205,7 +205,7 @@ try {
 # caminho nas duas maquinas; so a letra da unidade pode mudar. A pasta
 # privado/ esta no .gitignore.
 try {
-    $relPrivado = "Meu Drive\10_JOSEMAR_PESSOAL\03_PROJETOS_ATIVOS\02_TECNOLOGIA_E_IA\mentor-univesp-privado"
+    $relPrivado = "Meu Drive\10_JOSEMAR_PESSOAL\02_PROJETOS_ATIVOS\02_TECNOLOGIA_E_IA\mentor-univesp-privado"
     $alvoPrivado = Get-PSDrive -PSProvider FileSystem |
         ForEach-Object { Join-Path $_.Root $relPrivado } |
         Where-Object { Test-Path -LiteralPath $_ } |
@@ -214,6 +214,13 @@ try {
 
     if (-not $alvoPrivado) {
         Write-Host "  [Mentor UNIVESP] Google Drive nao montado: privado/ nao foi criado." -ForegroundColor Yellow
+    } elseif ((Get-Item -LiteralPath $linkPrivado -Force -ErrorAction SilentlyContinue).LinkType -eq 'Junction' -and
+              (Get-Item -LiteralPath $linkPrivado -Force).Target -ne $alvoPrivado) {
+        # A pasta do Drive mudou de lugar (renumeracao de 25/09/2026): refaz o atalho.
+        # Apagar uma junction remove so o atalho, nunca o conteudo do Drive.
+        [IO.Directory]::Delete($linkPrivado)
+        New-Item -ItemType Junction -Path $linkPrivado -Target $alvoPrivado | Out-Null
+        Write-Host "  [Mentor UNIVESP] privado/ refeito, apontando para $alvoPrivado" -ForegroundColor Green
     } elseif (Test-Path -LiteralPath $linkPrivado) {
         Write-Host "  [Mentor UNIVESP] privado/ ja existe." -ForegroundColor DarkGray
     } else {

@@ -28,7 +28,7 @@ Se você não puder executar comandos, gere o rascunho da sessão em `.project-m
 
 ## Este repositório é público (vitrine do LinkedIn)
 
-Nada de coleta bruta do AVA, gabarito de questionário, nota, nome de colega ou dado pessoal/profissional entra no git. Isso vai para `privado/`, que é um atalho (junction) para `G:\Meu Drive\10_JOSEMAR_PESSOAL\03_PROJETOS_ATIVOS\02_TECNOLOGIA_E_IA\mentor-univesp-privado`, criado pelo `automacao/configurar_local.ps1` e ignorado pelo git. Dentro de `privado/` vale a mesma árvore de pastas do repositório.
+Nada de coleta bruta do AVA, gabarito de questionário, nota, nome de colega ou dado pessoal/profissional entra no git. Isso vai para `privado/`, que é um atalho (junction) para `G:\Meu Drive\10_JOSEMAR_PESSOAL\02_PROJETOS_ATIVOS\02_TECNOLOGIA_E_IA\mentor-univesp-privado`, criado pelo `automacao/configurar_local.ps1` e ignorado pelo git. Dentro de `privado/` vale a mesma árvore de pastas do repositório.
 
 ## Três frentes neste repositório
 
