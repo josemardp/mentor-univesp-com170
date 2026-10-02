@@ -17,14 +17,14 @@ status:
   health: healthy
   phase: Operacao local com agendamento Windows
   priority: 2
-  updated_at: 2026-10-01T10:03:58-03:00
-  last_session_at: 2026-10-01T10:03:22-03:00
+  updated_at: 2026-10-02T12:09:50-03:00
+  last_session_at: 2026-10-02T12:09:50-03:00
   confidence: confirmed
 focus:
   objective: Guia diario, alertas e acompanhamento de prazos do AVA Univesp
-  current: Monitorar a caixa de entrada do e-mail josemardp@gmail.com a partir das 12h para receber e iniciar o Desafio Educathon
-  last_completed: Criacao da acao para acompanhamento e submissao do Desafio Educathon
-  recommended_next_action: act-015
+  current: Conferir o resultado do EDUCATHON entre 26 e 28/10/2026 e depois solicitar o certificado de 20h
+  last_completed: Backup do enunciado e das respostas enviadas na pasta privada
+  recommended_next_action: act-017
 next_actions:
   - id: act-001
     title: Verificar integracao de envio de e-mail opcional via SMTP
@@ -196,7 +196,7 @@ next_actions:
     note: "Agendado para 28/09/2026 as 14h00 no Google Agenda. Prazo fatal da plataforma: 01/10/2026 as 12h00."
   - id: act-015
     title: Aguardar liberacao do Desafio Educathon no e-mail a partir das 12h e submeter ate 03/10 12h
-    status: pending
+    status: done_tested
     impact: null
     urgency: null
     effort: null
@@ -204,16 +204,34 @@ next_actions:
     unblocks: []
     blocked_by: []
     created_at: 2026-10-01T09:33:19-03:00
+    done_at: 2026-10-02T12:09:12-03:00
+    note: null
+  - id: act-016
+    title: Verificar agendamento das provas do 4º bimestre no prova.univesp.br e mapear fluxo do SAE
+    status: done_tested
+    impact: null
+    urgency: null
+    effort: null
+    due_date: null
+    unblocks: []
+    blocked_by: []
+    created_at: 2026-10-01T19:29:19-03:00
+    done_at: 2026-10-01T19:29:28-03:00
+    note: null
+  - id: act-017
+    title: Conferir o resultado do EDUCATHON entre 26 e 28/10/2026 e depois solicitar o certificado de 20h
+    status: pending
+    impact: null
+    urgency: null
+    effort: null
+    due_date: null
+    unblocks: []
+    blocked_by: []
+    created_at: 2026-10-02T12:09:50-03:00
     done_at: null
     note: null
 blockers: []
 decisions_recent:
-  - date: 2026-09-22
-    text: Pasta do currículo chama formacao-complementar e só é aberta quando ele chamar
-  - date: 2026-09-22
-    text: Origem apagada, com cópia do histórico em privado/formacao-ia-automacao.bundle
-  - date: 2026-09-23
-    text: Livros da Minha Biblioteca e da Pearson não são extraídos (termos de uso); ficam listados para leitura própria
   - date: 2026-09-23
     text: Resumo sem questões; treino em PDF separado, depois que a versão de 45 páginas foi recusada
   - date: 2026-09-23
@@ -228,6 +246,12 @@ decisions_recent:
     text: Q5 M7 é responsabilidade do representante do grupo; o usuário não tem envio a avaliar na conta dele.
   - date: 2026-10-01
     text: Foco total direcionado para o Desafio Educathon apos a liberacao ao meio-dia
+  - date: 2026-10-02
+    text: "Tema do Desafio 1: perturbacao do sossego e manobras perigosas de motociclistas em Valparaiso/SP"
+  - date: 2026-10-02
+    text: Parte 1 mantida com as frases do proprio usuario (regulamento exige texto autoral); prompts da Parte 2 e do Desafio 2 elaborados com apoio de IA, como o regulamento permite
+  - date: 2026-10-02
+    text: Envio antecipado para levar vantagem no criterio de desempate por horario
 milestones: []
 review:
   stale_after_days: null
