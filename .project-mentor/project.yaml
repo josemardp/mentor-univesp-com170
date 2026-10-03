@@ -17,14 +17,14 @@ status:
   health: healthy
   phase: Operacao local com agendamento Windows
   priority: 2
-  updated_at: 2026-10-02T12:09:50-03:00
-  last_session_at: 2026-10-02T12:09:50-03:00
+  updated_at: 2026-10-02T20:35:26-03:00
+  last_session_at: 2026-10-02T20:34:50-03:00
   confidence: confirmed
 focus:
   objective: Guia diario, alertas e acompanhamento de prazos do AVA Univesp
-  current: Conferir o resultado do EDUCATHON entre 26 e 28/10/2026 e depois solicitar o certificado de 20h
-  last_completed: Backup do enunciado e das respostas enviadas na pasta privada
-  recommended_next_action: act-017
+  current: Confirmar o check-in do Hackyard no sabado 03/10 as 15h (Brasilia) pelo e-mail recebido
+  last_completed: Acao de acompanhamento do programa de Agentes de IA cadastrada
+  recommended_next_action: act-019
 next_actions:
   - id: act-001
     title: Verificar integracao de envio de e-mail opcional via SMTP
@@ -230,12 +230,32 @@ next_actions:
     created_at: 2026-10-02T12:09:50-03:00
     done_at: null
     note: null
+  - id: act-018
+    title: Acompanhar selecao da Capacitacao e Residencia em Agentes de IA (inscricao feita em 02/10/2026) e conferir no edital a regra de vinculo empregaticio da residencia
+    status: pending
+    impact: null
+    urgency: null
+    effort: null
+    due_date: null
+    unblocks: []
+    blocked_by: []
+    created_at: 2026-10-02T12:32:51-03:00
+    done_at: null
+    note: "Reaberta: o fechamento marcou como concluida por engano. Segue aberta ate sair a selecao e o edital ser lido."
+  - id: act-019
+    title: Confirmar o check-in do Hackyard no sabado 03/10 as 15h (Brasilia) pelo e-mail recebido
+    status: pending
+    impact: null
+    urgency: null
+    effort: null
+    due_date: 2026-10-03
+    unblocks: []
+    blocked_by: []
+    created_at: 2026-10-02T20:34:50-03:00
+    done_at: null
+    note: null
 blockers: []
 decisions_recent:
-  - date: 2026-09-23
-    text: Resumo sem questões; treino em PDF separado, depois que a versão de 45 páginas foi recusada
-  - date: 2026-09-23
-    text: Automação começa no 4º bimestre (28/09); primeira revisão real em 05/10
   - date: 2026-09-25
     text: "Encerramento sem transcrição da sessão original: o detalhe do que o Codex fez não está disponível"
   - date: 2026-09-27
@@ -252,6 +272,10 @@ decisions_recent:
     text: Parte 1 mantida com as frases do proprio usuario (regulamento exige texto autoral); prompts da Parte 2 e do Desafio 2 elaborados com apoio de IA, como o regulamento permite
   - date: 2026-10-02
     text: Envio antecipado para levar vantagem no criterio de desempate por horario
+  - date: 2026-10-02
+    text: Foco em capacitacao e desafios; freelance e bolsas so depois de conferir a regra da corporacao sobre atividade remunerada
+  - date: 2026-10-02
+    text: Nao escrever no Supabase pelo CLI desta maquina, porque o projeto linkado era outro
 milestones: []
 review:
   stale_after_days: null
