@@ -17,14 +17,14 @@ status:
   health: healthy
   phase: Operacao local com agendamento Windows
   priority: 2
-  updated_at: 2026-10-02T20:35:26-03:00
-  last_session_at: 2026-10-02T20:34:50-03:00
+  updated_at: 2026-10-05T10:59:39-03:00
+  last_session_at: 2026-10-05T10:59:39-03:00
   confidence: confirmed
 focus:
   objective: Guia diario, alertas e acompanhamento de prazos do AVA Univesp
-  current: Confirmar o check-in do Hackyard no sabado 03/10 as 15h (Brasilia) pelo e-mail recebido
-  last_completed: Acao de acompanhamento do programa de Agentes de IA cadastrada
-  recommended_next_action: act-019
+  current: Conferir em 06/10 se a rodada das 07:30 fecha sozinha e, se travar de novo, investigar a leitura do COM100
+  last_completed: "Coleta manual do AVA com gerar_guia.py: 6 disciplinas, 32 acoes, 0 problemas, site gerado"
+  recommended_next_action: act-005
 next_actions:
   - id: act-001
     title: Verificar integracao de envio de e-mail opcional via SMTP
@@ -76,7 +76,7 @@ next_actions:
     note: null
   - id: act-005
     title: Acompanhar execução automática das tarefas diárias e próximos prazos de entrega do COM170 em 26/09.
-    status: pending
+    status: done_tested
     impact: null
     urgency: null
     effort: null
@@ -84,7 +84,7 @@ next_actions:
     unblocks: []
     blocked_by: []
     created_at: 2026-09-19T14:23:07-03:00
-    done_at: null
+    done_at: 2026-10-05T10:59:39-03:00
     note: null
   - id: act-006
     title: Corrigir colisao de rodadas do agendador no PC do trabalho (trava, log e configurador)
