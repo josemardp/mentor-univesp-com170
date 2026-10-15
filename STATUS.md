@@ -1,10 +1,19 @@
-# STATUS — Guia diário do AVA (mentor-univesp)
+# STATUS - Guia diário do AVA (mentor-univesp)
 
 > Doc de handoff. Qualquer máquina ou agente retoma a partir daqui.
 > Remoto: https://github.com/josemardp/mentor-univesp-com170.git (conta GitHub `josemardp`)
 > Execução local: `python automacao/gerar_guia.py` | Servidor local: `http://127.0.0.1:8790/`
 > Agendado no Windows (15/09/2026): `automacao\rodar_diario.ps1`, tarefas `Univesp - guia diario` 07:30, `Univesp - guia alerta` 13:00, `Univesp - vigia` 20:00. Log em `tmp/log/rodar_diario.log`.
 > Histórico completo de sessões, auditorias e etapas concluídas: [`docs/HISTORICO.md`](docs/HISTORICO.md)
+
+## Nova disciplina: DPA005 (Acessibilidade e Inclusão) - Inscrição 689389 (15/10/2026)
+
+- **Disciplina:** Disciplina Paulista de Acessibilidade e Inclusão (DPA005 - código 21286, Polo Sede, Noturno).
+- **Processo Seletivo 2026:** Inscrição nº `689389`, situação Confirmada/Ativa.
+- **Resultado:** Aprovado na 1ª chamada (classificação 10).
+- **Matrícula:** Janela no portal `https://sa.univesp.br/processoSeletivo/#/` abre a partir de 18/10/2026 (liberação oficial do resultado).
+- **Ação cadastrada no Mentor:** `act-022` com prazo para 18/10/2026.
+- **Rotina de monitoramento:** Assim que a matrícula for concluída pelo candidato e homologada pela secretaria da Univesp, a disciplina passará a ser listada no AVA Moodle e no SEI `sa.univesp.br`, entrando automaticamente no ciclo de coleta diária (`gerar_guia.py`).
 
 ## Auditoria do Codex na apostila, revisada e com ajustes (23/09/2026)
 

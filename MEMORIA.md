@@ -11,12 +11,15 @@ Este arquivo serve como a **memória de longo prazo** do projeto. Sempre que uma
 - **Turma:** 001
 - **Semestre:** 2026/2
 
-## 2. Disciplinas Atuais (Módulos Abertos)
-Atualmente, o aluno está cursando as seguintes disciplinas (baseado no `docs/data.json`):
-1. **COM100** - Pensamento Computacional
-2. **SOC100** - Ética, cidadania e Sociedade
-3. **LET110** - Leitura e Produção de textos
-4. **COM170** - Inteligência Artificial na Prática Acadêmica e Profissional
+## 2. Disciplinas Atuais e Cursos em Andamento
+Atualmente, o aluno cursa a graduação BIA e tem extensão em processo de matrícula:
+1. **COM100** - Pensamento Computacional (Graduação BIA)
+2. **SOC100** - Ética, Cidadania e Sociedade (Graduação BIA)
+3. **LET110** - Leitura e Produção de Textos (Graduação BIA)
+4. **COM170** - Inteligência Artificial na Prática Acadêmica e Profissional (Graduação BIA)
+5. **INT100** - Projetos e Métodos para Produção do Conhecimento (Graduação BIA)
+6. **MMB002** - Matemática Básica (Graduação BIA)
+7. **DPA005** - Disciplina Paulista de Acessibilidade e Inclusão (Extensão / Inscrição nº 689389 - Aprovado na 1ª Chamada, matrícula a partir de 18/10/2026)
 
 ## 3. Histórico de Ações e Tarefas Concluídas
 
@@ -66,7 +69,13 @@ Atualmente, o aluno está cursando as seguintes disciplinas (baseado no `docs/da
 - **Ações realizadas:**
   1. Analisados os 7 arquivos recebidos dos colegas em Downloads (`PORTFOLIO_MODULO_5_QUINZENA 4.pdf`, `colega Q5 M6.pdf`, `Portfolio_Individual_Modulo_6.PDF`, `trabalho_nexo_g4.PDF`).
   2. Identificadas duas correções críticas na minuta preliminar do grupo: (a) remoção dos nomes reais para atender à regra oficial de anonimato da Univesp; (b) inclusão do Caso B (Caio / Josemar), que havia ficado de fora da tabela do Bloco 1.
-  3. Gerado o PDF final corrigido e diagramado em alto padrão: `C:\Users\pc\Downloads\Reflexao_de_Grupo_Q4_M7_G4.pdf` (e cópia no repositório), contendo os 4 integrantes/casos nos Blocos 1, 2 e 3, no nível Consolidado da rubrica.
+### Sessão 15/10/2026 - Mapeamento e Incorporação da Disciplina DPA005
+- **Contexto:** Josemar recebeu e-mail na madrugada de 15/10/2026 com o código `689389` convocando para efetuar matrícula em `sei.univesp.br`.
+- **Ações realizadas:**
+  1. Identificado no backend acadêmico da Univesp (`saadm.univesp.br/webservice/aplicativoSEISV`) que o número `689389` é o Número de Inscrição definitivo no Processo Seletivo da **Disciplina Paulista de Acessibilidade e Inclusão (DPA005)**, Turno Noturno, Polo Sede (código 21286).
+  2. Confirmada aprovação na 1ª chamada (classificação 10).
+  3. No portal de matrícula online (`sa.univesp.br/processoSeletivo/#/`), a janela oficial de convocação e liberação de resultados está programada para 18/10/2026.
+  4. Disciplina incorporada às pendências executivas do Mentor (ação act-022) e adicionada ao monitoramento contínuo da rotina acadêmica.
 
 ## 4. Aprendizados e Preferências do Usuário
 - O usuário prefere que os commits sejam feitos diretamente na branch principal (`main`), sem a criação de branches intermediárias.
@@ -74,12 +83,12 @@ Atualmente, o aluno está cursando as seguintes disciplinas (baseado no `docs/da
 - O usuário valoriza o aprendizado constante: a cada novo aprendizado, o sistema deve incorporar as informações, fazer commit e push na main.
 
 ## 5. Próximos Passos Imediatos
-- [ ] **Trocar a senha do AVA.** Ela ficou em texto puro neste arquivo, num
-      repositório público, entre 30/07 e 04/08/2026. Foi removida do arquivo em
-      04/08, mas continua no histórico do Git: só a troca resolve.
-- [ ] **COM170 Q4 M7:** Postar prévia no fórum Ponto de Encontro para o grupo G4 e realizar o envio do `Reflexao_de_Grupo_Q4_M7_G4.pdf` no Laboratório de Revisão (Prazo: sábado 12/09, 23:59).
-- [ ] **COM170 Q4 M6/M7:** Aguardar abertura da fase de avaliação entre pares no domingo (13/09).
+- [ ] **DPA005 (Acessibilidade e Inclusão):** Acessar `https://sa.univesp.br/processoSeletivo/#/` a partir de 18/10/2026 com CPF e Inscrição `689389` para efetivar a matrícula e envio de documentação (act-022).
+- [ ] **Monitoramento AVA:** Assim que a matrícula do DPA005 for homologada pela secretaria, confirmar aparição do curso no AVA e inclusão na esteira de coleta automática (`disciplinas.py`).
+- [ ] **COM170 Q7:** Fazer o portfólio Q7 M6 e o mapa do grupo Q7 M7 (prazo de envio de 19 a 24/10/2026, act-021).
+- [ ] **EDUCATHON:** Conferir resultado do desafio entre 26 e 28/10/2026 e solicitar certificado de 20h (act-017).
 
 ---
-*Última atualização: 09/09/2026*
+*Última atualização: 15/10/2026*
+
 
