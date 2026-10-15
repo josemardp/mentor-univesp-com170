@@ -17,14 +17,14 @@ status:
   health: healthy
   phase: Operacao local com agendamento Windows
   priority: 2
-  updated_at: 2026-10-11T22:13:53-03:00
-  last_session_at: 2026-10-11T22:13:53-03:00
+  updated_at: 2026-10-15T11:16:54-03:00
+  last_session_at: 2026-10-15T11:16:53-03:00
   confidence: confirmed
 focus:
   objective: Guia diario, alertas e acompanhamento de prazos do AVA Univesp
-  current: Conferir a abertura da Semana 3 de INT100 e MMB002 e a Quinzena 7 do COM170 e levantar os novos prazos
-  last_completed: Revisao entre pares Q6 M6 do COM170 gravada (3 comentarios por criterio + retorno ao autor); pagina mostra pendente 0 e "Ja foi avaliada"
-  recommended_next_action: act-020
+  current: Na segunda 19/10, guiar o Josemar no portfolio Q7 M6 e no mapa Q7 M7 do COM170
+  last_completed: "Questionario S3 do MMB002 e do INT100 enviados por decisao do Josemar: 10,00/10,00 cada, 1a de 3 tentativas"
+  recommended_next_action: act-021
 next_actions:
   - id: act-001
     title: Verificar integracao de envio de e-mail opcional via SMTP
@@ -256,7 +256,7 @@ next_actions:
     note: null
   - id: act-020
     title: Conferir a abertura da Semana 3 de INT100 e MMB002 e a Quinzena 7 do COM170 e levantar os novos prazos
-    status: pending
+    status: done_tested
     impact: null
     urgency: null
     effort: null
@@ -264,14 +264,22 @@ next_actions:
     unblocks: []
     blocked_by: []
     created_at: 2026-10-11T22:13:53-03:00
+    done_at: 2026-10-15T10:39:37-03:00
+    note: null
+  - id: act-021
+    title: Fazer o portfolio Q7 M6 e o mapa do grupo Q7 M7 do COM170 (envio de 19 a 24/10)
+    status: pending
+    impact: null
+    urgency: null
+    effort: null
+    due_date: null
+    unblocks: []
+    blocked_by: []
+    created_at: 2026-10-15T11:16:21-03:00
     done_at: null
     note: null
 blockers: []
 decisions_recent:
-  - date: 2026-09-27
-    text: Utilizado o e-mail josemardp@gmail.com para cadastro e comunicação do desafio, aceito pelo regulamento do evento
-  - date: 2026-09-27
-    text: Autenticação e definição de credenciais finalizadas na janela do navegador para preservar a segurança da senha pessoal
   - date: 2026-09-28
     text: Q5 M7 é responsabilidade do representante do grupo; o usuário não tem envio a avaliar na conta dele.
   - date: 2026-10-01
@@ -288,6 +296,10 @@ decisions_recent:
     text: Nao escrever no Supabase pelo CLI desta maquina, porque o projeto linkado era outro
   - date: 2026-10-11
     text: core_completion_get_activities_completion_status nao esta disponivel para aluno; o estado de conclusao foi lido direto do HTML da pagina do curso
+  - date: 2026-10-15
+    text: Publicar posts e enviar questionario so com confirmacao explicita do Josemar (dada nesta sessao para os itens da S3)
+  - date: 2026-10-15
+    text: Revisao dos questionarios fica com a tarefa automatica de segunda (revisao_semanal.py), sem copia manual
 milestones: []
 review:
   stale_after_days: null
