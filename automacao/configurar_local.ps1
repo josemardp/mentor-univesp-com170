@@ -66,6 +66,7 @@ function LimiteEmMinutos($texto) {
 
 try {
     $refeitas = @()
+    $falhas = @()
     foreach ($alvo in $desejado) {
         $argumentos = ArgumentosDe $alvo.Modo
         $atual = Get-ScheduledTask -TaskName $alvo.Nome -ErrorAction SilentlyContinue
@@ -139,20 +140,56 @@ try {
             $desbloqueio.Enabled = $true
             $gatilho += $desbloqueio
         }
-        Unregister-ScheduledTask -TaskName $alvo.Nome -Confirm:$false -ErrorAction SilentlyContinue
-        Register-ScheduledTask `
-            -TaskName $alvo.Nome `
-            -Action (New-ScheduledTaskAction -Execute $conhost -Argument $argumentos -WorkingDirectory $repo) `
-            -Trigger $gatilho `
-            -Settings $settings `
-            -Description $alvo.Descricao | Out-Null
-        $refeitas += "$($alvo.Nome): $motivo"
+        # Apagar e gravar com -ErrorAction Stop, cada tarefa no seu try. Antes o
+        # Unregister usava SilentlyContinue: em 17/10/2026, no PC de casa, as
+        # tres tarefas tinham sido gravadas por um PowerShell de administrador
+        # (nivel "Highest"), o usuario comum levava "Acesso negado" ao apagar,
+        # o Register batia em "ja existe" sem interromper nada e o script dizia
+        # "Tarefas ajustadas". Tarefa que falha tem de aparecer como falha.
+        try {
+            foreach ($velha in @($atual)) {
+                if ($velha) {
+                    # Pela pasta em que ela esta de fato, para nao errar de tarefa.
+                    Unregister-ScheduledTask -TaskName $velha.TaskName -TaskPath $velha.TaskPath -Confirm:$false -ErrorAction Stop
+                }
+            }
+            Register-ScheduledTask `
+                -TaskName $alvo.Nome `
+                -TaskPath "\" `
+                -Action (New-ScheduledTaskAction -Execute $conhost -Argument $argumentos -WorkingDirectory $repo) `
+                -Trigger $gatilho `
+                -Settings $settings `
+                -Description $alvo.Descricao `
+                -ErrorAction Stop | Out-Null
+            $refeitas += "$($alvo.Nome): $motivo"
+        } catch {
+            $erro = $_.Exception.Message.Trim()
+            $pastas = @($atual | Where-Object { $_ } | ForEach-Object { $_.TaskPath }) -join ", "
+            if ($erro -match 'negado|denied') {
+                $correcao = "a tarefa foi gravada como administrador. Rode uma vez num PowerShell de administrador: Unregister-ScheduledTask -TaskName '$($alvo.Nome)' -Confirm:`$false ; depois rode este script de novo, sem administrador."
+            } elseif (@($atual).Count -gt 1 -or ($pastas -and $pastas -ne "\")) {
+                $correcao = "ha tarefa com o mesmo nome em outra pasta ($pastas). Apague a duplicada no Agendador de Tarefas e rode este script de novo."
+            } elseif ($erro -match 'existente|exists') {
+                $correcao = "sobrou uma tarefa com esse nome que este usuario nao enxerga. Apague-a no Agendador de Tarefas (como administrador) e rode de novo."
+            } else {
+                $correcao = "confira a tarefa no Agendador de Tarefas e rode este script de novo."
+            }
+            $falhas += [pscustomobject]@{ Nome = $alvo.Nome; Erro = $erro; Correcao = $correcao }
+        }
     }
 
     if ($refeitas.Count -gt 0) {
         Write-Host "  [Mentor UNIVESP] Tarefas ajustadas no Agendador do Windows:" -ForegroundColor Green
         foreach ($linha in $refeitas) { Write-Host "    - $linha" -ForegroundColor Green }
-    } else {
+    }
+    if ($falhas.Count -gt 0) {
+        Write-Host "  [Mentor UNIVESP] Tarefas que NAO foram ajustadas:" -ForegroundColor Red
+        foreach ($f in $falhas) {
+            Write-Host "    - $($f.Nome): $($f.Erro)" -ForegroundColor Red
+            Write-Host "      Como corrigir: $($f.Correcao)" -ForegroundColor Red
+        }
+    }
+    if ($refeitas.Count -eq 0 -and $falhas.Count -eq 0) {
         Write-Host "  [Mentor UNIVESP] 4 tarefas agendadas conferidas por dentro e em dia (07:30, 13:00, 20:00 e revisao 10:00)." -ForegroundColor DarkGray
     }
 } catch {

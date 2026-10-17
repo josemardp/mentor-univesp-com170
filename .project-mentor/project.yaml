@@ -17,13 +17,13 @@ status:
   health: healthy
   phase: Operacao local com agendamento Windows
   priority: 2
-  updated_at: 2026-10-15T19:09:31-03:00
-  last_session_at: 2026-10-15T19:09:31-03:00
+  updated_at: 2026-10-17T19:01:12-03:00
+  last_session_at: 2026-10-17T19:01:12-03:00
   confidence: confirmed
 focus:
   objective: Guia diario, alertas e acompanhamento de prazos do AVA Univesp
-  current: Efetivar matrícula da Disciplina Paulista de Acessibilidade e Inclusão (DPA005) com código de inscrição 689389 no portal a partir de 18/10
-  last_completed: Mapeamento do código de inscrição 689389 e confirmação de aprovação na 1ª chamada no webservice da Univesp
+  current: Efetivar matricula do DPA005 no portal a partir de 18/10
+  last_completed: Tarefas guia diario, guia alerta e vigia recriadas neste PC em nivel Limited, pasta raiz, argumento terminando em -Agendada
   recommended_next_action: act-022
 next_actions:
   - id: act-001
@@ -292,8 +292,6 @@ next_actions:
     note: Aprovado na 1a chamada (classificacao 10). Portal de matricula abre apos liberacao do resultado oficial em 18/10.
 blockers: []
 decisions_recent:
-  - date: 2026-10-01
-    text: Foco total direcionado para o Desafio Educathon apos a liberacao ao meio-dia
   - date: 2026-10-02
     text: "Tema do Desafio 1: perturbacao do sossego e manobras perigosas de motociclistas em Valparaiso/SP"
   - date: 2026-10-02
@@ -312,6 +310,8 @@ decisions_recent:
     text: Revisao dos questionarios fica com a tarefa automatica de segunda (revisao_semanal.py), sem copia manual
   - date: 2026-10-15
     text: O código 689389 recebido no e-mail é o número definitivo de inscrição no processo seletivo do DPA005; a matrícula deve ser efetivada no portal a partir de 18/10.
+  - date: 2026-10-17
+    text: Unregister apaga a tarefa pela pasta onde ela esta (TaskPath real); Register grava sempre na raiz
 milestones: []
 review:
   stale_after_days: null
