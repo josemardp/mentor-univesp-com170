@@ -102,6 +102,7 @@ def subir_chrome():
         "--no-first-run",
         "--no-default-browser-check",
         "--disable-background-timer-throttling",
+        "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
         "about:blank",
     ]
     # DETACHED_PROCESS: o navegador precisa sobreviver ao fim deste script e
