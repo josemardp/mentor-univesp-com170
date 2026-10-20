@@ -19,7 +19,7 @@ Atualmente, o aluno cursa a graduação BIA e tem extensão em processo de matr�
 4. **COM170** - Inteligência Artificial na Prática Acadêmica e Profissional (Graduação BIA)
 5. **INT100** - Projetos e Métodos para Produção do Conhecimento (Graduação BIA)
 6. **MMB002** - Matemática Básica (Graduação BIA)
-7. **DPA005** - Disciplina Paulista de Acessibilidade e Inclusão (Extensão / Inscrição nº 689389 - Aprovado na 1ª Chamada, matrícula a partir de 18/10/2026)
+7. **DPA005** - Disciplina Paulista de Acessibilidade e Inclusão (Extensão / Inscrição nº 689389 - Aprovado na 1ª Chamada; matrícula era de 09 a 15/10/2026 e não foi feita, encerrado em 19/10/2026)
 
 ## 3. Histórico de Ações e Tarefas Concluídas
 
@@ -83,8 +83,7 @@ Atualmente, o aluno cursa a graduação BIA e tem extensão em processo de matr�
 - O usuário valoriza o aprendizado constante: a cada novo aprendizado, o sistema deve incorporar as informações, fazer commit e push na main.
 
 ## 5. Próximos Passos Imediatos
-- [ ] **DPA005 (Acessibilidade e Inclusão):** Acessar `https://sa.univesp.br/processoSeletivo/#/` a partir de 18/10/2026 com CPF e Inscrição `689389` para efetivar a matrícula e envio de documentação (act-022).
-- [ ] **Monitoramento AVA:** Assim que a matrícula do DPA005 for homologada pela secretaria, confirmar aparição do curso no AVA e inclusão na esteira de coleta automática (`disciplinas.py`).
+- [x] **DPA005 (Acessibilidade e Inclusão):** encerrado em 19/10/2026. O período de matrícula era de 09 a 15/10 (e-mail da Univesp); o portal recusou em 19/10 e Josemar decidiu não pedir exceção (act-022 descartada).
 - [ ] **COM170 Q7:** Fazer o portfólio Q7 M6 e o mapa do grupo Q7 M7 (prazo de envio de 19 a 24/10/2026, act-021).
 - [ ] **EDUCATHON:** Conferir resultado do desafio entre 26 e 28/10/2026 e solicitar certificado de 20h (act-017).
 

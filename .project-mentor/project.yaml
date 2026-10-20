@@ -17,14 +17,14 @@ status:
   health: healthy
   phase: Operacao local com agendamento Windows
   priority: 2
-  updated_at: 2026-10-17T19:05:06-03:00
-  last_session_at: 2026-10-17T19:01:12-03:00
+  updated_at: 2026-10-20T05:36:44-03:00
+  last_session_at: 2026-10-20T05:36:44-03:00
   confidence: confirmed
 focus:
   objective: Guia diario, alertas e acompanhamento de prazos do AVA Univesp
-  current: Efetivar matricula do DPA005 no portal a partir de 18/10
-  last_completed: Tarefas guia diario, guia alerta e vigia recriadas neste PC em nivel Limited, pasta raiz, argumento terminando em -Agendada
-  recommended_next_action: act-022
+  current: Acompanhar as fichas do G4 e montar o mapa do Q7 M7 ate 24/10
+  last_completed: "Revisao semanal rodada de novo depois que o Drive montou: semanas em dia"
+  recommended_next_action: act-025
 next_actions:
   - id: act-001
     title: Verificar integracao de envio de e-mail opcional via SMTP
@@ -280,7 +280,7 @@ next_actions:
     note: null
   - id: act-022
     title: Efetivar matricula da Disciplina Paulista de Acessibilidade e Inclusao (DPA005) com codigo de inscricao 689389 no portal a partir de 18/10
-    status: pending
+    status: dropped
     impact: null
     urgency: null
     effort: null
@@ -289,7 +289,7 @@ next_actions:
     blocked_by: []
     created_at: 2026-10-15T19:08:12-03:00
     done_at: null
-    note: Aprovado na 1a chamada (classificacao 10). Portal de matricula abre apos liberacao do resultado oficial em 18/10.
+    note: Periodo de matricula era 09 a 15/10/2026 (e-mail da Univesp); a data de 18/10 estava errada. Josemar decidiu nao pedir excecao ao SAE em 19/10.
   - id: act-023
     title: No PC do trabalho, rodar automacao\configurar_local.ps1 e, se aparecer falha vermelha de Acesso negado, rodar como administrador o comando que o script mostra
     status: pending
@@ -302,14 +302,50 @@ next_actions:
     created_at: 2026-10-17T19:05:05-03:00
     done_at: null
     note: "Defeito achado no PC de casa em 17/10/2026: tarefas gravadas como administrador"
-blockers: []
+  - id: act-024
+    title: "COM170 Q7: publicar ficha e defesa no Ponto de encontro do G4 ate quarta 21/10 (pedido do facilitador) e enviar o portfolio M6 ate 24/10"
+    status: done_tested
+    impact: null
+    urgency: null
+    effort: null
+    due_date: null
+    unblocks: []
+    blocked_by: []
+    created_at: 2026-10-19T21:47:29-03:00
+    done_at: 2026-10-19T22:14:41-03:00
+    note: null
+  - id: act-025
+    title: "COM170 Q7 M7: com as fichas do G4, montar o mapa dos conselhos e as 3 respostas; o representante envia ate 24/10. Depois revisar 1 portfolio (M6) e 1 mapa (M7) de 25 a 27/10"
+    status: pending
+    impact: null
+    urgency: null
+    effort: null
+    due_date: null
+    unblocks: []
+    blocked_by: []
+    created_at: 2026-10-19T22:14:44-03:00
+    done_at: null
+    note: null
+  - id: act-026
+    title: "Semana 4 de MMB002 e INT100: questionario e forum tematico ate 28/10"
+    status: pending
+    impact: null
+    urgency: null
+    effort: null
+    due_date: null
+    unblocks: []
+    blocked_by: []
+    created_at: 2026-10-19T22:14:46-03:00
+    done_at: null
+    note: null
+blockers:
+  - id: blk-001
+    description: "Portal sa.univesp.br/processoSeletivo responde em 19/10 21h, por inscricao 689389 e por CPF: nenhuma inscricao liberada para matricula ou fora do periodo. A data de 18/10 nao se confirmou; conferir e-mail da Univesp e tentar de novo"
+    type: decision
+    since: 2026-10-19
+    resolves_with: null
+    resolved_at: 2026-10-20T05:34:55-03:00
 decisions_recent:
-  - date: 2026-10-02
-    text: "Tema do Desafio 1: perturbacao do sossego e manobras perigosas de motociclistas em Valparaiso/SP"
-  - date: 2026-10-02
-    text: Parte 1 mantida com as frases do proprio usuario (regulamento exige texto autoral); prompts da Parte 2 e do Desafio 2 elaborados com apoio de IA, como o regulamento permite
-  - date: 2026-10-02
-    text: Envio antecipado para levar vantagem no criterio de desempate por horario
   - date: 2026-10-02
     text: Foco em capacitacao e desafios; freelance e bolsas so depois de conferir a regra da corporacao sobre atividade remunerada
   - date: 2026-10-02
@@ -324,6 +360,12 @@ decisions_recent:
     text: O código 689389 recebido no e-mail é o número definitivo de inscrição no processo seletivo do DPA005; a matrícula deve ser efetivada no portal a partir de 18/10.
   - date: 2026-10-17
     text: Unregister apaga a tarefa pela pasta onde ela esta (TaskPath real); Register grava sempre na raiz
+  - date: 2026-10-20
+    text: O texto MEU e o Passo 1 do portfolio vieram do Josemar; o agente nao escreve parte marcada como autoral
+  - date: 2026-10-20
+    text: O periodo de matricula do DPA005 era de 09 a 15/10, conforme o e-mail da Univesp; act-022 descartada por decisao do Josemar
+  - date: 2026-10-20
+    text: "A falha da revisao semanal das 13:50 foi o Drive G: ainda nao montado; nao exige mudanca de codigo"
 milestones: []
 review:
   stale_after_days: null

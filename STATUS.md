@@ -6,14 +6,16 @@
 > Agendado no Windows (15/09/2026): `automacao\rodar_diario.ps1`, tarefas `Univesp - guia diario` 07:30, `Univesp - guia alerta` 13:00, `Univesp - vigia` 20:00. Log em `tmp/log/rodar_diario.log`.
 > Histórico completo de sessões, auditorias e etapas concluídas: [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
-## Nova disciplina: DPA005 (Acessibilidade e Inclusão) - Inscrição 689389 (15/10/2026)
+## DPA005 (Acessibilidade e Inclusão): matrícula não feita, encerrado (19/10/2026)
 
-- **Disciplina:** Disciplina Paulista de Acessibilidade e Inclusão (DPA005 - código 21286, Polo Sede, Noturno).
-- **Processo Seletivo 2026:** Inscrição nº `689389`, situação Confirmada/Ativa.
-- **Resultado:** Aprovado na 1ª chamada (classificação 10).
-- **Matrícula:** Janela no portal `https://sa.univesp.br/processoSeletivo/#/` abre a partir de 18/10/2026 (liberação oficial do resultado).
-- **Ação cadastrada no Mentor:** `act-022` com prazo para 18/10/2026.
-- **Rotina de monitoramento:** Assim que a matrícula for concluída pelo candidato e homologada pela secretaria da Univesp, a disciplina passará a ser listada no AVA Moodle e no SEI `sa.univesp.br`, entrando automaticamente no ciclo de coleta diária (`gerar_guia.py`).
+- Aprovado na 1ª chamada, mas o período de matrícula era **09 a 15/10/2026** (e-mail da Univesp de 09/10); a data de 18/10 anotada em 15/10 estava errada.
+- Em 19/10 o portal `sa.univesp.br/processoSeletivo` recusou a matrícula ("fora do período"). Josemar decidiu não pedir exceção ao SAE. `act-022` descartada.
+- Lição: prazo de matrícula vem do e-mail oficial da Univesp, não do comportamento do portal.
+
+## COM170 Quinzena 7 (19/10/2026)
+
+- Portfólio Individual Q7 M6 enviado no Laboratório (19/10, 22:12) e ficha + defesa publicadas no Ponto de encontro do G4. Material em `privado/estudo/2026-4bim/com170/q7/`.
+- Falta o mapa do grupo Q7 M7 (até 24/10, envio do representante) e as revisões entre pares de 25 a 27/10 (`act-025`).
 
 ## Auditoria do Codex na apostila, revisada e com ajustes (23/09/2026)
 
