@@ -15,7 +15,8 @@
 ## COM170 Quinzena 7 (19/10/2026)
 
 - Portfólio Individual Q7 M6 enviado no Laboratório (19/10, 22:12) e ficha + defesa publicadas no Ponto de encontro do G4. Material em `privado/estudo/2026-4bim/com170/q7/`.
-- Falta o mapa do grupo Q7 M7 (até 24/10, envio do representante) e as revisões entre pares de 25 a 27/10 (`act-025`).
+- Mapa do grupo Q7 M7 (até 24/10, envio do representante) e revisões entre pares de 25 a 27/10 (`act-025`).
+- **21/10: rascunho do mapa dos conselhos montado** com 3 das 5 cartas (Josemar, Rogério e Fabricio), em `privado/estudo/2026-4bim/com170/q7/Q7_M7_Mapa_Conselhos_G4.docx` (gerador `gerar_mapa_g4.py`). Aline e Wendel não publicaram a ficha; o Fabricio deixou a quinzena do conselho MEU em aberto. Contagem de cartas e respostas 1 e 2 precisam ser refeitas quando as duas publicarem. Josemar decidiu tratar isso depois.
 
 ## Auditoria do Codex na apostila, revisada e com ajustes (23/09/2026)
 

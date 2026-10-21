@@ -17,14 +17,14 @@ status:
   health: healthy
   phase: Operacao local com agendamento Windows
   priority: 2
-  updated_at: 2026-10-20T05:36:44-03:00
-  last_session_at: 2026-10-20T05:36:44-03:00
+  updated_at: 2026-10-21T19:29:11-03:00
+  last_session_at: 2026-10-21T19:28:44-03:00
   confidence: confirmed
 focus:
   objective: Guia diario, alertas e acompanhamento de prazos do AVA Univesp
-  current: Acompanhar as fichas do G4 e montar o mapa do Q7 M7 ate 24/10
-  last_completed: "Revisao semanal rodada de novo depois que o Drive montou: semanas em dia"
-  recommended_next_action: act-025
+  current: Publicar no Ponto de encontro a mensagem pedindo as fichas de Aline e Wendel e confirmando o representante; depois atualizar o mapa e enviar ate sexta 23/10
+  last_completed: Rascunho do mapa dos conselhos com tabela de origem e as 3 respostas
+  recommended_next_action: act-027
 next_actions:
   - id: act-001
     title: Verificar integracao de envio de e-mail opcional via SMTP
@@ -316,16 +316,16 @@ next_actions:
     note: null
   - id: act-025
     title: "COM170 Q7 M7: com as fichas do G4, montar o mapa dos conselhos e as 3 respostas; o representante envia ate 24/10. Depois revisar 1 portfolio (M6) e 1 mapa (M7) de 25 a 27/10"
-    status: pending
+    status: in_progress
     impact: null
     urgency: null
     effort: null
-    due_date: null
+    due_date: 2026-10-24
     unblocks: []
     blocked_by: []
     created_at: 2026-10-19T22:14:44-03:00
     done_at: null
-    note: null
+    note: Mapa rascunhado em 21/10 com 3 de 5 cartas; falta Aline e Wendel, a quinzena do conselho MEU do Fabricio, o envio pelo representante e as revisoes de 25 a 27/10
   - id: act-026
     title: "Semana 4 de MMB002 e INT100: questionario e forum tematico ate 28/10"
     status: pending
@@ -338,6 +338,18 @@ next_actions:
     created_at: 2026-10-19T22:14:46-03:00
     done_at: null
     note: null
+  - id: act-027
+    title: Publicar no Ponto de encontro a mensagem pedindo as fichas de Aline e Wendel e confirmando o representante; depois atualizar o mapa e enviar ate sexta 23/10
+    status: pending
+    impact: null
+    urgency: null
+    effort: null
+    due_date: null
+    unblocks: []
+    blocked_by: []
+    created_at: 2026-10-21T19:28:44-03:00
+    done_at: null
+    note: null
 blockers:
   - id: blk-001
     description: "Portal sa.univesp.br/processoSeletivo responde em 19/10 21h, por inscricao 689389 e por CPF: nenhuma inscricao liberada para matricula ou fora do periodo. A data de 18/10 nao se confirmou; conferir e-mail da Univesp e tentar de novo"
@@ -346,12 +358,6 @@ blockers:
     resolves_with: null
     resolved_at: 2026-10-20T05:34:55-03:00
 decisions_recent:
-  - date: 2026-10-02
-    text: Foco em capacitacao e desafios; freelance e bolsas so depois de conferir a regra da corporacao sobre atividade remunerada
-  - date: 2026-10-02
-    text: Nao escrever no Supabase pelo CLI desta maquina, porque o projeto linkado era outro
-  - date: 2026-10-11
-    text: core_completion_get_activities_completion_status nao esta disponivel para aluno; o estado de conclusao foi lido direto do HTML da pagina do curso
   - date: 2026-10-15
     text: Publicar posts e enviar questionario so com confirmacao explicita do Josemar (dada nesta sessao para os itens da S3)
   - date: 2026-10-15
@@ -366,6 +372,12 @@ decisions_recent:
     text: O periodo de matricula do DPA005 era de 09 a 15/10, conforme o e-mail da Univesp; act-022 descartada por decisao do Josemar
   - date: 2026-10-20
     text: "A falha da revisao semanal das 13:50 foi o Drive G: ainda nao montado; nao exige mudanca de codigo"
+  - date: 2026-10-21
+    text: O rascunho usa as cartas disponiveis (3 de 5) e deixa a contagem marcada para atualizar quando Aline e Wendel publicarem
+  - date: 2026-10-21
+    text: A observacao interna sobre as fichas faltantes fica no fim do .docx e deve ser removida antes do envio
+  - date: 2026-10-21
+    text: Nada foi publicado no grupo nem enviado no AVA nesta sessao
 milestones: []
 review:
   stale_after_days: null
