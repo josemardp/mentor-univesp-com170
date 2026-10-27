@@ -103,7 +103,7 @@ O repositório conta com **14 suítes de testes automatizados**, responsáveis p
 | `test_quadro.py` | Montagem da grade semanal e quinzenal de tarefas. |
 | `test_operacao.py` | Políticas de publicação local, integridade de logging e guardrails de segurança. |
 | `test_apostila.py` | Apostila de prova: ficha ruim não quebra a apostila, texto da IA não vira HTML, PDF leva o gabarito e a tela esconde a resposta. |
-| `test_revisao_semanal.py` | Revisão semanal: só semana encerrada entra, vídeo não é transcrito em triplicata, navegação do AVA não vira fonte. |
+| `test_revisao_semanal.py` | Revisão semanal: só semana encerrada entra, vídeo não é transcrito em triplicata, navegação do AVA não vira fonte, gabarito sai só do que o AVA mostrou, fonte com falha volta a ser tentada. |
 | Outras 6 suítes | Login simulado, workshop enviado, portal, fórum e webmail institucional. |
 
 ---
@@ -141,7 +141,7 @@ No Git Bash ou Linux:
 for t in testes/test_*.py; do python "$t" >/dev/null 2>&1 && echo "OK $t" || echo "FALHOU $t"; done
 ```
 
-Última execução completa: **12 de 12 suítes passaram**, em 13/09/2026, Python 3.14.5, Windows 11.
+Última execução completa: **14 de 14 suítes passaram**, em 25/10/2026, Python 3.14, Windows 11.
 
 ### Reproduzir a imagem da demonstração
 O painel mostrado acima sai da fixture do *golden test*, sem tocar em nenhum sistema:
@@ -193,11 +193,18 @@ powershell -ExecutionPolicy Bypass -File automacao\rodar_diario.ps1 -Modo revisa
 ```
 
 **Revisão semanal** (`automacao/revisao_semanal.py`, tarefa `Univesp - revisao
-semanal`, segunda 10:00). Para cada semana encerrada, lê no AVA as páginas, os
-slides em PDF, a legenda das videoaulas e a revisão de todas as tentativas do
-questionário, registra o que ficou em leitor externo como "não lido" e chama o
+semanal`, 10:00 diariamente com guarda semanal). A primeira rodada útil é a de
+segunda-feira; os disparos posteriores só recuperam uma segunda perdida ou fontes
+que falharam, e saem quietos quando a semana já está em dia. Para cada semana
+encerrada, lê no AVA as páginas, os
+slides em PDF, o trecho indicado do texto-base (pelo leitor que o próprio AVA
+abre), a legenda das videoaulas
+(a revisada pela Univesp antes da automática) e a revisão de todas as tentativas
+do questionário, com a alternativa marcada, a resposta oficial e o comentário do
+AVA. Com isso o robô monta sem IA o `GABARITO.md` da semana e chama o
 Claude Code sem janela (`claude -p`, só com ferramentas de arquivo e preso à
-pasta da semana) para escrever a `REVISAO.md` a partir dessas fontes. Tudo vai
+pasta da semana) para escrever a `REVISAO.md` a partir dessas fontes; resposta
+de questão só vale se vier do gabarito. Tudo vai
 para `privado/estudo/<bimestre>/`, fora do git, porque é conteúdo do curso e
 gabarito. Questionário ainda não feito fica pendente e a semana é remontada
 quando ele entra. Além da segunda 10:00, a tarefa dispara no logon e no
@@ -209,14 +216,15 @@ quando a semana já foi feita.
 **Apostila de prova** (`automacao/apostila.py`). Depois da `REVISAO.md`, o Claude
 destila a semana numa ficha curta de formato fixo (`apostila.json`: ideia central,
 conceitos, autores, comparações, exemplos, o que o questionário cobrou, pegadinhas,
-4 questões de treino e o que ler por conta própria), com limite de itens e de
+4 questões de treino inéditas e o que ler por conta própria), com limite de itens e de
 palavras e sabendo o que as semanas anteriores já definiram, para não repetir. O
 desenho não é da IA: `apostila.py` valida as fichas e monta sempre igual um
 `APOSTILA.html` do bimestre (arquivo único, sem internet, tema claro e escuro,
 sumário, busca, questões clicáveis, "semana revisada" com progresso) e, por
 disciplina, o resumo `APOSTILA_<COD>.pdf` (A4 em duas colunas, meta de uma página
-por semana, sem questões) e o caderno `TREINO_<COD>.pdf` (questões, gabarito no
-fim). O PDF é o que abre no celular pelo Google Drive.
+por semana, sem questões) e o caderno `TREINO_<COD>.pdf` (as questões reais do
+questionário do AVA, com o gabarito do próprio AVA, e depois as inéditas;
+gabarito no fim). O PDF é o que abre no celular pelo Google Drive.
 `python automacao/apostila.py --bimestre 2026-4bim` remonta à mão.
 
 Três tarefas registradas no Agendador, executadas como o usuário logado:

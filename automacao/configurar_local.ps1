@@ -42,7 +42,7 @@ $desejado = @(
     # o Claude por disciplina (4 min por semana, medido em 22/09/2026).
     @{ Nome = "Univesp - revisao semanal"; Modo = "revisao"; Hora = "10:00"; Minutos = 180
        Destravar = $true
-       Descricao = "Segunda: junta o material da semana que terminou e monta a revisao de prova em privado\estudo." }
+       Descricao = "A partir de segunda, recupera a revisao semanal pendente e monta a revisao de prova em privado\estudo." }
 )
 
 function ArgumentosDe($modoArg) {

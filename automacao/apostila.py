@@ -107,6 +107,34 @@ def validar(bruto):
     return f
 
 
+LETRAS_AVA = "ABCDEFGH"
+ORIGEM_AVA = {"oficial": "resposta oficial do AVA", "oficial_varias": "o AVA aceitou mais de uma",
+              "nota": "nota cheia na tentativa", "anulada": "questão anulada no AVA; certa pelo comentário"}
+
+
+def ler_ava(pasta):
+    """Questões do questionário do AVA com o gabarito que o próprio AVA deu
+    (gabarito.json da revisão semanal), sem IA. 26/10/2026: a prova sai do
+    mesmo banco, e a apostila só tinha questões inventadas pela IA."""
+    try:
+        blocos = json.loads((pasta / "gabarito.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    saida = []
+    for b in blocos if isinstance(blocos, list) else []:
+        for q in (b.get("questoes") or []) if isinstance(b, dict) else []:
+            alts = [_texto(a) for a in _lista(q.get("alternativas"))]
+            if not _texto(q.get("enunciado")) or len(alts) < 2 or len(alts) > len(LETRAS_AVA):
+                continue
+
+            def letras(lista):
+                return [LETRAS_AVA[alts.index(_texto(a))] for a in _lista(lista) if _texto(a) in alts]
+            saida.append({"enunciado": str(q["enunciado"]).strip(), "alternativas": alts,
+                          "certas": letras(q.get("resposta")), "como": q.get("como"),
+                          "comentario": _texto(q.get("feedback")), "eliminadas": letras(q.get("eliminadas"))})
+    return saida
+
+
 def ler_ficha(pasta):
     arq = pasta / "apostila.json"
     if not arq.exists():
@@ -181,7 +209,7 @@ def coletar(bimestre):
                     ficha["ler_por_conta"] = list(dict.fromkeys(avisos))
             except (OSError, ValueError):
                 pass
-            semanas.append({"n": int(sem.name.split("-")[1]), "inicio": inicio, **ficha})
+            semanas.append({"n": int(sem.name.split("-")[1]), "inicio": inicio, **ficha, "ava": ler_ava(sem)})
         if semanas:
             cod = pasta.name
             disciplinas.append({"cod": cod, "nome": nomes.get(cod, cod.upper()),
@@ -231,7 +259,7 @@ def secao_semana(d, s, modo="tela"):
         s = {**s, "ideia_central": "", "ler_por_conta": [], "conceitos": [], "autores": [],
              "comparacoes": [], "exemplos": [], "cobrado": [], "pegadinhas": []}
     elif modo == "resumo":
-        s = {**s, "treino": []}
+        s = {**s, "treino": [], "ava": []}
     h = [f'<section class="semana" id="{sid}" data-busca="">']
     h.append(f'''<header class="sem-head">
   <span class="sem-num">S{s["n"]}</span>
@@ -266,13 +294,27 @@ def secao_semana(d, s, modo="tela"):
     if s["pegadinhas"]:
         itens = "".join(f'<div class="peg"><p class="nao"><span>Não</span>{md(p["confusao"])}</p><p class="sim"><span>Sim</span>{md(p["certo"])}</p></div>' for p in s["pegadinhas"])
         h.append(f'<h4>Pegadinhas</h4><div class="pegs">{itens}</div>')
+    if s.get("ava"):
+        qs = []
+        for i, q in enumerate(s["ava"], 1):
+            alts = "".join(f'<li><button type="button" data-letra="{LETRAS_AVA[j]}"><b>{LETRAS_AVA[j]}</b><span>{md(a)}</span></button></li>' for j, a in enumerate(q["alternativas"]))
+            if q["certas"]:
+                resp = (f'<strong>{", ".join(q["certas"])}.</strong> <span class="orig">({ORIGEM_AVA.get(q["como"], "AVA")})</span> '
+                        f'{md(q["comentario"])}')
+            elif q["como"] == "anulada":
+                resp = f'Questão anulada no AVA: todas foram aceitas. {md(q["comentario"])}'
+            else:
+                resp = "Sem gabarito do AVA ainda." + (f' Erradas com certeza: {", ".join(q["eliminadas"])}.' if q["eliminadas"] else "")
+            gab = "" if modo != "tela" else f'<details class="gab"><summary>Ver resposta</summary><p>{resp}</p></details>'
+            qs.append(f'<div class="questao ava" data-correta="{",".join(q["certas"])}"><div class="enun"><span class="qn">{i}</span><div>{md_bloco(q["enunciado"])}</div></div><ol class="alts">{alts}</ol>{gab}</div>')
+        h.append(f'<h4 class="mostra">Questões do AVA · mesmo banco da prova</h4>{"".join(qs)}')
     if s["treino"]:
         qs = []
         for i, q in enumerate(s["treino"], 1):
             alts = "".join(f'<li><button type="button" data-letra="{LETRAS[j]}"><b>{LETRAS[j]}</b><span>{md(a)}</span></button></li>' for j, a in enumerate(q["alternativas"]))
             gab = "" if modo != "tela" else f'<details class="gab"><summary>Ver resposta</summary><p><strong>{q["correta"]}.</strong> {md(q["comentario"])}</p></details>'
             qs.append(f'<div class="questao" data-correta="{q["correta"]}"><div class="enun"><span class="qn">{i}</span><div>{md_bloco(quebrar_enunciado(q["enunciado"]))}</div></div><ol class="alts">{alts}</ol>{gab}</div>')
-        h.append(f'<h4>Treino</h4>{"".join(qs)}')
+        h.append(f'<h4 class="mostra">Treino · questões inéditas</h4>{"".join(qs)}')
     h.append("</section>")
     return "\n".join(h)
 
@@ -280,8 +322,12 @@ def secao_semana(d, s, modo="tela"):
 def gabarito(d):
     linhas = []
     for s in d["semanas"]:
+        for i, q in enumerate(s.get("ava") or [], 1):
+            certas = ", ".join(q["certas"]) or ("anulada, ver comentário" if q["como"] == "anulada" else "sem gabarito do AVA")
+            origem = f' ({ORIGEM_AVA.get(q["como"], "AVA")})' if q["certas"] else ""
+            linhas.append(f'<li><b>S{s["n"]} AVA {i} · {certas}</b>{origem} {md(q["comentario"])}</li>')
         for i, q in enumerate(s["treino"], 1):
-            linhas.append(f'<li><b>S{s["n"]}.{i} · {q["correta"]}</b> {md(q["comentario"])}</li>')
+            linhas.append(f'<li><b>S{s["n"]} treino {i} · {q["correta"]}</b> {md(q["comentario"])}</li>')
     if not linhas:
         return ""
     return f'<section class="gabarito"><h3>Gabarito do treino · {html.escape(d["cod"].upper())}</h3><ol>{"".join(linhas)}</ol></section>'
@@ -367,6 +413,8 @@ tr:last-child>*{border-bottom:0}
 .alts button:hover{border-color:var(--acc)}.alts b{flex:none;color:var(--acc)}
 .alts button.certa{background:var(--ok-bg);border-color:var(--ok)}.alts button.errada{background:var(--erro-bg);border-color:var(--erro)}
 .gab{margin-top:8px;font-size:14.5px}.gab summary{cursor:pointer;color:var(--acc);font-weight:600}.gab p{margin:6px 0 0}
+.questao.ava .qn{background:var(--sup);color:var(--acc);box-shadow:inset 0 0 0 1.5px var(--acc)}
+.orig{color:var(--suave);font-size:13px}
 .gabarito{margin:28px 0}.gabarito ol{padding-left:0;list-style:none;display:grid;gap:6px;font-size:13.5px}
 .vazio{display:none!important}
 .rodape{margin-top:40px;color:var(--suave);font-size:13px;text-align:center}
@@ -428,6 +476,7 @@ html[data-modo="treino"] .disc-cab{padding:6px 12px;border-radius:8px;margin:0 0
 html[data-modo="treino"] .semana{border:0;border-top:2px solid var(--acc);border-radius:0;padding:2mm 0 0;margin:0 0 3mm}
 html[data-modo="treino"] .sem-num{width:22px;height:22px;font-size:8.5pt;border-radius:6px}html[data-modo="treino"] .sem-head h3{font-size:11pt;margin:0}
 html[data-modo="treino"] .kicker{font-size:6.5pt}html[data-modo="treino"] h4{display:none}
+html[data-modo="treino"] h4.mostra{display:block;font-size:7pt;margin:2mm 0 1.5mm}
 html[data-modo="treino"] .questao{border:0;background:none;padding:0;margin:0 0 3mm}
 html[data-modo="treino"] .qn{width:18px;height:18px;font-size:8pt;border-radius:5px}
 html[data-modo="treino"] .enun p{margin:0 0 1mm;font-size:9.5pt}
@@ -465,12 +514,13 @@ JS = r"""
   });
   progresso();
   document.querySelectorAll('.questao').forEach(function(q){
-    var certa=q.getAttribute('data-correta');
+    // Questão do AVA pode ter mais de uma certa (anulada) ou nenhuma ainda.
+    var certas=(q.getAttribute('data-correta')||'').split(',').filter(Boolean);
     q.querySelectorAll('button[data-letra]').forEach(function(b){
       b.addEventListener('click',function(){
         q.querySelectorAll('button[data-letra]').forEach(function(x){x.classList.remove('certa','errada')});
-        q.querySelector('button[data-letra="'+certa+'"]').classList.add('certa');
-        if(b.getAttribute('data-letra')!==certa) b.classList.add('errada');
+        certas.forEach(function(c){var x=q.querySelector('button[data-letra="'+c+'"]'); if(x) x.classList.add('certa')});
+        if(certas.length && certas.indexOf(b.getAttribute('data-letra'))<0) b.classList.add('errada');
         var g=q.querySelector('details.gab'); if(g) g.open=true;
       });
     });
@@ -563,7 +613,7 @@ def gerar(bimestre, pdf=True):
                     page = navegador.new_page()
                     for d in disciplinas:
                         for modo, prefixo in (("resumo", "APOSTILA"), ("treino", "TREINO")):
-                            if modo == "treino" and not any(s["treino"] for s in d["semanas"]):
+                            if modo == "treino" and not any(s["treino"] or s.get("ava") for s in d["semanas"]):
                                 continue
                             temp = temporarios / f"{d['cod']}_{modo}.html"
                             temp.write_text(montar_html(bimestre, [d], modo=modo), encoding="utf-8")

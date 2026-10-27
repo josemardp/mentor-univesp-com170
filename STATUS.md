@@ -6,6 +6,62 @@
 > Agendado no Windows (15/09/2026): `automacao\rodar_diario.ps1`, tarefas `Univesp - guia diario` 07:30, `Univesp - guia alerta` 13:00, `Univesp - vigia` 20:00. Log em `tmp/log/rodar_diario.log`.
 > Histórico completo de sessões, auditorias e etapas concluídas: [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
+## Auditoria do material de prova: gabarito, textos-base e legendas (26/10/2026)
+
+Pedido dele: "pegue todas as falhas que o Codex não viu, preciso de material top".
+A auditoria do Codex (25/10) olhou se a rotina rodava; esta olhou o que ela
+**produz**. Achados e correções em `automacao/revisao_semanal.py`:
+
+- **Gabarito inventado.** A coleta lia a revisão do questionário pelo `innerText`,
+  que perde a alternativa marcada. Mesmo assim as `REVISAO.md` diziam "marcada X:
+  errada" e "correta Y (acertou)": dedução da IA escrita como fato. Agora a coleta
+  guarda marcada, nota, resposta oficial e comentário do AVA (`quiz-*.json`), e o
+  robô monta sem IA o `GABARITO.md` e o `gabarito.json` da semana. O prompt só
+  aceita resposta vinda dele.
+- **Resposta oficial e comentário do professor nunca coletados.** O AVA só os
+  mostra depois que o questionário fecha, e a coleta nunca voltava. Agora relê o
+  questionário até a resposta oficial aparecer (até 35 dias do início da semana).
+  Em MMB002 o comentário explica cada alternativa errada.
+- **Nenhum texto-base era lido** (16 leituras no bimestre). Agora é lido o trecho
+  do título ("p. 145-153") ou até o próximo capítulo, pelo leitor que o LTI abre.
+  **Decisão dele em 26/10/2026: ler e guardar em `privado/`**, revendo a de 23/09
+  (não ler por termos de uso). O código do leitor também fica fora do git, em
+  `privado/automacao/leitor_livros.py` (repositório público); sem ele, o
+  texto-base volta a "não lido". Como funciona: docstring desse arquivo.
+- **Legenda automática no lugar da revisada.** As videoaulas da Univesp têm
+  legenda pt-BR feita por gente ("periódicos", não "períodos"); agora vem primeiro.
+- **Fonte com falha vinda de página já lida nunca era retentada** (vídeo com HTTP
+  429 parado em "tentativas 1" desde 12/10; a semana nunca fechava).
+- Fórmula do MathJax saía um símbolo por linha; agora `a⁷/a³`, `8,5 × 10⁶`, `Z-`.
+- Afirmativa em lista (`<ol type="I">`) perdia o "I.", "II.": "está correto o que
+  se afirma em I e II" ficava sem referência. Agora numerada como na tela.
+- Questão anulada (o AVA aceitou as 5): a certa sai do comentário do AVA, não da
+  lista de aceitas. A comparação de alternativas guarda símbolo de matemática
+  (antes "Z-" e "Z*" ficavam iguais). Conferência das 37 questões do bimestre:
+  35 com resposta oficial batendo com as notas, 2 anuladas.
+- PDF ganhou marca `[pág. N]`; página externa HTML passa a ser lida (o REA da
+  Univesp pelo PDF ligado nele); GeoGebra e Khan Academy ficam "não lido
+  (atividade interativa)"; crédito do Adobe Stock saiu da cobertura; a
+  cobertura mostra o motivo de cada "não lido".
+- A apostila ganhou **"Questões do AVA"** por semana, com o gabarito do AVA e a
+  origem dele, na tela e no `TREINO_<COD>.pdf`. O treino da IA não repete essas.
+- Fonte que a versão nova lê melhor é relida uma vez (`precisa_reler`), e a
+  releitura que falha não apaga o que já estava lido.
+
+Coleta refeita em 26/10 nas 8 semanas (INT100 e MMB002, S1 a S4). Fica "não
+lido" só o que é de fato: 2 vídeos de fora sem legenda revisada (YouTube devolve
+429 para a automática), GeoGebra e Khan Academy. Testes: `test_revisao_semanal.py`
+foi de 47 para 90 verificações; 14 de 14 suítes verdes. Em 27/10 as 8 semanas
+saíram remontadas (REVISAO.md, ficha e apostila: resumo de 4 e 5 páginas, treino
+de 12 e 14), com resposta só do gabarito do AVA. A questão 2 anulada de MMB002 S2
+veio sem as afirmativas no próprio AVA (defeito da questão, não da coleta).
+
+Achados que **não** foram mexidos:
+- o Agendador mostra resultado 0 mesmo quando a rodada falha: o `conhost.exe
+  --headless` não repassa o código do PowerShell. O log e o aviso na tela valem;
+- em 26/10 a rodada diária morreu às 08:21 (reinício/logon) sem linha de término;
+  a guarda de 1 h segurou a nova tentativa e a revisão das 10:00 esperou o retrato.
+
 ## DPA005 (Acessibilidade e Inclusão): matrícula não feita, encerrado (19/10/2026)
 
 - Aprovado na 1ª chamada, mas o período de matrícula era **09 a 15/10/2026** (e-mail da Univesp de 09/10); a data de 18/10 anotada em 15/10 estava errada.
@@ -18,6 +74,7 @@
 - Mapa do grupo Q7 M7 (até 24/10, envio do representante) e revisões entre pares de 25 a 27/10 (`act-025`).
 - **21/10: rascunho do mapa dos conselhos montado** com 3 das 5 cartas (Josemar, Rogério e Fabricio), em `privado/estudo/2026-4bim/com170/q7/Q7_M7_Mapa_Conselhos_G4.docx` (gerador `gerar_mapa_g4.py`).
 - **23/10: mapa atualizado e ENVIADO no AVA pelo representante (Josemar)** às 14:21 no Laboratório de Revisão Q7 M7 (id=284096, submission=71979). Documento final gerado em PDF (`Q7_M7_Mapa_Conselhos_G4.pdf`) com 4 integrantes (Josemar, Rogério, Fabricio e Aline; Wendel ausente). 9 conselhos mapeados e 3 respostas fundamentadas. Próxima etapa: revisão entre pares de 25 a 27/10 (`act-025`).
+- **25/10: revisões entre pares realizadas e confirmadas no AVA** (`act-028`). Q7 M6 (Portfólio individual atribuído, workshop id=284092, assessment id=67413) e Q7 M7 (Trabalho em grupo de equipe parceira, workshop id=284096, assessment id=67436) avaliados com fundamentações nos três critérios da rubrica e feedback construtivo ao autor. Ambas as páginas confirmadas no AVA com "Já foi avaliada" e pendente: 0. Prints pré e pós-envio salvos em `privado/estudo/2026-4bim/com170/q7/` e na pasta Downloads.
 
 ## Auditoria do Codex na apostila, revisada e com ajustes (23/09/2026)
 
@@ -88,10 +145,11 @@ montando o corpo de revisão, para não ficar tudo para novembro.
   `manifest.json` e `fontes/` em `privado/estudo/<bimestre>/<disciplina>/semana-NN/`,
   e o `CORPO_REVISAO.md` da disciplina. Começa no 4º bimestre (`INICIO_PADRAO`
   28/09/2026); a primeira semana real sai na segunda 05/10.
-- Tarefa `Univesp - revisao semanal`: segunda 10:00 **e** logon **e** desbloqueio
-  da tela, com marca semanal (`tmp/log/revisao_feita.txt`) e intervalo de 3h entre
-  tentativas com falha. `rodar_diario.ps1 -Modo revisao` espera até 40 min pela
-  trava do AVA.
+- Tarefa `Univesp - revisao semanal`: 10:00 diariamente, mais logon e desbloqueio
+  da tela. A marca semanal (`tmp/log/revisao_feita.txt`) faz a rodada sair quieta
+  quando já está em dia; assim, os disparos após segunda só recuperam uma rodada
+  perdida ou uma fonte que falhou. Há intervalo de 3h entre tentativas com falha.
+  `rodar_diario.ps1 -Modo revisao` espera até 40 min pela trava do AVA.
 - **Testado ao vivo** em SOC100 semana 7 (3º bimestre, `--desde 2026-07-01`): 10
   fontes lidas, 3 não lidas (textos-base em leitor externo), 12 questões distintas
   das 3 tentativas; `REVISAO.md` de 286 linhas em 4 min, sem travessão. Segunda
@@ -116,8 +174,10 @@ auditoria achou e corrigiu:
 - vídeo sem legenda automática fechava nunca ("falhou"); agora "SEM LEGENDA";
 - PDF com certificado vencido (UFPB) passa a ser baixado;
 - a `REVISAO.md` abre com "Leia ou assista por conta própria".
-Livro em Minha Biblioteca e Pearson **não** é lido de propósito: leitor protegido,
-com login próprio, e extrair livro licenciado fere os termos de uso. Fica listado.
+Livro em leitor de biblioteca digital **não** era lido de propósito: leitor protegido,
+com login próprio, e extrair livro licenciado fere os termos de uso. Ficava listado.
+**Revisto em 26/10/2026 por decisão dele:** o texto-base passou a ser lido e
+guardado em `privado/` (ver a seção da auditoria de 26/10).
 
 **Achado que vale para o robô inteiro (act-008):** em 22/09 o notebook ficou
 suspenso de 21/09 22:00 a 22/09 15:17 e as rodadas `diario` (07:30) e `alerta`

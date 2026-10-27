@@ -14,11 +14,16 @@ O que este teste protege, em ordem de importância:
 4. **Legenda automática sem repetição.** Ela repete cada frase em duas ou três
    deixas, e sem limpar o texto triplica.
 5. **Tabela de cobertura não quebra** com o "| Autor" dos títulos de texto-base.
+6. **Gabarito só do AVA** (auditoria de 26/10/2026): a coleta guarda a
+   alternativa marcada, a resposta oficial e o comentário, e o gabarito sai
+   sem IA. Antes a revisão "deduzia" a marcada e escrevia como fato.
+7. **Fonte melhor não rebaixa a lida, falha volta a ser tentada**: o vídeo
+   com HTTP 429 vindo de página já lida ficava parado em "tentativas 1".
 
 Rodar:  python testes/test_revisao_semanal.py
 """
 import sys
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -213,7 +218,7 @@ with tempfile.TemporaryDirectory() as tmp:
     (pasta / "apostila.json").unlink()
     checa(not R.semana_em_dia(base, pasta, {"items": []}), "ficha apagada é refeita")
 
-    import fitz
+    import pymupdf as fitz
     pdf = fitz.open()
     pdf.new_page().insert_text((50, 50), "Texto sintetico")
     corpo = pdf.tobytes()
@@ -253,6 +258,189 @@ with tempfile.TemporaryDirectory() as tmp:
     checa(R.maquina_responsavel(arq, "PC-CASA") == (False, "LAPTOP-A"), "a outra máquina sai quieta")
 checa("if ($codigo -eq 4)" in rotina and R.AGUARDA_RETRATO == 4,
       "retrato do dia atrasado espera em silêncio, sem alarme de problema")
+
+# ---------------------------------------------------------------------------
+# Auditoria de 26/10/2026: o que a coleta perdia ou inventava.
+print("\n== fórmulas, páginas e HTML ==")
+checa(R.tex_legivel(r"\frac{a^{7}}{a^{3}}") == "a⁷/a³", "fração com expoente vira a⁷/a³")
+checa(R.tex_legivel(r"8,5 \times 10^{6}") == "8,5 × 10⁶", "notação científica legível")
+checa(R.tex_legivel(r"\mathbb{Z}^{*}") == "Z*", "conjunto dos inteiros não nulos")
+checa(R.tex_legivel(r"\frac{3}{4}+\frac{5}{8}") == "3/4+5/8", "soma de frações")
+checa(R.com_formulas("R$ 110,00 e ⟦\\frac{1}{4}⟧ ingerida") == "R$ 110,00 e 1/4 ingerida",
+      "marca de fórmula trocada sem mexer no cifrão")
+checa(R.intervalo_paginas('Fundamentos (Leia o Capítulo "Porcentagem", p. 145 - 153) | Luciana') == (145, 153),
+      "páginas com espaço em volta do hífen")
+checa(R.intervalo_paginas("Encontros de aritmética (Leia as páginas 37-62)") == (37, 62), "'Leia as páginas'")
+checa(R.intervalo_paginas("Fundamentos (p. 111–119)") == (111, 119), "travessão curto entre páginas")
+checa(R.intervalo_paginas("Metodologia científica (Leia a seção 1.3)") is None, "seção sem página não inventa intervalo")
+pagina_epub = ('<html><body><nav epub:type="toc"><ol><li>1.1 Sumário</li></ol></nav>'
+               '<h1>1.1 O conhecimento</h1><p>Há quatro&nbsp;níveis.</p><script>x=1</script></body></html>')
+with tempfile.TemporaryDirectory() as tmp, patch.dict(sys.modules, {"leitor_livros": None}):
+    sem = R.Coletor(PaginaFalsa({}), Path(tmp)).leitor("https://ava.exemplo.test/mod/lti/view.php?id=1", "Texto-base")
+    checa(sem["status"] == "nao_lido" and "leitor_v" not in sem,
+          "sem o leitor privado, texto-base fica não lido e é tentado de novo quando ele aparecer")
+with tempfile.TemporaryDirectory() as tmp:
+    geo = R.Coletor(PaginaFalsa({}), Path(tmp))._pagina_externa("https://www.geogebra.org/m/wukttfzq", "GeoGebra")
+    checa(geo["status"] == "nao_lido" and "interativa" in geo["erro"], "GeoGebra é atividade interativa, não texto")
+checa(R.html_para_texto(pagina_epub) == "1.1 O conhecimento\n\nHá quatro níveis.",
+      "HTML vira texto sem o menu e sem script")
+
+print("\n== questionário: marcada, resposta oficial e gabarito sem IA ==")
+
+
+def questao(enun, alts, marcada, nota, maximo=2.5, correta="", feedback=""):
+    return {"numero": "1", "tipo": "multichoice", "estado": "Completo", "nota": nota, "nota_max": maximo,
+            "enunciado": enun, "imagens": [], "selects": [], "campos": [], "feedback": feedback,
+            "correta": correta,
+            "alternativas": [{"letra": "ABCDE"[i], "texto": a, "marcada": a == marcada} for i, a in enumerate(alts)]}
+
+
+ALTS = ["I, apenas.", "II, apenas.", "II e III, apenas.", "I e III, apenas.", "III, apenas."]
+t1 = [questao("Sobre a pesquisa científica, avalie.", ALTS, "II e III, apenas.", 0)]
+t2 = [questao("Sobre a pesquisa científica, avalie.", list(reversed(ALTS)), "II, apenas.", 2.5)]
+q = R.consolidar_questoes([t1, t2])
+checa(len(q) == 1, "a mesma questão em duas tentativas, com alternativas embaralhadas, conta uma vez")
+checa(q[0]["resposta"] == ["II, apenas."] and q[0]["como"] == "nota",
+      "sem resposta oficial, vale a marcada da tentativa com nota cheia")
+checa(q[0]["eliminadas"] == ["II e III, apenas."], "marcada com nota zero fica como errada com certeza")
+oficial = R.consolidar_questoes([[questao("Q", ALTS, "I, apenas.", 0, correta="A resposta correta é: II, apenas.")]])
+checa(oficial[0]["resposta"] == ["II, apenas."] and oficial[0]["como"] == "oficial",
+      "resposta oficial do AVA ganha da dedução")
+varias = R.consolidar_questoes([[questao("Q", ALTS, "I, apenas.", 2.5,
+                                         correta="As respostas corretas são: I, apenas., III, apenas.")]])
+checa(sorted(varias[0]["resposta"]) == ["I, apenas.", "III, apenas."] and varias[0]["como"] == "oficial_varias",
+      "questão em que o AVA aceitou mais de uma, sem casar 'II, apenas' dentro de 'III, apenas'")
+CONJ = ["1-Z+; 2-Z-; 3-Z0", "1-Z+; 2-Z0; 3-Z-", "1-Z+; 2-Z*; 3-Z0", "1-Z+; 2-Z-; 3-Z*", "1-Z0; 2-Z*; 3-Z+"]
+um = R.consolidar_questoes([[questao("Q", CONJ, "1-Z+; 2-Z-; 3-Z*", 2, 2,
+                                     correta="A resposta correta é: 1-Z+; 2-Z-; 3-Z*")]])
+checa(um[0]["resposta"] == ["1-Z+; 2-Z-; 3-Z*"], "alternativas que só diferem no símbolo (Z-, Z*, Z0) não se confundem")
+anulada = R.consolidar_questoes([[questao(
+    "Q", CONJ, "1-Z+; 2-Z-; 3-Z*", 2, 2, correta="As respostas corretas são: " + ", ".join(CONJ),
+    feedback="Sua resposta está correta. A alternativa “1-Z+; 2-Z-; 3-Z*” está correta, pois ... "
+             "As demais estão incorretas: A alternativa “1-Z+; 2-Z0; 3-Z-” está incorreta...")]])
+checa(anulada[0]["como"] == "anulada" and anulada[0]["resposta"] == ["1-Z+; 2-Z-; 3-Z*"],
+      "questão anulada (AVA aceitou todas): a certa sai do comentário, não da lista de aceitas")
+checa(R.tex_legivel("\\mathbb{Z}_\u00ad") == "Z-" and R.tex_legivel("\\mathbb{Z}_+") == "Z+",
+      "índice de conjunto: Z- (hífen invisível) e Z+")
+nada = R.consolidar_questoes([[questao("Q", ALTS, "I, apenas.", 0)]])
+checa(nada[0]["resposta"] == [] and nada[0]["como"] is None, "nota zero e sem oficial: resposta desconhecida")
+
+
+class RevisaoFalsa(PaginaFalsa):
+    def evaluate(self, js):
+        if js == R.JS_PAGINA:
+            return {"links": [["Revisão", "https://ava.exemplo.test/mod/quiz/review.php?attempt=1"]]}
+        return [questao("Quanto é ⟦\\frac{1}{2}⟧ de 10?", ["5", "2"], "5", 1.25, 1.25,
+                        correta="A resposta correta é: 5", feedback="Metade de 10 é 5.")]
+
+
+with tempfile.TemporaryDirectory() as tmp:
+    pasta = Path(tmp)
+    res = R.Coletor(RevisaoFalsa({}), pasta).quiz(
+        {"cmid": "9", "label": "S1 - Atividade Avaliativa", "url": "https://ava.exemplo.test/quiz"},
+        date(2026, 9, 28), date(2026, 10, 20))
+    texto = (pasta / res["arquivo"]).read_text(encoding="utf-8")
+    checa(res["formato"] == R.QUIZ_V and res["gabarito_oficial"], "questionário novo marca formato e gabarito oficial")
+    checa("A) 5  (MARCADA)" in texto and "Resposta oficial do AVA: 5" in texto and "Metade de 10" in texto,
+          "texto da revisão traz a marcada, a resposta oficial e o comentário")
+    checa("1/2 de 10" in texto, "fórmula do enunciado sai legível")
+    man = {"disciplina": "MMB002", "semana": 1, "fontes": [
+        {"tipo": "questionário", "status": "lido", "arquivo": res["arquivo"], "titulo": "S1 - Atividade", "url": "u"}]}
+    R.montar_gabarito(pasta, man)
+    gab = (pasta / "GABARITO.md").read_text(encoding="utf-8")
+    checa("**Resposta:** A) 5 (resposta oficial do AVA)" in gab, "GABARITO.md diz a certa e de onde ela vem")
+    checa(json.loads((pasta / "gabarito.json").read_text(encoding="utf-8"))[0]["questoes"][0]["resposta"] == ["5"],
+          "gabarito.json para a apostila")
+
+print("\n== reler o que a versão nova lê melhor ==")
+ini, hj = date(2026, 9, 28), date(2026, 10, 26)
+checa(R.precisa_reler({"tipo": "questionário", "status": "lido"}, ini, hj),
+      "questionário lido sem a marcada é relido")
+checa(R.precisa_reler({"tipo": "questionário", "status": "lido", "formato": R.QUIZ_V, "gabarito_oficial": False}, ini, hj),
+      "questionário sem resposta oficial é relido enquanto o AVA pode mostrá-la")
+checa(not R.precisa_reler({"tipo": "questionário", "status": "lido", "formato": R.QUIZ_V, "gabarito_oficial": False},
+                          ini, ini + timedelta(days=40)), "e depois do prazo para de tentar")
+checa(R.precisa_reler({"tipo": "videoaula", "status": "lido"}, ini, hj), "vídeo da legenda automática antiga é relido")
+checa(not R.precisa_reler({"tipo": "videoaula", "status": "lido", "legenda": "automatica"}, ini, hj),
+      "vídeo sem legenda revisada não é relido toda rodada")
+checa(R.precisa_reler({"tipo": "leitor externo", "status": "nao_lido"}, ini, hj), "texto-base do LTI ganha a tentativa nova")
+checa(not R.precisa_reler({"tipo": "leitor externo", "status": "nao_lido", "leitor_v": R.LEITOR_V}, ini, hj),
+      "e não fica tentando para sempre")
+
+
+class ColetorFalso:
+    """Registra o que a coleta pediu de novo; cada leitura devolve o combinado."""
+    def __init__(self, video=None):
+        self.pedidos = []
+        self.res_video = video or {"status": "lido", "arquivo": "fontes/v.txt", "chars": 9, "sha256": "n", "legenda": "univesp"}
+
+    def video(self, vid, titulo):
+        self.pedidos.append(("video", vid))
+        return dict(self.res_video)
+
+    def externo(self, url, titulo):
+        self.pedidos.append(("externo", url))
+        return {"status": "nao_lido", "ext_v": 1}
+
+    def pagina(self, item):
+        self.pedidos.append(("pagina", item["cmid"]))
+        return {"status": "lido"}, []
+
+
+secao = {"items": [{"cmid": "1", "type": "page", "label": "S1 - Início", "url": "https://ava.exemplo.test/page"}]}
+anterior = {"fontes": [
+    {"chave": "cm:1", "tipo": "página", "titulo": "S1 - Início", "url": "u", "status": "lido", "sha256": "p"},
+    {"chave": "yt:falhou00001", "tipo": "videoaula", "titulo": "vídeo", "url": "https://youtu.be/falhou00001",
+     "status": "falhou", "tentativas": 1, "origem": "cm:1"},
+    {"chave": "yt:automatico", "tipo": "videoaula", "titulo": "vídeo", "url": "https://youtu.be/automatico",
+     "status": "lido", "sha256": "velho", "origem": "cm:1"},
+    {"chave": "ext:https://stock.adobe.com/br/search?k=x", "tipo": "link externo", "titulo": "Adobe Stock, c2024",
+     "url": "https://stock.adobe.com/br/search?k=x", "status": "falhou", "origem": "cm:1"},
+]}
+col = ColetorFalso(video={"status": "falhou", "erro": "HTTP Error 429", "sem_manual": True})
+man = R.coletar_semana(col, {"code": "INT100"}, 2, ini, secao, json.loads(json.dumps(anterior)), hj)
+por = {f["chave"]: f for f in man["fontes"]}
+checa(("video", "falhou00001") in col.pedidos and por["yt:falhou00001"]["tentativas"] == 2,
+      "vídeo que falhou, vindo de página já lida, é tentado de novo e conta a tentativa")
+checa(por["yt:automatico"]["status"] == "lido" and por["yt:automatico"]["sha256"] == "velho"
+      and por["yt:automatico"]["legenda"] == "automatica",
+      "releitura que falha não apaga o vídeo já lido, e ele não é retentado toda rodada")
+checa(not any("stock.adobe" in k for k in por), "crédito de imagem do Adobe Stock sai da cobertura")
+checa(("pagina", "1") not in col.pedidos, "página já lida não é reaberta")
+
+with tempfile.TemporaryDirectory() as tmp:
+    chamadas = []
+
+    def yt_falso(cmd, **kwargs):
+        chamadas.append(cmd)
+        saida = Path(cmd[cmd.index("-o") + 1]).parent
+        if "--write-subs" in cmd:
+            (saida / "v.pt-BR.vtt").write_text("WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nOLÁ, PESSOAL.\n",
+                                               encoding="utf-8")
+        return type("Processo", (), {"returncode": 0, "stderr": b""})()
+
+    with patch.object(R.subprocess, "run", side_effect=yt_falso):
+        v = R.Coletor(PaginaFalsa({}), Path(tmp)).video("abcdefghijk", "S1 - Videoaula")
+    checa(v["legenda"] == "univesp" and len(chamadas) == 1,
+          "legenda revisada da Univesp primeiro, sem pedir a automática ao YouTube")
+    checa("revisada" in (Path(tmp) / v["arquivo"]).read_text(encoding="utf-8"), "cabeçalho diz que a legenda é revisada")
+
+import apostila as A  # noqa: E402
+
+with tempfile.TemporaryDirectory() as tmp:
+    pasta = Path(tmp)
+    (pasta / "gabarito.json").write_text(json.dumps([{"titulo": "S1", "questoes": [
+        {"enunciado": "Quanto é 1/2 de 10?", "alternativas": ["2", "5"], "resposta": ["5"], "como": "oficial",
+         "feedback": "Metade.", "eliminadas": ["2"]}]}]), encoding="utf-8")
+    ava = A.ler_ava(pasta)
+    checa(ava and ava[0]["certas"] == ["B"] and ava[0]["eliminadas"] == ["A"], "apostila lê as questões do AVA com a letra certa")
+    s = {"n": 1, "inicio": None, "tema": "T", "ideia_central": "", "ler_por_conta": [], "conceitos": [], "autores": [],
+         "comparacoes": [], "exemplos": [], "cobrado": [], "pegadinhas": [], "treino": [], "ava": ava}
+    d = {"cod": "mmb002", "nome": "Matemática", "cor": "#2b8a3e", "semanas": [s]}
+    checa('data-correta="B"' in A.secao_semana(d, s, "tela") and "resposta oficial do AVA" in A.secao_semana(d, s, "tela"),
+          "questão do AVA clicável na tela, com a origem do gabarito")
+    checa("Questões do AVA" not in A.secao_semana(d, s, "resumo"), "resumo de uma página não leva as questões")
+    checa("S1 AVA 1 · B" in A.gabarito(d), "gabarito do PDF de treino inclui as questões do AVA")
 
 print("\n" + "=" * 66)
 if falhas:
