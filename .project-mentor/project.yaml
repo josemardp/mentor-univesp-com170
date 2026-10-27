@@ -17,7 +17,7 @@ status:
   health: healthy
   phase: Operacao local com agendamento Windows
   priority: 2
-  updated_at: 2026-10-27T06:41:54-03:00
+  updated_at: 2026-10-27T07:17:06-03:00
   last_session_at: 2026-10-27T06:12:20-03:00
   confidence: confirmed
 focus:
@@ -292,7 +292,7 @@ next_actions:
     note: Periodo de matricula era 09 a 15/10/2026 (e-mail da Univesp); a data de 18/10 estava errada. Josemar decidiu nao pedir excecao ao SAE em 19/10.
   - id: act-023
     title: No PC do trabalho, rodar automacao\configurar_local.ps1 e, se aparecer falha vermelha de Acesso negado, rodar como administrador o comando que o script mostra
-    status: pending
+    status: done_tested
     impact: null
     urgency: null
     effort: xs
@@ -300,7 +300,7 @@ next_actions:
     unblocks: []
     blocked_by: []
     created_at: 2026-10-17T19:05:05-03:00
-    done_at: null
+    done_at: 2026-10-27T07:17:06-03:00
     note: "Defeito achado no PC de casa em 17/10/2026: tarefas gravadas como administrador"
   - id: act-024
     title: "COM170 Q7: publicar ficha e defesa no Ponto de encontro do G4 ate quarta 21/10 (pedido do facilitador) e enviar o portfolio M6 ate 24/10"
