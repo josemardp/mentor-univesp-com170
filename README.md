@@ -141,7 +141,7 @@ No Git Bash ou Linux:
 for t in testes/test_*.py; do python "$t" >/dev/null 2>&1 && echo "OK $t" || echo "FALHOU $t"; done
 ```
 
-Última execução completa: **14 de 14 suítes passaram**, em 25/10/2026, Python 3.14, Windows 11.
+Última execução completa: **14 de 14 suítes passaram**, em 27/10/2026, Python 3.14, Windows 11.
 
 ### Reproduzir a imagem da demonstração
 O painel mostrado acima sai da fixture do *golden test*, sem tocar em nenhum sistema:

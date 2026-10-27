@@ -223,6 +223,14 @@ if ($Agendada -and $Modo -ne 'vigia') {
     if ($Modo -eq 'revisao') {
         $desde = $agora.Date.AddDays(-(([int]$agora.DayOfWeek + 6) % 7))   # segunda desta semana
         $cedo = ($agora.DayOfWeek -eq 'Monday') -and ($agora.TimeOfDay -lt [TimeSpan]$horario)
+        # Questionario por fazer ou esperando a resposta oficial do AVA: a
+        # revisao_semanal.py deixa esta marca e a revisao passa a diaria, para o
+        # gabarito da S4 (AVA fecha por volta de 04/11) nao chegar so em 09/11,
+        # primeiro dia de prova (26/10/2026).
+        if (Test-Path (MarcaArq 'revisao_diaria')) {
+            $desde = $agora.Date
+            $cedo = $agora.TimeOfDay -lt [TimeSpan]$horario
+        }
         $espera = 3
     } else {
         $desde = $agora.Date

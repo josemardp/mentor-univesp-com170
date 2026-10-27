@@ -56,6 +56,23 @@ saíram remontadas (REVISAO.md, ficha e apostila: resumo de 4 e 5 páginas, trei
 de 12 e 14), com resposta só do gabarito do AVA. A questão 2 anulada de MMB002 S2
 veio sem as afirmativas no próprio AVA (defeito da questão, não da coleta).
 
+**Segunda revisão (27/10/2026)**, depois de remontar as 8 semanas:
+- conferida a letra de cada questão nas 8 `REVISAO.md` contra o gabarito do AVA:
+  todas batem (a questão 2 anulada de MMB002 S2 fica sem letra, como deve);
+- **revisão diária enquanto houver questionário esperando**: a guarda era
+  semanal, e o gabarito oficial da S4 (o AVA fecha por volta de 04/11) só
+  chegaria em 09/11, primeiro dia de prova. Agora a `revisao_semanal.py` grava
+  `tmp/log/revisao_diaria.txt` enquanto há questionário por fazer ou sem
+  resposta oficial, e o `rodar_diario.ps1` passa a rodar a revisão todo dia; a
+  marca some sozinha e a rodada volta a semanal;
+- apostila: o comentário do AVA sem o "Sua resposta está correta" (era da
+  tentativa dele, não de quem estuda); "Leia ou assista por conta própria" com
+  o motivo de cada item e o link "abrir"; questionário por fazer não aparece
+  mais como "fonte não conferida";
+- `requirements.txt` sem versão travada: `yt-dlp` precisa acompanhar o YouTube,
+  e o `playwright==1.60.0` contradizia o 1.64.1 instalado;
+- PDF ligado por link relativo em página externa passa a ser baixado.
+
 Achados que **não** foram mexidos:
 - o Agendador mostra resultado 0 mesmo quando a rodada falha: o `conhost.exe
   --headless` não repassa o código do PowerShell. O log e o aviso na tela valem;

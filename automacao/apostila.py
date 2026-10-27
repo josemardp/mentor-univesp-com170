@@ -129,9 +129,13 @@ def ler_ava(pasta):
 
             def letras(lista):
                 return [LETRAS_AVA[alts.index(_texto(a))] for a in _lista(lista) if _texto(a) in alts]
+            # "Sua resposta está correta." fala da tentativa dele, não de quem
+            # estuda: num caderno de treino parece dizer que a sua está certa.
+            comentario = re.sub(r"^\s*Sua resposta está (?:parcialmente )?(?:correta|incorreta)\.?\s*", "",
+                                _texto(q.get("feedback")), flags=re.I)
             saida.append({"enunciado": str(q["enunciado"]).strip(), "alternativas": alts,
                           "certas": letras(q.get("resposta")), "como": q.get("como"),
-                          "comentario": _texto(q.get("feedback")), "eliminadas": letras(q.get("eliminadas"))})
+                          "comentario": comentario, "eliminadas": letras(q.get("eliminadas"))})
     return saida
 
 
@@ -197,10 +201,22 @@ def coletar(bimestre):
                 avisos = []
                 for fonte in manifest.get("fontes", []):
                     situacao = fonte.get("status")
-                    if situacao in ("nao_lido", "sem_legenda"):
-                        avisos.append(fonte.get("titulo") or "Fonte sem título")
-                    elif situacao in ("falhou", "pendente"):
-                        avisos.append(f"Fonte ainda não conferida: {fonte.get('titulo') or 'sem título'}")
+                    titulo = fonte.get("titulo") or "Fonte sem título"
+                    erro = fonte.get("erro") or ""
+                    if situacao in ("nao_lido", "sem_legenda", "pendente") and fonte.get("url", "").startswith("http"):
+                        titulo += f" {fonte['url']}"  # vira o link "abrir" na apostila
+                    # 26/10/2026: o motivo diz o que fazer com o item, e o
+                    # questionário por fazer não é "fonte não conferida".
+                    if situacao == "sem_legenda" or (fonte.get("tipo") == "videoaula" and situacao == "nao_lido"):
+                        avisos.append(f"{titulo} (assistir: sem legenda para ler)")
+                    elif situacao == "nao_lido" and "interativa" in erro:
+                        avisos.append(f"{titulo} (atividade interativa: fazer no navegador)")
+                    elif situacao == "nao_lido":
+                        avisos.append(f"{titulo} (ler no AVA)")
+                    elif situacao == "pendente":
+                        avisos.append(f"Questionário ainda por fazer: {titulo}")
+                    elif situacao == "falhou":
+                        avisos.append(f"Fonte ainda não conferida: {titulo}")
                     elif situacao in ("revisao_fechada", "sem_tentativa"):
                         avisos.append(f"Questionário sem revisão disponível: {fonte.get('titulo') or 'sem título'}")
                 if "fontes" in manifest:
@@ -270,7 +286,9 @@ def secao_semana(d, s, modo="tela"):
     if s["ideia_central"]:
         h.append(f'<p class="ideia">{md(s["ideia_central"])}</p>')
     if s["ler_por_conta"]:
-        itens = "".join(f"<li>{md(x)}</li>" for x in s["ler_por_conta"])
+        # O endereço vira "abrir": a atividade ou o vídeo sem sair da apostila.
+        itens = "".join("<li>" + re.sub(r"\s*(https?://[^\s<]+)", r' <a href="\1" target="_blank" rel="noopener">abrir</a>', md(x))
+                        + "</li>" for x in s["ler_por_conta"])
         h.append(f'<aside class="ler"><p class="rot">Leia ou assista por conta própria</p><ul>{itens}</ul></aside>')
     if s["conceitos"]:
         cards = "".join(f'<article class="card"><h5>{md(c["termo"])}</h5><p>{md(c["definicao"])}</p></article>' for c in s["conceitos"])
@@ -404,7 +422,7 @@ tr:last-child>*{border-bottom:0}
 .peg .sim{background:var(--ok-bg)}.peg .sim span{background:var(--ok);color:#fff}
 .ler{margin:0 0 6px;padding:12px 14px;border-radius:12px;background:var(--aviso-bg);border:1px solid color-mix(in srgb,var(--aviso) 35%,transparent)}
 .ler .rot{margin:0 0 4px;font-weight:700;color:var(--aviso);font-size:13px;letter-spacing:.05em;text-transform:uppercase}
-.ler ul{margin:0;padding-left:18px;font-size:14.5px}
+.ler ul{margin:0;padding-left:18px;font-size:14.5px}.ler a{color:var(--aviso);font-weight:700}
 .questao{margin:0 0 16px;padding:14px;border:1px solid var(--linha);border-radius:14px;background:var(--sup2)}
 .enun{display:flex;gap:10px}.enun p{margin:0 0 8px;font-size:15px}
 .qn{flex:none;display:grid;place-items:center;width:26px;height:26px;border-radius:8px;background:var(--acc);color:#fff;font-weight:800;font-size:13px}

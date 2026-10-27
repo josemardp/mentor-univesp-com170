@@ -441,6 +441,30 @@ with tempfile.TemporaryDirectory() as tmp:
           "questão do AVA clicável na tela, com a origem do gabarito")
     checa("Questões do AVA" not in A.secao_semana(d, s, "resumo"), "resumo de uma página não leva as questões")
     checa("S1 AVA 1 · B" in A.gabarito(d), "gabarito do PDF de treino inclui as questões do AVA")
+    (pasta / "gabarito.json").write_text(json.dumps([{"titulo": "S1", "questoes": [
+        {"enunciado": "Q", "alternativas": ["2", "5"], "resposta": ["5"], "como": "oficial",
+         "feedback": "Sua resposta está correta. A alternativa 5 está correta.", "eliminadas": []}]}]), encoding="utf-8")
+    checa(A.ler_ava(pasta)[0]["comentario"] == "A alternativa 5 está correta.",
+          "comentário do AVA sem o 'Sua resposta está correta' da tentativa dele")
+
+print("\n== revisão diária enquanto o gabarito não chega ==")
+m_pend = {"disciplina": "INT100", "semana": 4, "inicio": "2026-10-19",
+          "fontes": [{"tipo": "questionário", "status": "pendente"}]}
+m_sem_of = {"disciplina": "MMB002", "semana": 4, "inicio": "2026-10-19",
+            "fontes": [{"tipo": "questionário", "status": "lido", "formato": R.QUIZ_V, "gabarito_oficial": False}]}
+m_ok = {"disciplina": "MMB002", "semana": 3, "inicio": "2026-10-12",
+        "fontes": [{"tipo": "questionário", "status": "lido", "formato": R.QUIZ_V, "gabarito_oficial": True}]}
+checa(R.esperando_questionario([m_pend, m_sem_of, m_ok], date(2026, 11, 2)) == ["INT100 S4", "MMB002 S4"],
+      "questionário por fazer e o que ainda não tem resposta oficial ligam a rodada diária")
+checa(R.esperando_questionario([m_sem_of], date(2026, 12, 30)) == [],
+      "depois do prazo da resposta oficial a rodada volta a semanal")
+with tempfile.TemporaryDirectory() as tmp, patch.object(R, "DIARIA", Path(tmp) / "revisao_diaria.txt"):
+    R.marcar_diaria([m_pend], date(2026, 11, 2))
+    checa(R.DIARIA.exists(), "marca da rodada diária criada")
+    R.marcar_diaria([m_ok], date(2026, 11, 2))
+    checa(not R.DIARIA.exists(), "marca some quando nada mais espera")
+checa("MarcaArq 'revisao_diaria'" in rotina and R.DIARIA.name == "revisao_diaria.txt",
+      "rodar_diario.ps1 lê a mesma marca que a revisão grava")
 
 print("\n" + "=" * 66)
 if falhas:

@@ -1,3 +1,5 @@
-playwright==1.60.0
-PyMuPDF==2.0
-yt-dlp==2026.10.21
+playwright>=1.60.0
+PyMuPDF>=2.0
+# yt-dlp sem teto: o YouTube muda e versão antiga para de baixar legenda.
+# Atualizar com: python -m pip install -U yt-dlp
+yt-dlp>=2026.10.21

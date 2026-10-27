@@ -30,6 +30,7 @@ gabarito. O repositório é público.
 """
 import argparse
 import hashlib
+import html
 import json
 import platform
 import re
@@ -39,7 +40,7 @@ import tempfile
 from datetime import date, datetime, timedelta
 from html.parser import HTMLParser
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import urljoin
 
 RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -50,6 +51,8 @@ PRIVADO = RAIZ / "privado"
 DATA = RAIZ / "docs" / "data.json"
 LOG_DIR = RAIZ / "tmp" / "log"
 RESUMO = LOG_DIR / "revisao_resumo.txt"
+# Marca lida pelo rodar_diario.ps1: com ela, a revisão roda todo dia.
+DIARIA = LOG_DIR / "revisao_diaria.txt"
 PROMPT = Path(__file__).resolve().parent / "revisao_semanal_prompt.md"
 PROMPT_FICHA = Path(__file__).resolve().parent / "apostila_prompt.md"
 
@@ -396,6 +399,39 @@ def retrato_em_dia(dados, hoje):
         return carimbo.astimezone().date() == hoje
     except (KeyError, TypeError, ValueError):
         return False
+
+
+def esperando_questionario(manifests, hoje):
+    """Semanas com questionário por fazer ou ainda sem a resposta oficial."""
+    saida = []
+    for m in manifests:
+        try:
+            inicio = date.fromisoformat(m.get("inicio") or "")
+        except ValueError:
+            continue
+        for f in m.get("fontes", []):
+            if f.get("tipo") == "questionário" and (
+                    f.get("status") == "pendente"
+                    or (f.get("status") == "lido" and precisa_reler(f, inicio, hoje))):
+                saida.append(f"{m.get('disciplina')} S{m.get('semana')}")
+    return sorted(set(saida))
+
+
+def marcar_diaria(manifests, hoje):
+    """Liga a rodada diária enquanto há questionário esperando.
+
+    26/10/2026: a guarda do rodar_diario.ps1 roda a revisão uma vez por
+    semana. O questionário da S4 fecha por volta de 04/11 e só então o AVA
+    mostra a resposta oficial; a rodada seguinte seria em 09/11, primeiro dia
+    de prova. Com esta marca a guarda passa a diária, e volta a semanal sozinha
+    quando nada mais espera."""
+    espera = esperando_questionario(manifests, hoje)
+    if espera:
+        DIARIA.parent.mkdir(parents=True, exist_ok=True)
+        DIARIA.write_text(", ".join(espera) + "\n", encoding="utf-8")
+    else:
+        DIARIA.unlink(missing_ok=True)
+    return espera
 
 
 # --------------------------------------------------------------- gabarito
@@ -769,6 +805,7 @@ class Coletor:
             # resumo das estratégias", no Google Drive). Página curta com PDF
             # vale pelo PDF.
             for href in re.findall(r'href="([^"]+)"', bruto):
+                href = urljoin(url, html.unescape(href))  # link relativo ("assets/resumo.pdf")
                 drive = re.search(r"drive\.google\.com/file/d/([\w-]+)", href)
                 alvo = f"https://drive.google.com/uc?export=download&id={drive.group(1)}" if drive else (
                     href if href.lower().split("?")[0].endswith(".pdf") else None)
@@ -1174,7 +1211,7 @@ def main():
         print("docs/data.json ainda não foi atualizado hoje; aguardo a rodada diária")
         return AGUARDA_RETRATO
 
-    alvos = []
+    alvos, todos = [], {}
     for curso in dados.get("courses") or []:
         if args.disciplina and curso.get("code") != args.disciplina.upper():
             continue
@@ -1187,6 +1224,7 @@ def main():
             pasta = PRIVADO / "estudo" / bim / curso["code"].lower() / f"semana-{n:02d}"
             arq = pasta / "manifest.json"
             manifest = json.loads(arq.read_text(encoding="utf-8")) if arq.exists() else {}
+            todos[pasta] = manifest
             if semana_em_dia(manifest, pasta, secao, hoje) and not args.semana:
                 continue
             alvos.append((curso, n, inicio, secao, pasta, manifest))
@@ -1196,6 +1234,8 @@ def main():
         print("nenhuma semana nova ou pendente para revisar")
         RESUMO.parent.mkdir(parents=True, exist_ok=True)
         RESUMO.write_text("", encoding="utf-8")
+        if not manual:
+            marcar_diaria(todos.values(), hoje)
         return 0
 
     from playwright.sync_api import sync_playwright
@@ -1281,6 +1321,9 @@ def main():
     RESUMO.parent.mkdir(parents=True, exist_ok=True)
     RESUMO.write_text("\n".join(linhas), encoding="utf-8")
     print("\n".join(linhas))
+    if not manual:
+        todos.update({pasta: manifest for _, _, _, pasta, manifest in resumo})
+        marcar_diaria(todos.values(), hoje)
     # 23/09/2026: a guarda semanal só repete em 3 h se o processo falhar.
     # Fonte com falha não pode marcar a revisão como feita por sete dias.
     return 1 if any("NÃO montada" in l or "falha(s)" in l for l in linhas) else 0

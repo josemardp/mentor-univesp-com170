@@ -104,9 +104,12 @@ with tempfile.TemporaryDirectory() as tmp:
     checa("Fonte ainda não conferida: PDF sintético" in discs[1]["semanas"][0]["ler_por_conta"],
           "lacuna da cobertura aparece mesmo se a IA omitir na ficha")
     checa(discs[1]["semanas"][0]["ler_por_conta"] ==
-          ["Leitor sintético", "Fonte ainda não conferida: PDF sintético"],
-          "manifesto substitui lista da IA e evita aviso duplicado")
+          ["Leitor sintético (ler no AVA)", "Fonte ainda não conferida: PDF sintético"],
+          "manifesto substitui lista da IA, evita aviso duplicado e diz o que fazer")
 
+    s_link = {**discs[1]["semanas"][0], "ler_por_conta": ["GeoGebra (atividade interativa) https://www.geogebra.org/m/x?a=1&b=2"]}
+    checa('<a href="https://www.geogebra.org/m/x?a=1&amp;b=2"' in A.secao_semana(discs[1], s_link),
+          "item para fazer por conta própria leva link de abrir")
     tela = A.montar_html("2026-4bim", discs)
     checa('id="soc100-s04"' in tela and 'id="let110-s01"' in tela, "cada semana tem âncora para o sumário")
     checa("Apostila de prova · 4º bimestre 2026" in tela, "título do bimestre")
