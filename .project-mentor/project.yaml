@@ -17,14 +17,14 @@ status:
   health: healthy
   phase: Operacao local com agendamento Windows
   priority: 2
-  updated_at: 2026-10-27T07:17:06-03:00
-  last_session_at: 2026-10-27T06:12:20-03:00
+  updated_at: 2026-10-27T18:08:53-03:00
+  last_session_at: 2026-10-27T18:08:52-03:00
   confidence: confirmed
 focus:
   objective: Guia diario, alertas e acompanhamento de prazos do AVA Univesp
-  current: Estudar pela apostila e pelos PDFs de treino; fazer os questionários da Semana 4 até 28/10.
-  last_completed: requirements.txt sem versão travada; PDF por link relativo em página externa
-  recommended_next_action: act-032
+  current: Reconferir o Sistema de Provas nos próximos dias e seguir estudando pela apostila do 4º bimestre
+  last_completed: Leitura também da aba "Calendário de atividades", porque a tela abre em "Atividades disponíveis", que só mostra o que está liberado agora
+  recommended_next_action: act-031
 next_actions:
   - id: act-001
     title: Verificar integracao de envio de e-mail opcional via SMTP
@@ -229,7 +229,7 @@ next_actions:
     blocked_by: []
     created_at: 2026-10-02T12:09:50-03:00
     done_at: null
-    note: null
+    note: "Resultado conferido no site oficial em 27/10: 3 alunos da Univesp no Top 10. Certificado de 20h sera enviado posteriormente por e-mail pelo Eldorado (ainda nao chegou no Gmail)."
   - id: act-018
     title: Acompanhar selecao da Capacitacao e Residencia em Agentes de IA (inscricao feita em 02/10/2026) e conferir no edital a regra de vinculo empregaticio da residencia
     status: pending
@@ -419,8 +419,6 @@ blockers:
     resolved_at: 2026-10-20T05:34:55-03:00
 decisions_recent:
   - date: 2026-10-21
-    text: A observacao interna sobre as fichas faltantes fica no fim do .docx e deve ser removida antes do envio
-  - date: 2026-10-21
     text: Nada foi publicado no grupo nem enviado no AVA nesta sessao
   - date: 2026-10-23
     text: O trabalho foi submetido com 4 integrantes ativos após Wendel não apresentar a ficha a tempo
@@ -438,6 +436,8 @@ decisions_recent:
     text: Código do leitor de livros fora do repositório público.
   - date: 2026-10-27
     text: A revisão passa a diária só enquanto há questionário esperando; no resto, semanal.
+  - date: 2026-10-27
+    text: Clicar na aba do calendário é só navegação, não altera estado no sistema; por isso entrou na leitura automática
 milestones: []
 review:
   stale_after_days: null
