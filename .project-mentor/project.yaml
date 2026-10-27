@@ -17,7 +17,7 @@ status:
   health: healthy
   phase: Operacao local com agendamento Windows
   priority: 2
-  updated_at: 2026-10-27T06:12:47-03:00
+  updated_at: 2026-10-27T06:22:38-03:00
   last_session_at: 2026-10-27T06:12:20-03:00
   confidence: confirmed
 focus:
@@ -268,7 +268,7 @@ next_actions:
     note: null
   - id: act-021
     title: Fazer o portfolio Q7 M6 e o mapa do grupo Q7 M7 do COM170 (envio de 19 a 24/10)
-    status: pending
+    status: done_tested
     impact: null
     urgency: null
     effort: null
@@ -276,7 +276,7 @@ next_actions:
     unblocks: []
     blocked_by: []
     created_at: 2026-10-15T11:16:21-03:00
-    done_at: null
+    done_at: 2026-10-27T06:22:38-03:00
     note: null
   - id: act-022
     title: Efetivar matricula da Disciplina Paulista de Acessibilidade e Inclusao (DPA005) com codigo de inscricao 689389 no portal a partir de 18/10
