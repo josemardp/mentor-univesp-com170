@@ -6,6 +6,12 @@
 > Agendado no Windows (15/09/2026): `automacao\rodar_diario.ps1`, tarefas `Univesp - guia diario` 07:30, `Univesp - guia alerta` 13:00, `Univesp - vigia` 20:00. Log em `tmp/log/rodar_diario.log`.
 > Histórico completo de sessões, auditorias e etapas concluídas: [`docs/HISTORICO.md`](docs/HISTORICO.md)
 
+## Semana 4 de INT100 e MMB002 concluída (27/10/2026)
+
+- Questionários S4 feitos com as respostas propostas e aprovadas por ele: **INT100 10,00/10** e **MMB002 10,00/10** (tentativa 1 de 3, finalizadas às 06:36; review.php attempt 4658396 e 4658397).
+- Fóruns temáticos S4 publicados com o texto aprovado: MMB002 às 06:38 e INT100 às 06:40 (um post dele em cada, conferido).
+- Propostas e capturas em `privado/estudo/2026-4bim/s4-tentativa/`. Lição: o editor TinyMCE do fórum precisa estar iniciado antes de colar o texto; no primeiro envio de INT100 a mensagem foi vazia e o AVA recusou (nada publicado).
+
 ## Auditoria do material de prova: gabarito, textos-base e legendas (26/10/2026)
 
 Pedido dele: "pegue todas as falhas que o Codex não viu, preciso de material top".

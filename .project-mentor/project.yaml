@@ -17,7 +17,7 @@ status:
   health: healthy
   phase: Operacao local com agendamento Windows
   priority: 2
-  updated_at: 2026-10-27T06:22:38-03:00
+  updated_at: 2026-10-27T06:41:54-03:00
   last_session_at: 2026-10-27T06:12:20-03:00
   confidence: confirmed
 focus:
@@ -328,7 +328,7 @@ next_actions:
     note: Mapa rascunhado em 21/10 com 3 de 5 cartas; falta Aline e Wendel, a quinzena do conselho MEU do Fabricio, o envio pelo representante e as revisoes de 25 a 27/10
   - id: act-026
     title: "Semana 4 de MMB002 e INT100: questionario e forum tematico ate 28/10"
-    status: pending
+    status: done_tested
     impact: null
     urgency: null
     effort: null
@@ -336,7 +336,7 @@ next_actions:
     unblocks: []
     blocked_by: []
     created_at: 2026-10-19T22:14:46-03:00
-    done_at: null
+    done_at: 2026-10-27T06:41:52-03:00
     note: null
   - id: act-027
     title: Publicar no Ponto de encontro a mensagem pedindo as fichas de Aline e Wendel e confirmando o representante; depois atualizar o mapa e enviar ate sexta 23/10
@@ -387,12 +387,12 @@ next_actions:
     done_at: 2026-10-27T01:31:17-03:00
     note: null
   - id: act-031
-    title: Estudar pela apostila e pelos PDFs de treino do 4º bimestre; fazer os questionários da Semana 4 até 28/10.
+    title: Estudar pela apostila e pelos PDFs de treino do 4o bimestre (provas 09 a 19/11)
     status: pending
     impact: null
     urgency: null
     effort: null
-    due_date: 2026-10-28
+    due_date: 2026-11-09
     unblocks: []
     blocked_by: []
     created_at: 2026-10-27T01:31:18-03:00
