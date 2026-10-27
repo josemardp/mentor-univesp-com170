@@ -189,6 +189,16 @@ def _onde_parou(page):
     return url.split("?")[0].replace(PORTAL, "") or "(sem url)"
 
 
+def _no_hub(page):
+    """O portão unificado já está mostrando os atalhos, sem pedir e-mail."""
+    try:
+        return "acesso.univesp.br" in (page.url or "") and bool(
+            page.get_by_text("Portal do Aluno", exact=False).count()
+        )
+    except PlaywrightError:
+        return False
+
+
 def _logar(page):
     """Entra no portal. Devolve ``(ok, motivo)``.
 
@@ -225,16 +235,20 @@ def _logar(page):
         page.goto(ACESSO_URL, wait_until="domcontentloaded", timeout=45000)
         page.wait_for_timeout(800)
         campo = page.locator(CAMPO_USUARIO).first
-        if not (campo.count() and campo.is_visible()):
+        if campo.count() and campo.is_visible():
+            campo.fill(email)
+            botao = page.get_by_role("button", name="Acessar").first
+            if botao.count():
+                botao.click()
+            else:
+                campo.press("Enter")
+            page.wait_for_timeout(2500)
+            page.wait_for_load_state("domcontentloaded", timeout=30000)
+        elif not _no_hub(page):
             return False, "a tela de login do portal mudou de formato"
-        campo.fill(email)
-        botao = page.get_by_role("button", name="Acessar").first
-        if botao.count():
-            botao.click()
-        else:
-            campo.press("Enter")
-        page.wait_for_timeout(2500)
-        page.wait_for_load_state("domcontentloaded", timeout=30000)
+        # Sem campo e com o HUB na tela: o portão já reconheceu a sessão e
+        # pulou a pergunta do e-mail (visto ao vivo em 27/10/2026, Chrome do
+        # ava_vivo com a sessão SAML quente). Segue direto para o atalho.
 
         # Sessão fria: o portão redireciona pro SSO e pede a senha ali.
         campo_senha = page.locator('input[type="password"]').first
@@ -505,6 +519,51 @@ def _abrir_sistema_de_provas(page):
     return aba, ""
 
 
+def _ler_corpo(aba, tentativas=6):
+    """Texto da aba, esperando a tela do calendário (ou a do anti-robô).
+
+    A aba nasce numa página que se posta sozinha para ``prova.univesp.br``.
+    Ler no meio dessa troca derruba o ``inner_text`` ("execution context was
+    destroyed") e a leitura virava "abriu em branco", como na rodada das 13h
+    de 27/10/2026, enquanto à mão, minutos depois, a tela abria normal.
+    """
+    texto = ""
+    for _ in range(tentativas):
+        try:
+            texto = aba.locator("body").inner_text()
+        except PlaywrightError:
+            texto = ""
+        if texto and (RE_TELA_DE_PROVAS.search(texto) or RE_ANTIBOT.search(texto)):
+            return texto
+        try:
+            aba.wait_for_timeout(1500)
+        except PlaywrightError:
+            break
+    return texto
+
+
+def _ler_aba_calendario(aba):
+    """Texto da aba "Calendário de atividades", além da que abre sozinha.
+
+    Desde 27/10/2026 o runner abre em "Atividades disponíveis", que só lista
+    o que está liberado agora. Prova marcada para daqui a duas semanas fica
+    na outra aba, e ler só a primeira diria "nenhuma prova" com a data já
+    publicada. Clicar na aba é navegação, não altera nada no sistema.
+    """
+    try:
+        aba_cal = aba.get_by_text(
+            re.compile(r"CALEND[ÁA]RIO DE ATIVIDADES", re.IGNORECASE)
+        ).first
+        if not aba_cal.count():
+            return ""
+        aba_cal.click()
+        aba.wait_for_load_state("domcontentloaded", timeout=30000)
+        aba.wait_for_timeout(1500)
+    except PlaywrightError:
+        return ""
+    return _ler_corpo(aba)
+
+
 def ler_provas(page):
     """As provas *dele*, com dia e hora, do Calendário de Atividades.
 
@@ -518,8 +577,10 @@ def ler_provas(page):
         return None, problema
     onde = ""
     try:
-        texto = aba.locator("body").inner_text()
+        texto = _ler_corpo(aba)
         onde = (aba.url or "").split("?")[0]
+        if RE_TELA_DE_PROVAS.search(texto) and not RE_ANTIBOT.search(texto):
+            texto += "\n" + _ler_aba_calendario(aba)
     except PlaywrightError:
         texto = ""
     finally:
@@ -555,12 +616,17 @@ def ler_provas(page):
 
     ano_corrente = datetime.now(BR_TZ).year
     provas = []
+    vistas = set()
     for casou in RE_ATIVIDADE.finditer(texto):
         modalidade, titulo, dia_ini, hora_ini, dia_fim, hora_fim = casou.groups()
         titulo = titulo.strip()
         cabecalho = RE_TITULO_PROVA.match(titulo)
         ano = int(cabecalho.group(1)) if cabecalho else ano_corrente
         codigo = cabecalho.group(2) if cabecalho else ""
+        # As duas abas podem listar a mesma prova quando ela já está liberada.
+        if (titulo, dia_ini, hora_ini) in vistas:
+            continue
+        vistas.add((titulo, dia_ini, hora_ini))
         provas.append(
             {
                 "codigo": codigo,
