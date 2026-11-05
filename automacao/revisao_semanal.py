@@ -34,6 +34,7 @@ import html
 import json
 import platform
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -1144,7 +1145,7 @@ def _chamar_claude_uma_vez(pasta, instrucoes, nome_alvo):
     # a ler e escrever arquivo, e a pasta da semana é a única liberada.
     try:
         proc = subprocess.run(
-            ["claude", "-p",
+            [shutil.which("claude") or "claude", "-p",
              "--allowedTools", "Read,Write,Edit,Glob,Grep",
              "--permission-mode", "acceptEdits",
              "--add-dir", str(pasta)],
