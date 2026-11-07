@@ -1,5 +1,24 @@
 # STATUS - Guia diário do AVA (mentor-univesp)
 
+## Conflitos do 4º bimestre entre os dois PCs (07/11/2026)
+
+- **Decisão:** as versões do PC do trabalho (LAPTOP-3NSQG27T, 06/11) ficam como principais nos 56 arquivos em conflito de `privado/estudo/2026-4bim`. Elas têm Flick e Cervo recuperados em 06/11 (INT100 S7), a lista de autores da MMB002 S2 e coletas mais completas nas COBERTURA e manifest. A auditoria de casa de 05/11 não trouxe resposta nova: o gabarito oficial da INT100 S2 é idêntico nas duas versões (BAADCCABACDA) e a data invertida 10/12/2026 já não existe nos principais. A troca para o formato canônico de asserção e razão na INT100 S7 é só cosmética e não foi levada.
+- **Aproveitado da versão de casa:** a questão das pistas da MMB002 S5, corrigida para 4.180 e 6.360 passos (w = 30 passos = 24 m, conta refeita), entrou no `TREINO_COMPLEMENTAR_CONFLITOS.md`. O alerta da `REVISAO.md` da S5 foi atualizado.
+- No PC do trabalho, as 56 cópias saíram do projeto e estão em `%LOCALAPPDATA%\sincronia-projetos\conflitos-resolvidos\20261107-mentor-univesp-4bim`. Nada foi apagado.
+- **Falta no PC de casa (LAPTOP-173MUN6G):** a sincronia mantém em cada PC a própria versão. Para os dois ficarem iguais, rode primeiro o atualizador normal, para receber as correções, e depois o comando abaixo no PowerShell. Para cada arquivo, ele guarda a versão de casa no arquivo local, põe a cópia mais recente vinda do trabalho no lugar e tira as cópias do projeto. Por fim, rode o atualizador mais uma vez.
+
+```powershell
+$base='C:\projetos\mentor-univesp\privado\estudo\2026-4bim'; $arq=Join-Path $env:LOCALAPPDATA 'sincronia-projetos\conflitos-resolvidos\20261107-mentor-univesp-4bim'; $re='\.conflito-LAPTOP-[A-Z0-9]+-\d{8}-\d{6}'
+Get-ChildItem $base -Recurse -File | Where-Object Name -match $re | Group-Object { $_.FullName -replace $re,'' } | ForEach-Object {
+  $princ=$_.Name; $rel=$princ.Substring($base.Length+1)
+  $trab=$_.Group | Where-Object Name -like '*.conflito-LAPTOP-3NSQG27T-*' | Sort-Object Name -Descending | Select-Object -First 1
+  if ($trab -and (Test-Path -LiteralPath $princ)) { $d=Join-Path $arq ($rel+'.versao-casa'); New-Item -ItemType Directory -Force (Split-Path $d) | Out-Null; Copy-Item -LiteralPath $princ $d -Force; Copy-Item -LiteralPath $trab.FullName $princ -Force }
+  foreach ($c in $_.Group) { $d=Join-Path $arq $c.FullName.Substring($base.Length+1); New-Item -ItemType Directory -Force (Split-Path $d) | Out-Null; Move-Item -LiteralPath $c.FullName $d -Force } }
+"restantes: " + (Get-ChildItem $base -Recurse -File | Where-Object Name -match $re).Count
+```
+
+- **Causa:** as duas máquinas editaram as revisões entre uma sincronia e outra: Antigravity em casa em 05/11 e este PC em 06/11. A revisão automática é do PC de casa (`MAQUINA_DA_REVISAO.txt`). Para evitar novo conflito, edite o material do 4º bimestre em um PC só até a sincronia rodar nos dois.
+
 ## Revisão para as provas de novembro (06/11/2026)
 
 - Nova retomada: as páginas 109-119 de Cervo, 104-108 do Manual compacto e 203-208 do Manual compacto foram recuperadas e examinadas; as revisões foram atualizadas. O texto de Cervo p. 108-125 está disponível, mas as figuras ainda não foram conferidas visualmente. A extração de matemática perdeu sinais e exige conferência no original. Fundamentos de Matemática S2 p. 21-24 permanece pendente.
