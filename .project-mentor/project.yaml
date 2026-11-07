@@ -17,7 +17,7 @@ status:
   health: healthy
   phase: Operacao local com agendamento Windows
   priority: 2
-  updated_at: 2026-11-05T18:54:59-03:00
+  updated_at: 2026-11-06T20:40:21-03:00
   last_session_at: 2026-11-05T18:54:59-03:00
   confidence: confirmed
 focus:
@@ -420,6 +420,30 @@ next_actions:
     unblocks: []
     blocked_by: []
     created_at: 2026-11-05T18:54:59-03:00
+    done_at: null
+    note: null
+  - id: act-034
+    title: Após fechamento das atividades, atualizar gabaritos oficiais S5 a S7 e reconstruir materiais de prova
+    status: pending
+    impact: null
+    urgency: null
+    effort: null
+    due_date: null
+    unblocks: []
+    blocked_by: []
+    created_at: 2026-11-06T20:40:17-03:00
+    done_at: null
+    note: null
+  - id: act-035
+    title: Recuperar fontes pendentes e reconciliar revisões em conflito do 4º bimestre
+    status: pending
+    impact: null
+    urgency: null
+    effort: null
+    due_date: null
+    unblocks: []
+    blocked_by: []
+    created_at: 2026-11-06T20:40:21-03:00
     done_at: null
     note: null
 blockers:

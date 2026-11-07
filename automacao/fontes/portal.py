@@ -493,7 +493,20 @@ def _abrir_sistema_de_provas(page):
     contexto = page.context
     page.goto(TELA_INICIAL, wait_until="domcontentloaded", timeout=45000)
     page.wait_for_timeout(1000)
-    link = page.get_by_text("Sistema de Provas", exact=True).first
+    # Fecha modal de aviso caso esteja cobrindo a tela
+    try:
+        btn_fechar = page.locator(
+            "#panelMensagem .ui-dialog-titlebar-close, #panelMensagem button:has-text('Fechar'), #panelMensagem .ui-icon-closethick"
+        ).first
+        if btn_fechar.count() and btn_fechar.is_visible():
+            btn_fechar.click()
+            page.wait_for_timeout(800)
+    except PlaywrightError:
+        pass
+
+    link = page.locator("[id*='botaoAcessoSistemaProvasMestreGR'], a:has-text('Sistema de Provas')").first
+    if not link.count():
+        link = page.get_by_text("Sistema de Provas", exact=True).first
     if not link.count():
         return None, "não achei o link do Sistema de Provas na tela inicial"
     try:
@@ -506,7 +519,7 @@ def _abrir_sistema_de_provas(page):
     # Ler o corpo aqui sem esperar devolveria esse texto de transição.
     try:
         aba.wait_for_load_state("domcontentloaded", timeout=30000)
-        aba.wait_for_url("**prova.univesp.br/**", timeout=30000)
+        aba.wait_for_url(re.compile(r"prova\.univesp\.br|MestreGR", re.IGNORECASE), timeout=30000)
         aba.wait_for_selector(
             "text=/CALEND[ÁA]RIO DE ATIVIDADES|ATIVIDADES DISPON/i",
             timeout=25000,
