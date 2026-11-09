@@ -1,5 +1,13 @@
 # STATUS - Guia diário do AVA (mentor-univesp)
 
+## Gabarito oficial S5 e fontes externas (09/11/2026, tarde, PC do trabalho)
+
+- **S5 (INT100 e MMB002) com gabarito oficial do AVA:** recoletado com `python automacao/revisao_semanal.py --disciplina X --semana 5 --sem-montar`. As 13 questões conferem com o que o material já tinha: nenhuma letra mudou. O painel (versão 3), as apostilas e os PDFs foram regenerados e agora mostram "gabarito oficial" na S5.
+- **S6 e S7 continuam pendentes** (fecham 10/11 23h59). Repetir o mesmo comando com `--semana 6` e `--semana 7` a partir de 11/11, depois `extrair_questoes.py` e `enriquecer.py` no painel, `apostila.py`, `gerar_material_revisado.py` e republicar o painel. Há um agendamento só desta sessão do Claude Code para 11/11 às 8h07; se a sessão fechar, quem abrir o projeto deve fazer isso.
+- **Conflitos do 4º bimestre:** nenhum arquivo `*conflito*` restante no repositório nem em `privado/` (conferido em 09/11). Reconciliação concluída nos dois PCs (act-036 a act-038).
+- **Links externos:** o link "conforme a ABNT" (INT100 S7) era o MORE/UFSC, gerador de referências ABNT; abriu aceitando o certificado inválido e está só como menu, sem texto de estudo (marcado como lido). As 15 páginas de GeoGebra e Khan Academy foram abertas e o texto delas (título, autor, enunciado) salvo em `fontes/externo-*.txt`; o applet em si não foi executado, então seguem como "NÃO LIDO" na COBERTURA, com o motivo explícito. O conteúdo delas (coeficientes da função quadrática, domínio e imagem, combinatória, Bhaskara, porcentagem e fração) já está nas revisões.
+- **Mini-quizzes COM170 (reconferidos ao vivo em 09/11):** os 7 fechados continuam fechados, sem botão de entrada ou revisão, e não há como ler o conteúdo: Q1 M4 (Quiz Vieses), Q2 M4, Q3 M4, Q4 M4, Q5 M4, Q6 M4 e Q7 M4 (lista confirmada em `fontes-originais/scorm-coleta-08nov.json`: 35 coletados, 7 fechados). O Q2 M3 estava aberto e já tinha sido coletado antes (`scorm-215591.html`, usado no guia e no treino). Em 09/11 ele foi aberto de novo por engano de registro, o que pode ter criado uma tentativa na conta do Josemar, sem resposta enviada.
+
 ## Revisão final do material de prova (08/11/2026, noite, PC do trabalho)
 
 - **Entrada:** `privado/estudo/2026-4bim/GUIA_DE_ESTUDO.html`. PDFs regenerados às 19h53: INT100 resumo 8, treino 23, revisão extensa 126; MMB002 resumo 7, treino 28, extensa 111; COM170 guia 12 e treino 19; treino complementar 14.

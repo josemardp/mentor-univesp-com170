@@ -17,7 +17,7 @@ status:
   health: healthy
   phase: Operacao local com agendamento Windows
   priority: 2
-  updated_at: 2026-11-08T23:59:04-03:00
+  updated_at: 2026-11-09T14:10:01-03:00
   last_session_at: 2026-11-08T23:59:04-03:00
   confidence: confirmed
 focus:
@@ -436,7 +436,7 @@ next_actions:
     note: null
   - id: act-035
     title: Recuperar fontes pendentes e reconciliar revisões em conflito do 4º bimestre
-    status: pending
+    status: done_tested
     impact: null
     urgency: null
     effort: null
@@ -444,7 +444,7 @@ next_actions:
     unblocks: []
     blocked_by: []
     created_at: 2026-11-06T20:40:21-03:00
-    done_at: null
+    done_at: 2026-11-09T14:10:01-03:00
     note: null
   - id: act-036
     title: Reconciliar as 56 cópias de conflito do 4º bimestre no PC do trabalho
