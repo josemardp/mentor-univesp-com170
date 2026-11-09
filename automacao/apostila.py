@@ -325,7 +325,7 @@ def secao_semana(d, s, modo="tela"):
                 resp = "Sem gabarito do AVA ainda." + (f' Erradas com certeza: {", ".join(q["eliminadas"])}.' if q["eliminadas"] else "")
             gab = "" if modo != "tela" else f'<details class="gab"><summary>Ver resposta</summary><p>{resp}</p></details>'
             qs.append(f'<div class="questao ava" data-correta="{",".join(q["certas"])}"><div class="enun"><span class="qn">{i}</span><div>{md_bloco(q["enunciado"])}</div></div><ol class="alts">{alts}</ol>{gab}</div>')
-        h.append(f'<h4 class="mostra">Questões do AVA · mesmo banco da prova</h4>{"".join(qs)}')
+        h.append(f'<h4 class="mostra">Questões anteriores do AVA</h4>{"".join(qs)}')
     if s["treino"]:
         qs = []
         for i, q in enumerate(s["treino"], 1):
@@ -458,7 +458,7 @@ html[data-modo="resumo"] .capa p{font-size:8pt;margin:1mm 0 0}
 html[data-modo="resumo"] .disc-cab{padding:6px 12px;border-radius:8px;margin:0 0 4mm}
 html[data-modo="resumo"] .disc-cab p{font-size:7pt}html[data-modo="resumo"] .disc-cab h2{font-size:13pt;margin:0}
 html[data-modo="resumo"] .semana{border:0;border-top:2px solid var(--acc);border-radius:0;padding:2mm 0 0;margin:0 0 5mm}
-html[data-modo="resumo"] .semana+.semana{break-before:page}
+html[data-modo="resumo"] .semana+.semana{break-before:auto}
 html[data-modo="resumo"] .sem-head{gap:8px;margin:0 0 2mm}
 html[data-modo="resumo"] .sem-num{width:24px;height:24px;border-radius:6px;font-size:9pt}
 html[data-modo="resumo"] .kicker{font-size:6.5pt}html[data-modo="resumo"] .sem-head h3{font-size:11.5pt;margin:0}
@@ -658,9 +658,13 @@ def gerar(bimestre, pdf=True):
             (temporarios / destino.name).replace(destino)
         if pdf:
             atuais = {p.name for p in feitos}
-            for velho in list(base.glob("APOSTILA_*.pdf")) + list(base.glob("TREINO_*.pdf")):
-                if velho.name not in atuais:
-                    velho.unlink(missing_ok=True)
+            # Só remover saídas das disciplinas processadas nesta execução.
+            # Cadernos complementares e disciplinas com gerador próprio coexistem aqui.
+            for d in disciplinas:
+                for prefixo in ("APOSTILA", "TREINO"):
+                    velho = base / f"{prefixo}_{d['cod'].upper()}.pdf"
+                    if velho.name not in atuais:
+                        velho.unlink(missing_ok=True)
         return feitos
 
 
