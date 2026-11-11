@@ -17,7 +17,7 @@ status:
   health: healthy
   phase: Operacao local com agendamento Windows
   priority: 2
-  updated_at: 2026-11-11T18:15:21-03:00
+  updated_at: 2026-11-11T18:20:39-03:00
   last_session_at: 2026-11-09T22:11:21-03:00
   confidence: confirmed
 focus:
@@ -544,7 +544,7 @@ next_actions:
     note: null
   - id: act-044
     title: A partir de 11/11, pedir "gabarito S6 e S7" e seguir o passo a passo do STATUS.md
-    status: done_tested
+    status: done_validated
     impact: null
     urgency: null
     effort: null
@@ -552,7 +552,7 @@ next_actions:
     unblocks: []
     blocked_by: []
     created_at: 2026-11-09T14:28:00-03:00
-    done_at: 2026-11-11T17:45:38-03:00
+    done_at: 2026-11-11T18:20:35-03:00
     note: null
   - id: act-045
     title: Seguir o Dia 2 do plano e, a partir de 11/11, pedir "gabarito S6 e S7" (act-044).
@@ -568,7 +568,7 @@ next_actions:
     note: null
   - id: act-046
     title: Republicar painel/questoes.json no artefato Rota ate a prova (conta do PC do trabalho) e atualizar avisos/claude
-    status: done_tested
+    status: done_validated
     impact: null
     urgency: null
     effort: null
@@ -576,7 +576,7 @@ next_actions:
     unblocks: []
     blocked_by: []
     created_at: 2026-11-11T17:45:39-03:00
-    done_at: 2026-11-11T18:15:21-03:00
+    done_at: 2026-11-11T18:20:39-03:00
     note: null
 blockers:
   - id: blk-001
