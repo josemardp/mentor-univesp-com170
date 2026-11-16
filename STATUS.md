@@ -2180,3 +2180,38 @@ O **COM170 avançou para uma estrutura nova**: além das 4 Semanas do AIA, agora
 - **Teste com porta fixa acusa o inocente.** O `test_login.py` reprovou o login por 8 asserções por causa de outro processo na porta 8791. Bancada de teste também precisa saber a diferença entre "está errado" e "não consegui medir": porta 0 e uma conferência de que quem responde é o próprio Fake.
 - **Auditoria ao vivo também erra por instrumento, e erra afirmando.** Em 14/08 a conferência das seis avaliativas procurou a tabela de tentativas por `table.quizattemptsummary`, que o Moodle não usa mais (é `quizreviewsummary`), e devolveu "sem tentativa nenhuma" para quatro provas finalizadas com 10,00. O seletor não bateu, o resultado veio vazio, e vazio foi lido como ausência. É a mesma família do painel de participação que trocou "atendido" por "Critério atendido". Duas defesas: conferir a nota no boletim, que é fonte independente da tela da atividade, e desconfiar quando a leitura devolve o mesmo resultado negativo para todos os itens de uma vez.
 - **Prazo de módulo trancado não aparece na página do módulo, aparece na página de instruções da quinzena/semana.** Auditoria de 08/08 checou a atividade do Módulo 1 e concluiu "sem prazo visível", mas o prazo do Módulo 4 estava na página "Instruções da Quinzena" (id=215566), não na atividade em si. Conferir sempre a página de instruções/calendário da unidade inteira, não só os itens travados.
+
+## Pendências herdadas do Mentor de Projetos (importadas em 16/11/2026)
+
+O Mentor de Projetos foi aposentado em 16/11/2026. O que estava aberto nele veio para cá. Marque `- [x]` ao concluir.
+
+- Objetivo: Guia diario, alertas e acompanhamento de prazos do AVA Univesp
+- Foco na última sessão: Seguir o Dia 2 do plano e, a partir de 11/11, pedir "gabarito S6 e S7" (act-044).
+- Última entrega: Arquivos publicados conferidos na listagem e coleção erros começa vazia
+
+### Pendências
+
+- [ ] Formacao complementar: seguir do modulo atual (formacao-complementar/README.md) quando ele chamar [act-010]
+- [ ] Conferir o resultado do EDUCATHON entre 26 e 28/10/2026 e depois solicitar o certificado de 20h [act-017]
+  - Nota: Resultado conferido no site oficial em 27/10: 3 alunos da Univesp no Top 10. Certificado de 20h sera enviado posteriormente por e-mail pelo Eldorado (ainda nao chegou no Gmail).
+- [ ] Acompanhar selecao da Capacitacao e Residencia em Agentes de IA (inscricao feita em 02/10/2026) e conferir no edital a regra de vinculo empregaticio da residencia [act-018]
+  - Nota: Reaberta: o fechamento marcou como concluida por engano. Segue aberta ate sair a selecao e o edital ser lido.
+- [ ] Estudar pela apostila e pelos PDFs de treino do 4o bimestre (provas 09 a 19/11) (prazo 2026-11-09) [act-031]
+- [ ] Estudar pela apostila e pelos PDFs de treino do 4º bimestre para as provas presenciais de 17/11/2026 (act-031). [act-033]
+- [ ] Após fechamento das atividades, atualizar gabaritos oficiais S5 a S7 e reconstruir materiais de prova [act-034]
+- [ ] Buscar gabaritos oficiais S5 (09/11) e S6/S7 (11/11) no AVA e atualizar fichas e painel [act-042]
+- [ ] Estudar pelo painel a partir de 09/11 e buscar os gabaritos oficiais no AVA (act-031, act-042) [act-043]
+- [ ] Seguir o Dia 2 do plano e, a partir de 11/11, pedir "gabarito S6 e S7" (act-044). [act-045]
+
+### Decisões recentes registradas no Mentor
+
+- 2026-11-01: Centralizar a assinatura dos documentos de afastamento para quarta-feira, 04/11/2026
+- 2026-11-05: Adotados números inteiros harmônicos para o problema das pistas concêntricas em MMB002 S5 para fechamento rigoroso em 24 m.
+- 2026-11-05: Mantido o repositório público sem inclusão de arquivos privados.
+- 2026-11-07: Versões do PC do trabalho ficam como principais nos 56 arquivos.
+- 2026-11-07: Formato canônico de asserção e razão da INT100 S7 não foi levado (só cosmético).
+- 2026-11-08: Data da prova confirmada pelo Josemar: 17/11, 17h55 às 22h05
+- 2026-11-08: Painel do Claude (artifact privado) passa a ser a entrada de estudo; PDFs ficam para leitura
+- 2026-11-09: Applets não executados não são marcados como lidos
+- 2026-11-09: Estado de S6 e S7 nunca é declarado oficial antes de o AVA publicar
+- 2026-11-09: Escolhido o Rota até a prova (Univesp). Prova do Coral pertence ao projeto coral e não foi tocado.

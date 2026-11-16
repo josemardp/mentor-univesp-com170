@@ -1,30 +1,14 @@
-<!-- PROJECT-MENTOR:START v1 -->
-## Mentor de Projetos (protocolo v1)
+<!-- GESTAO-PJP:START v1 -->
+## Gestão PJP
 
-Este projeto é acompanhado pelo Mentor de Projetos. Slug: `mentor-univesp`. O estado executivo vive em `.project-mentor/project.yaml` e o histórico em `.project-mentor/sessions/`. **Nunca edite esses arquivos à mão**: toda escrita passa pelo CLI `mentor`.
+Este projeto é o `PJP-020` do portfólio e é governado pela Gestão PJP, em `C:\projetos\Gestão PJP`. O Mentor de Projetos foi aposentado em 16/11/2026: não use o comando `mentor` e não escreva em `.project-mentor/`, que ficou só como histórico.
 
-Como achar o CLI (Windows): `%PROJECT_MENTOR_HOME%\bin\mentor.cmd`. Se a variável `PROJECT_MENTOR_HOME` não existir, procure a pasta `mentor-de-projetos` ao lado deste projeto e use `bin\mentor.cmd` de lá. Se ainda assim não conseguir executar comandos, siga a seção "Sem terminal".
-
-### Início da sessão
-1. Peça ao usuário para confirmar que fez `git pull` se ele trocou de computador.
-2. Rode `mentor project mentor-univesp --brief` e leia a última sessão em `.project-mentor/sessions/`.
-3. Apresente em até 8 linhas: onde paramos, última entrega, pendências, bloqueios, próxima ação. Não invente nada que não esteja no estado.
-4. Pergunte o objetivo só se não estiver claro. Depois rode `mentor start mentor-univesp --objective "..." --agent <claude-code|codex|antigravity|copilot>`.
-
-### Durante
-- Nunca marque ação como concluída só porque um arquivo foi criado. Distinga **implementado** (código escrito), **testado** (teste executado com resultado) e **validado** (o usuário confirmou). Agente nunca marca "validado".
-- Ação nova: `mentor action add mentor-univesp --title "..."`. Concluir: `mentor action done mentor-univesp <act-id> --level implemented|tested`. Bloqueio: `mentor blocker add mentor-univesp --description "..."`.
-- Não altere estágio (`mentor stage`) sem o usuário pedir.
-
-### Encerramento
-Quando o usuário disser "encerrar", "fechar sessão", "terminei" ou invocar a skill de encerramento:
-1. Escreva um rascunho em arquivo temporário (fora do repositório) com as seções: Resumo executivo · Concluído (prefixo `[implementado]`, `[testado]` ou `[validado]`, e `(act-NNN)` no fim quando for ação cadastrada) · Arquivos/áreas alteradas · Testes e resultados · Decisões · Pendências · Bloqueios · Riscos · Próxima ação recomendada. Máximo 60 linhas. Sem raciocínio interno, transcrição, segredos, dados pessoais de terceiros ou conteúdo de documentos policiais.
-2. Rode `mentor close mentor-univesp --from <rascunho.md>` e mostre o resultado da validação. Se falhar, mostre o erro e **não** finja sucesso.
-3. Avise se há arquivos de `.project-mentor/` a commitar e mostre o comando sugerido pelo CLI. Não execute commit/push sem autorização explícita nesta sessão.
-
-### Sem terminal
-Se você não puder executar comandos, gere o rascunho da sessão em `.project-mentor/pending-close.md` no formato do protocolo (mesmas seções acima, com frontmatter `agent:` e `objective:`) e peça ao usuário para rodar `mentor sync`. O `sync` importa o rascunho, grava a sessão e atualiza o estado; se o rascunho for inválido, nada é descartado e o erro aparece para correção.
-<!-- PROJECT-MENTOR:END -->
+- **Ao começar:** leia `STATUS.md` deste projeto. É ali que está onde paramos.
+- **Ao terminar:** atualize `STATUS.md` com o que foi feito e com o que ficou pendente, depois commit e push.
+- **Pendência:** uma linha `- [ ] texto` na seção "Pendências". Com prazo: `- [ ] texto (prazo AAAA-MM-DD)`. Feita: `- [x] texto`.
+- **Bloqueio:** `- [ ] BLOQUEIO: o que trava e do que depende`.
+- **Assunto de outro projeto, risco ou prioridade do portfólio:** acrescente uma linha em `C:\projetos\Gestão PJP\16-BACKLOG-MESTRE\ENTRADA.md`. Não crie controle paralelo.
+<!-- GESTAO-PJP:END -->
 
 ## Este repositório é público (vitrine do LinkedIn)
 
