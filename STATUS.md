@@ -1,5 +1,15 @@
 # STATUS - Guia diário do AVA (mentor-univesp)
 
+## Fim das provas, retorno das aulas e aviso de notas (17/11/2026, noite, PC do trabalho)
+
+- **Prova de 17/11 feita** (COM170, INT100 e MMB002). Aulas do 4º bimestre vão até 19/11. Conferido no AVA: nenhum evento próximo, nenhum aviso oficial novo depois de 11/11. Nos fóruns só há posts de colegas (pedidos de reabertura da S6/S7, dúvida sobre calculadora, uma questão de MMB002 S6 contestada). Exame do 4º bimestre: **14 a 17/12/2026**, só para quem não atingiu a média.
+- **Volta das aulas: 01/02/2027** (Semana 1 do 1º bimestre 2027, vence 10/02). Fonte: `assets.univesp.br/cronograma/2027/cronograma_regular_1.html`. Outros anos conferidos: 2023.1 começou em 06/02/2023 e 2025.1 em 27/01/2025; 2024 não confirmado (o endereço padrão dá 404). Os cronogramas montam a tabela por JavaScript, então WebFetch vê tabela vazia: ler no navegador.
+- **Marcado:** evento de dia inteiro na agenda Google (josemardp) e tarefa no SecretárioTask (contexto Estudo, prazo 01/02/2027).
+- **Script novo, ainda não testado nem agendado:** `automacao/avisar_notas.py`. Lê o boletim do Portal do Aluno (PROVA, MÉDIA PARCIAL, EXAME), compara com `privado/estudo/notas_vistas.json` e manda um e-mail para josemardp@gmail.com quando sair nota nova. `--simular` mostra o e-mail sem enviar.
+- [ ] Configurar SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS (senha de app do Google) nas variáveis de ambiente do usuário; hoje nenhuma existe nesta máquina (o Josemar cria a senha de app, ela não passa pelo chat)
+- [ ] Rodar `python automacao/avisar_notas.py --simular` uma vez para validar a leitura do boletim antes de agendar
+- [ ] Criar a tarefa no Agendador do Windows para rodar o `avisar_notas.py` a cada poucas horas até 17/12/2026 (prazo 2026-12-17)
+
 ## Painel "Rota até a prova" conferido contra o AVA (12/11/2026, noite, PC do trabalho)
 
 - **Conferido ao vivo no AVA:** as 88 questões do AVA no painel batem com a revisão oficial dos 14 questionários (INT100 e MMB002, S1 a S7), sem enunciado cortado. O `questoes.json` publicado era o mesmo da pasta. COM170 Q8 inteira coberta (e-book, videoaula final, live do Placca jWMSahfkU-U). A questão anulada da INT100 S5 (aviso de 29/10) não estava na tentativa dele.
