@@ -360,6 +360,14 @@ try {
     if ($Modo -eq 'alerta') { $argsEmail += '--alerta' }
     Invoca "e-mail ($Modo)" $argsEmail | Out-Null
 
+    # Aviso de nota nova do Portal do Aluno (17/11/2026). Vai ate o fim de
+    # dezembro para pegar tambem a nota do exame (14 a 17/12). Falha aqui nao
+    # derruba a rodada: o painel ja saiu e o script tenta de novo na proxima.
+    # O script nao imprime nota no log, so a contagem.
+    if ((Get-Date) -lt [datetime]'2027-01-01') {
+        Invoca 'aviso de notas' @('automacao/avisar_notas.py') | Out-Null
+    }
+
     $urgente = ResumoUrgente
     if ($urgente) {
         Avisa 'Univesp: vence hoje ou amanha' $urgente

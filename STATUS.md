@@ -5,10 +5,10 @@
 - **Prova de 17/11 feita** (COM170, INT100 e MMB002). Aulas do 4º bimestre vão até 19/11. Conferido no AVA: nenhum evento próximo, nenhum aviso oficial novo depois de 11/11. Nos fóruns só há posts de colegas (pedidos de reabertura da S6/S7, dúvida sobre calculadora, uma questão de MMB002 S6 contestada). Exame do 4º bimestre: **14 a 17/12/2026**, só para quem não atingiu a média.
 - **Volta das aulas: 01/02/2027** (Semana 1 do 1º bimestre 2027, vence 10/02). Fonte: `assets.univesp.br/cronograma/2027/cronograma_regular_1.html`. Outros anos conferidos: 2023.1 começou em 06/02/2023 e 2025.1 em 27/01/2025; 2024 não confirmado (o endereço padrão dá 404). Os cronogramas montam a tabela por JavaScript, então WebFetch vê tabela vazia: ler no navegador.
 - **Marcado:** evento de dia inteiro na agenda Google (josemardp) e tarefa no SecretárioTask (contexto Estudo, prazo 01/02/2027).
-- **Script novo, ainda não testado nem agendado:** `automacao/avisar_notas.py`. Lê o boletim do Portal do Aluno (PROVA, MÉDIA PARCIAL, EXAME), compara com `privado/estudo/notas_vistas.json` e manda um e-mail para josemardp@gmail.com quando sair nota nova. `--simular` mostra o e-mail sem enviar.
-- [ ] Configurar SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS (senha de app do Google) nas variáveis de ambiente do usuário; hoje nenhuma existe nesta máquina (o Josemar cria a senha de app, ela não passa pelo chat)
-- [ ] Rodar `python automacao/avisar_notas.py --simular` uma vez para validar a leitura do boletim antes de agendar
-- [ ] Criar a tarefa no Agendador do Windows para rodar o `avisar_notas.py` a cada poucas horas até 17/12/2026 (prazo 2026-12-17)
+- **Aviso de notas:** `automacao/avisar_notas.py` lê o boletim do Portal do Aluno (PROVA, MÉDIA PARCIAL, EXAME), compara com `privado/estudo/notas_vistas.json` e manda um e-mail para josemardp@gmail.com quando sai nota nova. Roda no fim de cada rodada do `rodar_diario.ps1` (07:30, 13:00, logon e desbloqueio) até 31/12/2026, sem derrubar a rodada se falhar. Testado ao vivo com `--simular`: leu as 6 disciplinas. O boletim de 17/11 foi gravado como visto (`--marcar-visto`), para não reavisar as notas do 3º bimestre. EXAME 0,0 de quem passou direto é ignorado.
+- **SMTP nesta máquina (variáveis do usuário):** SMTP_HOST, SMTP_PORT, SMTP_USER e EMAIL_PARA gravados (smtp.gmail.com, josemardp). A senha fica em `NOTAS_SMTP_PASS`, não em `SMTP_PASS`, para não ligar junto o e-mail do guia diário e do vigia.
+- [ ] Josemar criar a senha de app do Google (myaccount.google.com/apppasswords, pede a senha da conta) e gravar em `NOTAS_SMTP_PASS`; sem ela o aviso só registra "falta SMTP" no log e tenta de novo
+- [ ] Decidir se quer também o e-mail do guia diário (bastaria gravar a mesma senha em `SMTP_PASS`)
 
 ## Painel "Rota até a prova" conferido contra o AVA (12/11/2026, noite, PC do trabalho)
 

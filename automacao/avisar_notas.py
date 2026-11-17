@@ -16,22 +16,23 @@ nao imprime nota no console nem no log, so a contagem, exceto com --simular.
 Uso:
     python automacao/avisar_notas.py             le, compara e envia se houver novidade
     python automacao/avisar_notas.py --simular   mostra o e-mail na tela, nao envia, nao grava
+    python automacao/avisar_notas.py --marcar-visto   grava o boletim atual como ja avisado, sem enviar
 
 Configuracao do envio (variaveis de ambiente do usuario, nunca no codigo):
     SMTP_HOST   smtp.gmail.com
     SMTP_PORT   587
     SMTP_USER   o Gmail que envia (pode ser o proprio josemardp@gmail.com)
-    SMTP_PASS   SENHA DE APP do Google (Conta Google > Seguranca > Senhas de app)
+    NOTAS_SMTP_PASS   SENHA DE APP do Google (myaccount.google.com/apppasswords).
+                Nome proprio, e nao SMTP_PASS, para nao ligar junto o e-mail
+                do guia diario e do vigia.
     EMAIL_PARA  opcional; se faltar, vai para josemardp@gmail.com
 Credenciais do portal: AVA_USUARIO e AVA_SENHA (ja definidas nesta maquina).
 
 Sem SMTP configurado o script termina com erro e NAO grava o estado, entao a
 proxima rodada tenta de novo e a nota nao fica sem aviso.
 
-Pendente (nao feito de proposito, porque so foi pedido o script):
-  - criar a tarefa no Agendador do Windows (sugestao: a cada 3 horas, de
-    18/11/2026 a 17/12/2026, ou ate o primeiro e-mail sair);
-  - configurar SMTP_* na maquina.
+Agendamento: roda no fim de cada rodada do guia diario (rodar_diario.ps1,
+07:30, 13:00 e no logon/desbloqueio), ate 31/12/2026.
 """
 import json
 import os
@@ -104,6 +105,9 @@ def novidades(atual, visto):
         antigo = visto.get(cod, {})
         for parcela in PARCELAS_DE_AVISO:
             novo = d["parcelas"].get(parcela, "")
+            # O portal mostra EXAME 0,0 para quem passou direto: nao e nota.
+            if parcela == "EXAME" and novo == "0,0":
+                continue
             if novo and novo != antigo.get("parcelas", {}).get(parcela, ""):
                 achados.append(f"{cod} {parcela}: {novo}")
         sit = d["situacao"]
@@ -142,9 +146,11 @@ def montar_email(atual, achados):
 
 def enviar(msg):
     host, user = os.environ.get("SMTP_HOST"), os.environ.get("SMTP_USER")
-    senha, porta = os.environ.get("SMTP_PASS"), os.environ.get("SMTP_PORT", "587")
+    # Nome proprio de proposito: SMTP_PASS ligaria tambem o e-mail do guia
+    # diario e do vigia (enviar_email.py, vigia.py), que nao foi pedido.
+    senha, porta = os.environ.get("NOTAS_SMTP_PASS"), os.environ.get("SMTP_PORT", "587")
     if not all([host, user, senha]):
-        print("ERRO: faltam SMTP_HOST, SMTP_USER ou SMTP_PASS. Nada enviado, estado não gravado.")
+        print("ERRO: faltam SMTP_HOST, SMTP_USER ou NOTAS_SMTP_PASS. Nada enviado, estado não gravado.")
         return False
     msg["From"] = user
     msg["To"] = os.environ.get("EMAIL_PARA") or PARA_PADRAO
@@ -169,6 +175,13 @@ def main():
         visto = json.loads(ESTADO.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         visto = {}
+    if "--marcar-visto" in sys.argv:
+        # Grava o boletim de agora como ja avisado, sem enviar nada. Serve para
+        # nao reavisar notas antigas na primeira rodada de verdade.
+        ESTADO.parent.mkdir(parents=True, exist_ok=True)
+        ESTADO.write_text(json.dumps(atual, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"Boletim atual marcado como visto ({len(atual)} disciplinas). Nada enviado.")
+        return 0
     achados = novidades(atual, visto)
     if not achados:
         print(f"Sem nota nova ({len(atual)} disciplinas lidas).")
