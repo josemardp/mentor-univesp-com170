@@ -137,7 +137,10 @@ def montar_email(atual, achados):
         "Conferir também no Portal do Aluno: https://sa.univesp.br/visaoAluno/minhasNotasAlunos.xhtml",
     ]
     msg = EmailMessage()
-    msg["Subject"] = f"[Univesp {datetime.now(BR_TZ):%d/%m}] Saíram notas: " + ", ".join(
+    # Sem "Univesp" no assunto de proposito: um filtro antigo do Gmail dele
+    # manda esse assunto para Pessoal/UNIVESP, fora da caixa de entrada
+    # (testado em 17/11/2026: com a palavra caiu fora; sem ela, na entrada).
+    msg["Subject"] = f"Saíram notas no Portal do Aluno ({datetime.now(BR_TZ):%d/%m}): " + ", ".join(
         sorted({a.split()[0] for a in achados})
     )
     msg.set_content("\n".join(linhas))

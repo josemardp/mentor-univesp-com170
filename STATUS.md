@@ -7,7 +7,9 @@
 - **Marcado:** evento de dia inteiro na agenda Google (josemardp) e tarefa no SecretárioTask (contexto Estudo, prazo 01/02/2027).
 - **Aviso de notas:** `automacao/avisar_notas.py` lê o boletim do Portal do Aluno (PROVA, MÉDIA PARCIAL, EXAME), compara com `privado/estudo/notas_vistas.json` e manda um e-mail para josemardp@gmail.com quando sai nota nova. Roda no fim de cada rodada do `rodar_diario.ps1` (07:30, 13:00, logon e desbloqueio) até 31/12/2026, sem derrubar a rodada se falhar. Testado ao vivo com `--simular`: leu as 6 disciplinas. O boletim de 17/11 foi gravado como visto (`--marcar-visto`), para não reavisar as notas do 3º bimestre. EXAME 0,0 de quem passou direto é ignorado.
 - **SMTP nesta máquina (variáveis do usuário):** SMTP_HOST, SMTP_PORT, SMTP_USER e EMAIL_PARA gravados (smtp.gmail.com, josemardp). A senha fica em `NOTAS_SMTP_PASS`, não em `SMTP_PASS`, para não ligar junto o e-mail do guia diário e do vigia.
-- [ ] Josemar criar a senha de app do Google (myaccount.google.com/apppasswords, pede a senha da conta) e gravar em `NOTAS_SMTP_PASS`; sem ela o aviso só registra "falta SMTP" no log e tenta de novo
+- [x] Senha de app "mentor-univesp" criada pelo Josemar e gravada em `NOTAS_SMTP_PASS` (lida da área de transferência sem exibir; área limpa). Dois e-mails de teste chegaram em josemardp@gmail.com.
+- **Filtro do Gmail:** assunto com "Univesp" cai em `Pessoal/UNIVESP`, fora da caixa de entrada (43 não lidos lá). O assunto do aviso foi trocado para "Saíram notas no Portal do Aluno (...)", que chegou na caixa de entrada no teste.
+- [ ] Opcional: apagar a senha de app antiga "Guia Univesp" (de 25/07, último uso 11/09, provavelmente do robô antigo do GitHub)
 - [ ] Decidir se quer também o e-mail do guia diário (bastaria gravar a mesma senha em `SMTP_PASS`)
 
 ## Painel "Rota até a prova" conferido contra o AVA (12/11/2026, noite, PC do trabalho)
