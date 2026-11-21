@@ -1,5 +1,11 @@
 # STATUS - Guia diário do AVA (mentor-univesp)
 
+## Notas do 4º bimestre no Portal do Aluno (21/11/2026)
+
+- Aviso de 19/11 do `automacao/avisar_notas.py` registrou nota nova no Portal do Aluno: **COM100 aprovado** (AVA 10,0, prova 10,0, média parcial 10,0), **LET110 aprovado** (AVA 9,7, prova 9,0, média parcial 9,3) e **SOC100 aprovado** (AVA 10,0, prova 10,0, média parcial 10,0).
+- Continuam cursando, sem nota lançada: COM170, INT100 e MMB002. O exame do 4º bimestre é de **14 a 17/12/2026**, só para quem não atingiu a média; os três aprovados não precisam.
+- Fonte: e-mail "Saíram notas no Portal do Aluno (19/11)" em josemardp@gmail.com, lido no relatório de e-mails de 21/11. O quadro completo também está em `privado/estudo/notas_vistas.json` (fora do git).
+
 ## Fim das provas, retorno das aulas e aviso de notas (17/11/2026, noite, PC do trabalho)
 
 - **Prova de 17/11 feita** (COM170, INT100 e MMB002). Aulas do 4º bimestre vão até 19/11. Conferido no AVA: nenhum evento próximo, nenhum aviso oficial novo depois de 11/11. Nos fóruns só há posts de colegas (pedidos de reabertura da S6/S7, dúvida sobre calculadora, uma questão de MMB002 S6 contestada). Exame do 4º bimestre: **14 a 17/12/2026**, só para quem não atingiu a média.
