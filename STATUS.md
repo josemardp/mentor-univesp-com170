@@ -14,6 +14,7 @@ Regra do Josemar: quando ele pedir os grupos do Zap da Univesp, ver **sempre os 
 
 - [ ] Ficar de olho na **votação de representante de turma** (IA), que deve abrir com a volta das aulas, 01/02/2027. Decidir se quer candidatar ou votar.
 - [ ] Se alguém responder no grupo dos alunos sobre o Plano de Ensino do curso de IA, vale guardar o endereço (nenhuma pendência dele, só informação útil).
+- **Portal do Aluno conferido ao vivo em 23/11 (tarde):** COM170, MMB002 e INT100 seguem "cursando", sem média (tudo "--"). COM100, SOC100 e LET110 aprovados. O robô `avisar_notas.py --simular` falhou 2 vezes ("parou em /index.xhtml"): a sessão fria pede senha em `login.univesp.br` e o robô não passou dessa tela. Contornei pelo Chrome do `ava_vivo` (CDP 9222): hub `acesso.univesp.br` > "Portal do Aluno" > senha de `AVA_SENHA` lida do ambiente por script > `/visaoAluno/minhasNotasAlunos.xhtml`. [ ] Investigar por que o robô não passa da tela de senha (pode afetar o aviso automático de notas).
 - Cuidado: o `nav-zap` é compartilhado. Em 23/11 outra sessão trocou o chat aberto enquanto eu lia; refazer a busca por "Univesp" quando isso acontecer.
 
 ## Varredura de avisos e agenda até a volta das aulas (23/11/2026, madrugada, PC do trabalho)
