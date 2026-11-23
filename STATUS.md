@@ -1,5 +1,13 @@
 # STATUS - Guia diário do AVA (mentor-univesp)
 
+## Varredura de avisos e agenda até a volta das aulas (23/11/2026, madrugada, PC do trabalho)
+
+- **AVA conferido ao vivo (nav-ava):** 6 disciplinas, fóruns de Avisos lidos por inteiro. Nenhum aviso novo depois de 11/11 (último: material de apoio da MMB002). 0 mensagens não lidas. As notificações pendentes são só lembretes antigos de abertura de questionário.
+- **Portal do Aluno conferido ao vivo (login do robô, `fontes/portal.py`):** caixa de recados vazia; as 2 mensagens do topo são lembretes de prova de 04 e 05/11. COM100, SOC100 e LET110 aprovados; COM170, INT100 e MMB002 cursando, sem média.
+- **Calendário acadêmico (apps.univesp.br):** exames do 4º bimestre 14 a 17/12; recesso de Natal 24/12 e de Ano Novo 31/12 e 01/01; período letivo 2026/2 vai até 19/12. O calendário **não mostra** renovação de matrícula para 2027/1.
+- **Marcado:** agenda Google (11/12 conferir notas e decidir exame; 19/12 fim do período; 14/12 e 01/02 já existiam) e 4 tarefas no SecretárioTask (notas e exame, renovação 2027/1, certificado Educathon, seleção Agentes de IA). Resumo enviado ao grupo Anotações do WhatsApp.
+- [ ] BLOQUEIO: **Outlook da Univesp (aluno.univesp.br) não foi lido.** O perfil `perfil-josemardp` está preso pela sessão do Antigravity (AGY) aberta às 00:30 no central-cao, e a extensão Claude in Chrome não estava conectada. Ler a caixa quando o perfil estiver livre ou com o Chrome real conectado.
+
 ## Notas do 4º bimestre no Portal do Aluno (21/11/2026)
 
 - Aviso de 19/11 do `automacao/avisar_notas.py` registrou nota nova no Portal do Aluno: **COM100 aprovado** (AVA 10,0, prova 10,0, média parcial 10,0), **LET110 aprovado** (AVA 9,7, prova 9,0, média parcial 9,3) e **SOC100 aprovado** (AVA 10,0, prova 10,0, média parcial 10,0).
