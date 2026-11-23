@@ -1,5 +1,21 @@
 # STATUS - Guia diário do AVA (mentor-univesp)
 
+## Grupos do WhatsApp da Univesp (23/11/2026, tarde, PC do trabalho)
+
+Regra do Josemar: quando ele pedir os grupos do Zap da Univesp, ver **sempre os 5** e anotar aqui o que mudou. Lidos pelo `nav-zap` (WhatsApp dele). Sem nome nem telefone de colega neste arquivo (repositório público).
+
+| Grupo | Situação | Novidade |
+|---|---|---|
+| Univesp - Bacharelado em Inteligência Artificial (alunos) | ativo | 23/11: dúvida de colega sobre a nota para não fazer exame; a resposta dos colegas foi "média 5" (bate com o Manual do Ingressante: 40% AVA + 60% prova, 5,0 passa direto). Outro colega pediu o Plano de Ensino do curso de IA, que não aparece no Portal de Planos de Ensino; sem resposta até as 10:08. |
+| Univesp 2026 (polo, só admins escrevem) | ativo | Última postagem é a lista de provas de 19/11 (antes, 17 e 18/11). Nada novo do polo desde então. |
+| Inteligência Artificial UNIVESP \| Turma 2026 (comunidade, arquivado) | avisos do representante | 20/11: o representante da turma encerrou o ciclo dele e avisou que **na próxima disciplina haverá nova votação de representante**. Divulgou também o app de estudo "Aprova UNIVESP" (APK Android 0.4.0, feito por um colega; não instalado). Lives de IA na Prática Acadêmica foram em 05/11. |
+| G4 UniVesp | só conversa pós-prova | 20/11: desabafos sobre a prova de IA e troca de notas. Nada de aviso nem tarefa. |
+| BIA - Grupo UNIVESP (arquivado) | morto | Só a saída do Josemar em 13/08. |
+
+- [ ] Ficar de olho na **votação de representante de turma** (IA), que deve abrir com a volta das aulas, 01/02/2027. Decidir se quer candidatar ou votar.
+- [ ] Se alguém responder no grupo dos alunos sobre o Plano de Ensino do curso de IA, vale guardar o endereço (nenhuma pendência dele, só informação útil).
+- Cuidado: o `nav-zap` é compartilhado. Em 23/11 outra sessão trocou o chat aberto enquanto eu lia; refazer a busca por "Univesp" quando isso acontecer.
+
 ## Varredura de avisos e agenda até a volta das aulas (23/11/2026, madrugada, PC do trabalho)
 
 - **AVA conferido ao vivo (nav-ava):** 6 disciplinas, fóruns de Avisos lidos por inteiro. Nenhum aviso novo depois de 11/11 (último: material de apoio da MMB002). 0 mensagens não lidas. As notificações pendentes são só lembretes antigos de abertura de questionário.
