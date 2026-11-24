@@ -1,5 +1,12 @@
 # STATUS - Guia diário do AVA (mentor-univesp)
 
+## Robô de notas: login com retentativa (24/11/2026, PC do trabalho)
+
+- **Defeito:** `avisar_notas.py` falhou em 2 de 17 rodadas desde 18/11 (18/11 07:42 e 23/11 13:12) com "o portal não abriu a tela do aluno depois do login (parou em /index.xhtml)", em cerca de 7 s. A rodada seguinte sempre entrou normal. Não reproduz sob demanda (testei contexto frio e SSO quente com portal frio: os dois entram), então o conserto é defensivo.
+- **Conserto em `automacao/fontes/portal.py`:** `_logar` agora tenta até 3 vezes (pausas de 4 s e 10 s) e, antes do `goto` final, espera a rede assentar (`networkidle`, até 12 s), porque navegar no meio do redirecionamento do SSO cancela o handshake. Senha recusada e falta de credencial não repetem, para não arriscar travar a conta. Testado: falha simulada seguida de sucesso, senha recusada (1 chamada), falha sempre (3 chamadas), login frio real, `avisar_notas.py --simular` e as suítes `test_portal`, `test_login`, `test_outlook`, `test_isolamento_fontes`, `test_golden`.
+- **Outra falha achada no log (19/11 13:14):** o e-mail de notas saiu, mas o estado não foi gravado porque o atalho `privado/` estava quebrado naquele momento (`FileExistsError`). Pode ter gerado reaviso. [ ] Se repetir, fazer o script tratar `privado/` ausente com mensagem clara.
+- [ ] BLOQUEIO: **Outlook da Univesp segue sem leitura.** Em 24/11 o `nav-josemardp` continua preso por outra sessão (`perfil-josemardp` em uso) e o Claude in Chrome não estava conectado. Precisa de sessão já aprovada no MFA; sem isso só com o Josemar ligando a extensão ou liberando o perfil.
+
 ## Grupos do WhatsApp da Univesp (23/11/2026, tarde, PC do trabalho)
 
 Regra do Josemar: quando ele pedir os grupos do Zap da Univesp, ver **sempre os 5** e anotar aqui o que mudou. Lidos pelo `nav-zap` (WhatsApp dele). Sem nome nem telefone de colega neste arquivo (repositório público).

@@ -199,8 +199,35 @@ def _no_hub(page):
         return False
 
 
+TENTATIVAS_LOGIN = 3
+# Esperas entre tentativas (segundos). Curtas: a falha de 18/11 e 23/11 foi
+# intermitente e a rodada seguinte, minutos depois, entrou normal.
+PAUSAS_LOGIN = (4, 10)
+# Motivos em que insistir não ajuda ou faz mal (senha recusada pode travar a conta).
+MOTIVOS_SEM_RETENTATIVA = ("recusou usuário ou senha", "sem credenciais")
+
+
 def _logar(page):
-    """Entra no portal. Devolve ``(ok, motivo)``.
+    """Entra no portal, tentando até ``TENTATIVAS_LOGIN`` vezes.
+
+    Em 18/11 e 23/11/2026 o login parou em ``/index.xhtml`` (cerca de 7 s,
+    duas rodadas em 17) e a rodada seguinte entrou normal. Não reproduz sob
+    demanda, nem com contexto frio nem com SSO quente e portal frio, então a
+    defesa é esperar o redirecionamento acabar (ver ``_logar_uma_vez``) e
+    repetir. Senha recusada e falta de credencial não repetem.
+    """
+    ok, motivo = False, ""
+    for n in range(TENTATIVAS_LOGIN):
+        ok, motivo = _logar_uma_vez(page)
+        if ok or any(m in motivo for m in MOTIVOS_SEM_RETENTATIVA):
+            return ok, motivo
+        if n < TENTATIVAS_LOGIN - 1:
+            page.wait_for_timeout(PAUSAS_LOGIN[min(n, len(PAUSAS_LOGIN) - 1)] * 1000)
+    return ok, f"{motivo} (após {TENTATIVAS_LOGIN} tentativas)"
+
+
+def _logar_uma_vez(page):
+    """Uma tentativa de entrar no portal. Devolve ``(ok, motivo)``.
 
     Dois caminhos, nesta ordem:
 
@@ -282,6 +309,15 @@ def _logar(page):
     recusa = _erro_visivel(page)
     if recusa:
         return False, recusa
+
+    # Deixa a cadeia de redirecionamentos do SSO terminar antes de navegar de
+    # novo: um goto no meio dela cancela o handshake e o portal devolve
+    # /index.xhtml. Sem sucesso no tempo, segue assim mesmo (a tentativa
+    # seguinte cobre).
+    try:
+        page.wait_for_load_state("networkidle", timeout=12000)
+    except PlaywrightError:
+        pass
 
     try:
         page.goto(TELA_INICIAL, wait_until="domcontentloaded", timeout=45000)
