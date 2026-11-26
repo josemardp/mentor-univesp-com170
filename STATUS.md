@@ -1,8 +1,32 @@
 # STATUS - Guia diário do AVA (mentor-univesp)
 
-## Última sessão: 24/11/2026 (PC do trabalho), robô de notas, login sem celular e Outlook lido
+## Última sessão: 26/11/2026 (PC do trabalho, ~19h), varredura ao vivo (AVA, Portal, Provas, Zap)
 
-**Próximo passo:** em 25/11 ou 26/11, rodar `nav-josemardp` > `outlook.office.com/mail/` e ver se a caixa da Univesp ainda abre sem login. Se abrir, ligar a leitura do Outlook no robô diário (`automacao/fontes/outlook_univesp.py` está desligada e foi escrita para sessão salva no GitHub; trocar para o perfil `perfil-josemardp`).
+**Próximo passo:** em 04/12, conferir no Portal do Aluno se as médias oficiais de COM170, INT100 e MMB002 saíram. Em 11/12 só olhar data de exame se alguma não tiver passado.
+
+Conferido ao vivo:
+- **Sistema de Provas** (prova.univesp.br > Avaliações): as 3 provas de 17/11 têm nota, e com 40% AVA + 60% prova as três passam direto, sem exame (números não vão para o git).
+- **Alarme falso no Portal:** o boletim mostra INT100 e MMB002 como "(Em Recuperação)" com a coluna PROVA vazia, porque a média parcial só tem a parte do AVA. COM170 segue "Cursando", sem nada. Médias oficiais a partir de 04/12 (quadro pós-prova postado no G4 em 24/11). O `avisar_notas.py` ainda não mandou e-mail disso (rodada das 13h falhou no login; hoje só rodei `--simular`), mas deve mandar na próxima rodada que entrar.
+- [ ] Ajustar o `avisar_notas.py` para não anunciar "Em Recuperação" enquanto a coluna PROVA estiver vazia.
+- **AVA:** nenhum aviso novo depois de 11/11, nenhum evento futuro, nenhuma mensagem não lida.
+- **Recados do Portal:** só apareceu "Transferência de Polo, termina 27/11" (resultado 05/01/27). O contador marcava 3 não lidos; abri a caixa de entrada.
+- **Outlook da Univesp:** a sessão do `nav-josemardp` **caiu** (pede senha em login.univesp.br). Durou menos de 2 dias. Não vale ligar no robô diário desse jeito.
+- **EDUCATHON:** certificado de 20h chegou no Gmail em 06/11.
+
+Grupos do WhatsApp (novidades desde 23/11):
+- **Conversa Geral (IA 2026), arquivado, é hoje o grupo mais ativo** e não estava na lista dos 5. Há também os subgrupos Estudos e Dúvidas Acadêmicas, Carreiras/Estágios e IA/Programação.
+- Calendário repassado por colegas (comunicado do Polo Planalto e DCE): médias 04/12; datas de exame 11/12; 2ª chamada 02/12; exames 14 a 17/12; **renovação de matrícula 08 a 12/01/2027** (não é automática); grupos de PI/TCC 18 a 27/01; aulas 01/02/2027. [VERIFICAR a renovação em fonte oficial]
+- Atividades complementares: segundo colegas, só se envia **um relatório por modalidade** (certificados juntos, no modelo oficial, Portal > Atividades Complementares). [VERIFICAR no regulamento antes de enviar qualquer certificado]
+- G4: só o quadro de datas pós-prova. Alunos, polo e Turma 2026: nada novo relevante.
+
+- [ ] Transferência de polo, só se quiser mudar (prazo 2026-11-27)
+- [ ] Conferir médias oficiais no Portal do Aluno (prazo 2026-12-04)
+- [ ] Renovar matrícula 2027/1 (prazo 2027-01-12)
+- [ ] Atividades complementares: juntar todos os certificados (inclusive o do EDUCATHON) e ler o regulamento antes de enviar o relatório único
+
+## 24/11/2026 (PC do trabalho), robô de notas, login sem celular e Outlook lido
+
+**Próximo passo (superado em 26/11):** em 25/11 ou 26/11, rodar `nav-josemardp` > `outlook.office.com/mail/` e ver se a caixa da Univesp ainda abre sem login. Se abrir, ligar a leitura do Outlook no robô diário (`automacao/fontes/outlook_univesp.py` está desligada e foi escrita para sessão salva no GitHub; trocar para o perfil `perfil-josemardp`).
 
 Resumo do bloco:
 - Robô de notas com 3 tentativas de login no portal (commit `49b57e0`).
@@ -2260,16 +2284,16 @@ O Mentor de Projetos foi aposentado em 16/11/2026. O que estava aberto nele veio
 ### Pendências
 
 - [ ] Formacao complementar: seguir do modulo atual (formacao-complementar/README.md) quando ele chamar [act-010]
-- [ ] Conferir o resultado do EDUCATHON entre 26 e 28/10/2026 e depois solicitar o certificado de 20h [act-017]
+- [x] Conferir o resultado do EDUCATHON entre 26 e 28/10/2026 e depois solicitar o certificado de 20h [act-017] (encerrada em 26/11: certificado de 20h recebido no Gmail em 06/11)
   - Nota: Resultado conferido no site oficial em 27/10: 3 alunos da Univesp no Top 10. Certificado de 20h sera enviado posteriormente por e-mail pelo Eldorado (ainda nao chegou no Gmail).
 - [ ] Acompanhar selecao da Capacitacao e Residencia em Agentes de IA (inscricao feita em 02/10/2026) e conferir no edital a regra de vinculo empregaticio da residencia [act-018]
   - Nota: Reaberta: o fechamento marcou como concluida por engano. Segue aberta ate sair a selecao e o edital ser lido.
-- [ ] Estudar pela apostila e pelos PDFs de treino do 4o bimestre (provas 09 a 19/11) (prazo 2026-11-09) [act-031]
-- [ ] Estudar pela apostila e pelos PDFs de treino do 4º bimestre para as provas presenciais de 17/11/2026 (act-031). [act-033]
-- [ ] Após fechamento das atividades, atualizar gabaritos oficiais S5 a S7 e reconstruir materiais de prova [act-034]
-- [ ] Buscar gabaritos oficiais S5 (09/11) e S6/S7 (11/11) no AVA e atualizar fichas e painel [act-042]
-- [ ] Estudar pelo painel a partir de 09/11 e buscar os gabaritos oficiais no AVA (act-031, act-042) [act-043]
-- [ ] Seguir o Dia 2 do plano e, a partir de 11/11, pedir "gabarito S6 e S7" (act-044). [act-045]
+- [x] Estudar pela apostila e pelos PDFs de treino do 4o bimestre (provas 09 a 19/11) (prazo 2026-11-09) [act-031] (encerrada em 26/11: prova feita em 17/11)
+- [x] Estudar pela apostila e pelos PDFs de treino do 4º bimestre para as provas presenciais de 17/11/2026 (act-031). [act-033] (encerrada em 26/11: prova feita em 17/11)
+- [x] Após fechamento das atividades, atualizar gabaritos oficiais S5 a S7 e reconstruir materiais de prova [act-034] (encerrada em 26/11: gabaritos S5 a S7 atualizados em 11/11)
+- [x] Buscar gabaritos oficiais S5 (09/11) e S6/S7 (11/11) no AVA e atualizar fichas e painel [act-042] (encerrada em 26/11: gabaritos S5 a S7 atualizados em 11/11)
+- [x] Estudar pelo painel a partir de 09/11 e buscar os gabaritos oficiais no AVA (act-031, act-042) [act-043] (encerrada em 26/11: prova feita e gabaritos recolhidos)
+- [x] Seguir o Dia 2 do plano e, a partir de 11/11, pedir "gabarito S6 e S7" (act-044). [act-045] (encerrada em 26/11: prova feita em 17/11)
 
 ### Decisões recentes registradas no Mentor
 
