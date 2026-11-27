@@ -99,10 +99,29 @@ def retrato(notas):
     }
 
 
+def provisorio(d):
+    """"(Em Recuperação)" sem nota de prova ainda não é resultado.
+
+    Em 26/11/2026 o Portal calculou a média parcial só com o AVA, antes de
+    lançar a prova, e marcou recuperação em quem tinha a nota no Sistema de
+    Provas. Preço desta regra: falta de verdade à prova também não avisa.
+    """
+    return (
+        not d.get("parcelas", {}).get("PROVA")
+        and "recupera" in d.get("situacao", "").lower()
+    )
+
+
 def novidades(atual, visto):
     achados = []
     for cod, d in atual.items():
+        if provisorio(d):
+            continue
         antigo = visto.get(cod, {})
+        # Provisório gravado junto com o aviso de outra disciplina não conta
+        # como visto: se a recuperação se confirmar, precisa ser avisada.
+        if provisorio(antigo):
+            antigo = {}
         for parcela in PARCELAS_DE_AVISO:
             novo = d["parcelas"].get(parcela, "")
             # O portal mostra EXAME 0,0 para quem passou direto: nao e nota.
@@ -130,7 +149,8 @@ def montar_email(atual, achados):
                 p.get("MÉDIA PARCIAL") or "--", p.get("EXAME") or "--",
             )
         )
-        linhas.append(f"  Situação: {d['situacao'] or '--'}  Frequência: {d['frequencia'] or '--'}")
+        situacao = "aguardando a nota da prova" if provisorio(d) else d["situacao"] or "--"
+        linhas.append(f"  Situação: {situacao}  Frequência: {d['frequencia'] or '--'}")
         linhas.append("")
     linhas += [
         "Exame do 4º bimestre: 14 a 17/12/2026, só para quem não atingiu a média.",

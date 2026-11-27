@@ -1,13 +1,16 @@
 # STATUS - Guia diário do AVA (mentor-univesp)
 
-## Última sessão: 26/11/2026 (PC do trabalho, ~19h), varredura ao vivo (AVA, Portal, Provas, Zap)
+## Última sessão: 26 e 27/11/2026 (PC do trabalho), varredura ao vivo, robô de notas e limpeza
 
 **Próximo passo:** em 04/12, conferir no Portal do Aluno se as médias oficiais de COM170, INT100 e MMB002 saíram. Em 11/12 só olhar data de exame se alguma não tiver passado.
 
 Conferido ao vivo:
-- **Sistema de Provas** (prova.univesp.br > Avaliações): as 3 provas de 17/11 têm nota, e com 40% AVA + 60% prova as três passam direto, sem exame (números não vão para o git).
-- **Alarme falso no Portal:** o boletim mostra INT100 e MMB002 como "(Em Recuperação)" com a coluna PROVA vazia, porque a média parcial só tem a parte do AVA. COM170 segue "Cursando", sem nada. Médias oficiais a partir de 04/12 (quadro pós-prova postado no G4 em 24/11). O `avisar_notas.py` ainda não mandou e-mail disso (rodada das 13h falhou no login; hoje só rodei `--simular`), mas deve mandar na próxima rodada que entrar.
-- [ ] Ajustar o `avisar_notas.py` para não anunciar "Em Recuperação" enquanto a coluna PROVA estiver vazia.
+- **Sistema de Provas** (prova.univesp.br > Avaliações): as 3 provas de 17/11 já têm nota lançada (resultado fora do git).
+- **Alarme falso no Portal (corrigido em 27/11):** o boletim pode mostrar "(Em Recuperação)" com a coluna PROVA vazia, porque a média parcial só tem a parte do AVA. Médias oficiais a partir de 04/12 (quadro pós-prova postado no G4 em 24/11).
+- [x] `avisar_notas.py` não anuncia "Em Recuperação" nem a média parcial enquanto a PROVA estiver vazia, e o e-mail de outra disciplina mostra "aguardando a nota da prova". Preço: se um dia ele faltar à prova, o robô também não avisa. Testado em 4 cenários e ao vivo com `--simular` ("Sem nota nova", 6 disciplinas).
+- **Login do portal:** em 27/11 de manhã o `--simular` falhou 1 vez ("parou em /index.xhtml") e passou depois de rodar `ava_vivo.py`. Hipótese não confirmada: `garantir_chrome()` só vê se o Chrome está de pé, não se o AVA ainda está logado. Se repetir, começar por aí.
+- **Limpeza do STATUS (27/11):** tirados valores de nota e primeiros nomes de colegas. O histórico do git ainda guarda as versões antigas.
+- [ ] Decidir se limpa também `docs/HISTORICO.md`, `SKILL.md` e `.project-mentor/` (ainda têm notas ou nomes) e se reescreve o histórico do git
 - **AVA:** nenhum aviso novo depois de 11/11, nenhum evento futuro, nenhuma mensagem não lida.
 - **Recados do Portal:** só apareceu "Transferência de Polo, termina 27/11" (resultado 05/01/27). O contador marcava 3 não lidos; abri a caixa de entrada.
 - **Outlook da Univesp:** a sessão do `nav-josemardp` **caiu** (pede senha em login.univesp.br). Durou menos de 2 dias. Não vale ligar no robô diário desse jeito.
@@ -62,22 +65,22 @@ Regra do Josemar: quando ele pedir os grupos do Zap da Univesp, ver **sempre os 
 
 - [ ] Ficar de olho na **votação de representante de turma** (IA), que deve abrir com a volta das aulas, 01/02/2027. Decidir se quer candidatar ou votar.
 - [ ] Se alguém responder no grupo dos alunos sobre o Plano de Ensino do curso de IA, vale guardar o endereço (nenhuma pendência dele, só informação útil).
-- **Portal do Aluno conferido ao vivo em 23/11 (tarde):** COM170, MMB002 e INT100 seguem "cursando", sem média (tudo "--"). COM100, SOC100 e LET110 aprovados. O robô `avisar_notas.py --simular` falhou 2 vezes ("parou em /index.xhtml"): a sessão fria pede senha em `login.univesp.br` e o robô não passou dessa tela. Contornei pelo Chrome do `ava_vivo` (CDP 9222): hub `acesso.univesp.br` > "Portal do Aluno" > senha de `AVA_SENHA` lida do ambiente por script > `/visaoAluno/minhasNotasAlunos.xhtml`. [ ] Investigar por que o robô não passa da tela de senha (pode afetar o aviso automático de notas).
+- **Portal do Aluno conferido ao vivo em 23/11 (tarde):** COM170, MMB002 e INT100 seguem "cursando", sem média (tudo "--"). COM100, SOC100 e LET110 já com resultado lançado. O robô `avisar_notas.py --simular` falhou 2 vezes ("parou em /index.xhtml"): a sessão fria pede senha em `login.univesp.br` e o robô não passou dessa tela. Contornei pelo Chrome do `ava_vivo` (CDP 9222): hub `acesso.univesp.br` > "Portal do Aluno" > senha de `AVA_SENHA` lida do ambiente por script > `/visaoAluno/minhasNotasAlunos.xhtml`. [ ] Investigar por que o robô não passa da tela de senha (pode afetar o aviso automático de notas).
 - Cuidado: o `nav-zap` é compartilhado. Em 23/11 outra sessão trocou o chat aberto enquanto eu lia; refazer a busca por "Univesp" quando isso acontecer.
 
 ## Varredura de avisos e agenda até a volta das aulas (23/11/2026, madrugada, PC do trabalho)
 
 - **AVA conferido ao vivo (nav-ava):** 6 disciplinas, fóruns de Avisos lidos por inteiro. Nenhum aviso novo depois de 11/11 (último: material de apoio da MMB002). 0 mensagens não lidas. As notificações pendentes são só lembretes antigos de abertura de questionário.
-- **Portal do Aluno conferido ao vivo (login do robô, `fontes/portal.py`):** caixa de recados vazia; as 2 mensagens do topo são lembretes de prova de 04 e 05/11. COM100, SOC100 e LET110 aprovados; COM170, INT100 e MMB002 cursando, sem média.
+- **Portal do Aluno conferido ao vivo (login do robô, `fontes/portal.py`):** caixa de recados vazia; as 2 mensagens do topo são lembretes de prova de 04 e 05/11. COM100, SOC100 e LET110 com resultado lançado; COM170, INT100 e MMB002 sem média.
 - **Calendário acadêmico (apps.univesp.br):** exames do 4º bimestre 14 a 17/12; recesso de Natal 24/12 e de Ano Novo 31/12 e 01/01; período letivo 2026/2 vai até 19/12. O calendário **não mostra** renovação de matrícula para 2027/1.
 - **Marcado:** agenda Google (11/12 conferir notas e decidir exame; 19/12 fim do período; 14/12 e 01/02 já existiam) e 4 tarefas no SecretárioTask (notas e exame, renovação 2027/1, certificado Educathon, seleção Agentes de IA). Resumo enviado ao grupo Anotações do WhatsApp.
-- **Atualização de 23/11 (manhã):** o Sistema de Provas (prova.univesp.br, menu Avaliações) já mostra a nota das 3 provas do 4º bimestre. Com 40% AVA + 60% prova, COM170, INT100 e MMB002 passam direto, **sem exame** (números no privado). A média oficial ainda não saiu no Portal do Aluno (colega do grupo geral citou 04/12, não confirmado). Matrícula 2027: colega citou 08 a 12/01, [VERIFICAR] no site oficial; o calendário acadêmico não mostra. Evento de agenda de 11/12 e a tarefa do SecretárioTask foram renomeados para "conferir se o Portal lançou as médias".
+- **Atualização de 23/11 (manhã):** o Sistema de Provas (prova.univesp.br, menu Avaliações) já mostra a nota das 3 provas do 4º bimestre. Resultado fora do git. A média oficial ainda não saiu no Portal do Aluno (colega do grupo geral citou 04/12, não confirmado). Matrícula 2027: colega citou 08 a 12/01, [VERIFICAR] no site oficial; o calendário acadêmico não mostra. Evento de agenda de 11/12 e a tarefa do SecretárioTask foram renomeados para "conferir se o Portal lançou as médias".
 - [x] (resolvido em 24/11, ver topo) BLOQUEIO: **Outlook da Univesp (aluno.univesp.br) não foi lido.** O perfil `perfil-josemardp` está preso pela sessão do Antigravity (AGY) aberta às 00:30 no central-cao, e a extensão Claude in Chrome não estava conectada. Ler a caixa quando o perfil estiver livre ou com o Chrome real conectado.
 
 ## Notas do 4º bimestre no Portal do Aluno (21/11/2026)
 
-- Aviso de 19/11 do `automacao/avisar_notas.py` registrou nota nova no Portal do Aluno: **COM100 aprovado** (AVA 10,0, prova 10,0, média parcial 10,0), **LET110 aprovado** (AVA 9,7, prova 9,0, média parcial 9,3) e **SOC100 aprovado** (AVA 10,0, prova 10,0, média parcial 10,0).
-- Continuam cursando, sem nota lançada: COM170, INT100 e MMB002. O exame do 4º bimestre é de **14 a 17/12/2026**, só para quem não atingiu a média; os três aprovados não precisam.
+- Aviso de 19/11 do `automacao/avisar_notas.py` registrou nota nova no Portal do Aluno em COM100, LET110 e SOC100 (valores fora do git).
+- Continuam cursando, sem nota lançada: COM170, INT100 e MMB002. O exame do 4º bimestre é de **14 a 17/12/2026**, só para quem não atingiu a média.
 - Fonte: e-mail "Saíram notas no Portal do Aluno (19/11)" em josemardp@gmail.com, lido no relatório de e-mails de 21/11. O quadro completo também está em `privado/estudo/notas_vistas.json` (fora do git).
 
 ## Fim das provas, retorno das aulas e aviso de notas (17/11/2026, noite, PC do trabalho)
@@ -167,7 +170,7 @@ Get-ChildItem $base -Recurse -File | Where-Object Name -match $re | Group-Object
 
 - Nova retomada: as páginas 109-119 de Cervo, 104-108 do Manual compacto e 203-208 do Manual compacto foram recuperadas e examinadas; as revisões foram atualizadas. O texto de Cervo p. 108-125 está disponível, mas as figuras ainda não foram conferidas visualmente. A extração de matemática perdeu sinais e exige conferência no original. Fundamentos de Matemática S2 p. 21-24 permanece pendente.
 - COM170: a correção do inventário revelou 32 PDFs sem texto, incluindo 28 e-books visuais. Os 32 passaram por OCR; os 28 e-books das Q1 a Q7 e quatro roteiros foram lidos pelo texto automático, com limitação para figuras e erros de reconhecimento. O guia recebeu pontos adicionais. Seis modelos DOCX tiveram texto extraído. A página Q5 M1 foi recuperada. Uma atividade abriu em modo de revisão, mas a seguinte não mostrou esse modo; coleta das atividades interrompida. As demais apostilas, vídeos, DOCX e SCORM ainda não foram lidos integralmente.
-- Retomada posterior em 06/11: o capítulo 4 completo de Flick (INT100 S7) foi recuperado e incorporado à revisão e à ficha; ele confirma hipótese no 4º passo, operacionalização no 5º e plano no 6º. Corrigida na revisão a referência indevida a gabarito oficial: havia apenas nota cheia. Uma tentativa inicial de complementar Cervo e o Manual compacto falhou, mas os trechos foram recuperados na retomada seguinte, com as limitações de figuras e sinais descritas acima.
+- Retomada posterior em 06/11: o capítulo 4 completo de Flick (INT100 S7) foi recuperado e incorporado à revisão e à ficha; ele confirma hipótese no 4º passo, operacionalização no 5º e plano no 6º. Corrigida na revisão a referência indevida a gabarito oficial: havia apenas a nota. Uma tentativa inicial de complementar Cervo e o Manual compacto falhou, mas os trechos foram recuperados na retomada seguinte, com as limitações de figuras e sinais descritas acima.
 - COM170: inventário privado de 178 páginas/telas iniciais do AVA, todas capturadas após recuperação de uma página da Q5, e 92 recursos vinculados. Após corrigir a contagem, 54 têm texto extraído, seis são DOCX e 32 PDFs não têm texto nativo (294 páginas) e passaram por OCR. As 42 telas SCORM inicialmente coletadas registram só a entrada, não os exercícios completos. A coleta não equivale à leitura integral; consultar `com170/revisao-prova/fontes-originais/INVENTARIO.md`.
 - Os áudios dos cinco vídeos foram baixados em pasta temporária local; a transcrição local produziu resultado vazio no primeiro e foi interrompida. Nenhum vídeo foi marcado como lido; os áudios temporários não devem ser tratados como disponíveis em outras máquinas.
 - As fichas em conflito das semanas 3 e 4 continham exercícios distintos. Foram selecionadas 14 questões e, após conferência, acrescentadas oito de MMB002 S4 e seis de MMB002 S5 em `privado/estudo/2026-4bim/TREINO_COMPLEMENTAR_CONFLITOS.md`. Duas questões de INT100 dependentes de edição da norma ou contexto e duas de MMB002 S5 (uma com justificativa discutível e a das pistas com erro numérico) foram excluídas. As versões originais continuam preservadas e não foram auditadas integralmente.
@@ -189,7 +192,7 @@ Get-ChildItem $base -Recurse -File | Where-Object Name -match $re | Group-Object
 
 ## Semana 4 de INT100 e MMB002 concluída (27/10/2026)
 
-- Questionários S4 feitos com as respostas propostas e aprovadas por ele: **INT100 10,00/10** e **MMB002 10,00/10** (tentativa 1 de 3, finalizadas às 06:36; review.php attempt 4658396 e 4658397).
+- Questionários S4 feitos com as respostas propostas e aprovadas por ele: **INT100 [nota]** e **MMB002 [nota]** (tentativa 1 de 3, finalizadas às 06:36; review.php attempt 4658396 e 4658397).
 - Fóruns temáticos S4 publicados com o texto aprovado: MMB002 às 06:38 e INT100 às 06:40 (um post dele em cada, conferido).
 - Propostas e capturas em `privado/estudo/2026-4bim/s4-tentativa/`. Lição: o editor TinyMCE do fórum precisa estar iniciado antes de colar o texto; no primeiro envio de INT100 a mensagem foi vazia e o AVA recusou (nada publicado).
 
@@ -276,8 +279,8 @@ Achados que **não** foram mexidos:
 
 - Portfólio Individual Q7 M6 enviado no Laboratório (19/10, 22:12) e ficha + defesa publicadas no Ponto de encontro do G4. Material em `privado/estudo/2026-4bim/com170/q7/`.
 - Mapa do grupo Q7 M7 (até 24/10, envio do representante) e revisões entre pares de 25 a 27/10 (`act-025`).
-- **21/10: rascunho do mapa dos conselhos montado** com 3 das 5 cartas (Josemar, Rogério e Fabricio), em `privado/estudo/2026-4bim/com170/q7/Q7_M7_Mapa_Conselhos_G4.docx` (gerador `gerar_mapa_g4.py`).
-- **23/10: mapa atualizado e ENVIADO no AVA pelo representante (Josemar)** às 14:21 no Laboratório de Revisão Q7 M7 (id=284096, submission=71979). Documento final gerado em PDF (`Q7_M7_Mapa_Conselhos_G4.pdf`) com 4 integrantes (Josemar, Rogério, Fabricio e Aline; Wendel ausente). 9 conselhos mapeados e 3 respostas fundamentadas. Próxima etapa: revisão entre pares de 25 a 27/10 (`act-025`).
+- **21/10: rascunho do mapa dos conselhos montado** com 3 das 5 cartas (Josemar e dois colegas), em `privado/estudo/2026-4bim/com170/q7/Q7_M7_Mapa_Conselhos_G4.docx` (gerador `gerar_mapa_g4.py`).
+- **23/10: mapa atualizado e ENVIADO no AVA pelo representante (Josemar)** às 14:21 no Laboratório de Revisão Q7 M7 (id=284096, submission=71979). Documento final gerado em PDF (`Q7_M7_Mapa_Conselhos_G4.pdf`) com 4 integrantes (Josemar e três colegas; um do grupo ausente). 9 conselhos mapeados e 3 respostas fundamentadas. Próxima etapa: revisão entre pares de 25 a 27/10 (`act-025`).
 - **25/10: revisões entre pares realizadas e confirmadas no AVA** (`act-028`). Q7 M6 (Portfólio individual atribuído, workshop id=284092, assessment id=67413) e Q7 M7 (Trabalho em grupo de equipe parceira, workshop id=284096, assessment id=67436) avaliados com fundamentações nos três critérios da rubrica e feedback construtivo ao autor. Ambas as páginas confirmadas no AVA com "Já foi avaliada" e pendente: 0. Prints pré e pós-envio salvos em `privado/estudo/2026-4bim/com170/q7/` e na pasta Downloads.
 
 ## Auditoria do Codex na apostila, revisada e com ajustes (23/09/2026)
@@ -402,7 +405,7 @@ fusão separou o que pode aparecer do que não pode.
 
 - `estudo/2026-3bim/`: revisão das provas de 22/09 (COM100, SOC100, LET110), matriz de
   assimilação e plano. `estudo/ferramentas/`: `assimilar.py` e o gerador da apostila de
-  Scratch. Testado: `assimilar.py status` dá o mesmo IPP de 80,0%, e o gerador refaz a
+  Scratch. Testado: `assimilar.py status` dá o mesmo IPP de antes, e o gerador refaz a
   apostila byte a byte igual à original.
 - `formacao-complementar/`: o currículo inteiro (módulos 00 a 29, labs de Python, docs
   vivos). Skill própria `formacao-complementar` no `skills-pessoais`, instalada também no Codex.
@@ -607,7 +610,7 @@ encerradas. Fila, em ordem:
 - **hoje 23:59:** Q4 M6 e Q4 M7, revisão entre pares do COM170 (as duas
   valem ponto separado e não aceitam atraso);
 - **amanhã 16/09, sem horário:** "Semana 7 · entrega" nas três regulares
-  (COM100, LET110, SOC100). As avaliativas da S7 já estavam com 10/10 em
+  (COM100, LET110, SOC100). As avaliativas da S7 já estavam com [nota] em
   03/09; o que resta conferir é se esse prazo cobra algo além delas
   `[VERIFICAR: o que a Semana 7 ainda cobra em cada disciplina]`;
 - 20/09: Q5 módulos 1 a 4 do COM170; 24/09 live do COM170; 26/09 entrega
@@ -799,7 +802,7 @@ ela procura o iframe. O `finally` também deixou de chamar `.close()` cego,
 porque `Frame` não tem esse método. Rodada seguinte voltou a `live`.
 
 **2. COM170 Quinzena 4 concluída.** Módulos 1 a 4 fechados, incluindo o
-miniquiz final do M4 com 5 de 5 acertos na primeira tentativa. Fecha antes
+miniquiz final do M4 concluído na primeira tentativa. Fecha antes
 do prazo de 06/09, que é o que dá direito ao trabalho em grupo desta
 quinzena. Sobram M6 e M7 (revisão entre pares, 12/09), que só abrem
 segunda-feira 07/09.
@@ -825,7 +828,7 @@ turma que dá falso positivo.
 - `e7f7c07`: questionário respondido e pontuado sai da fila mesmo com o selo
   aberto. O selo "Concluído" é a caixinha manual "Marcar como feito", que
   ninguém clica depois de responder, e as três avaliativas da S7 estavam com
-  10/10 sendo cobradas. A rede de segurança do calendário já sabia disso e
+  [nota] sendo cobradas. A rede de segurança do calendário já sabia disso e
   usava `entrega_confirmada`; o laço de itens não. Agora concordam. **A
   prova exige dois sinais juntos**, porque tentativa em curso também imprime
   "Suas tentativas" na página: o bloco na página e a nota no boletim. Vale
@@ -872,7 +875,7 @@ persistente. Vale só observar se voltar a falhar nas próximas rodadas.
 no AVA**, não é erro de leitura do robô. Reproduzido duas vezes ao vivo em
 `grade/report/user/index.php?id=18880`: só o cabeçalho da tabela, nenhuma
 linha de nota, nem "Nota calculada". Comparado com COM100 (18870) e LET110
-(18893) no mesmo formato: as duas mostram S1-S5 com nota (10, 7,50 etc.) e
+(18893) no mesmo formato: as duas mostram S1-S5 com nota (10, [nota] etc.) e
 "Média AVA" calculada — só o SOC100 está sem nenhum registro, mesmo ele já
 tendo entregue S1-S5 (a fila não cobra mais esses itens, confirmando que
 foram feitos). **Vale ele reportar isso ao SAE ou facilitador de SOC100** —
@@ -1120,7 +1123,7 @@ depois de 30 tentativas, sem propagar a exceção pro chamador).
 Josemar pediu as pendências dele até segunda (31/08); a fila do guia listava
 LET110 e SOC100 (S5 - Atividade Avaliativa) como pendentes. Fui conferir ao
 vivo antes de sentar pra responder junto com ele: **as duas já estavam
-feitas desde ontem, nota 10,00/10,00.** Bug real na fila, não erro do
+feitas desde ontem, nota [nota].** Bug real na fila, não erro do
 Josemar.
 
 **Causa:** `tarefas_do_calendario` (a "rede de segurança" em
@@ -1134,7 +1137,7 @@ não era reconhecido, e a rede reabria os dois como pendentes toda rodada.
 **Correção:** a mesma função agora também descarta o item quando
 `entrega_confirmada` (campo que `fontes/itens.py:estado_quiz` já lê da
 própria página do questionário, e que a Quadro das matérias já usa) vier
-`True`. Teste de regressão com o cenário exato (nota 10/10, selo ainda
+`True`. Teste de regressão com o cenário exato (nota [nota], selo ainda
 "Pendente") em
 [`testes/test_revisao_entre_pares.py`](testes/test_revisao_entre_pares.py).
 Doze arquivos de teste, `TUDO OK`.
@@ -1697,14 +1700,14 @@ cabeçalho "Item de nota | Nota" e **nenhuma linha** (conferido ao vivo). O
 coletor estava certo em marcar `vazio_confirmado`, mas o resultado era uma
 disciplina inteira sem nota nenhuma no guia, sem jeito de saber se era ausência
 de entrega ou de leitura. As notas existem: estão na página de cada
-questionário, em "A sua nota final neste questionário é 10,00/10,00".
+questionário, em "A sua nota final neste questionário é [nota]".
 
 A resposta foi [`fontes/questionario.py`](automacao/fontes/questionario.py) e
 `itens.estado_quiz`, que lê aberto, entrega, nota, tentativas usadas e método
 numa visita só. **Custo zero de navegação:** o pipeline já abria exatamente
 essas páginas, em `pendentes` (questionário por fazer) e em `suspeitos`
 (concluído sem nota), e jogava fora tudo menos o sim/não. Na rodada real de hoje
-o SOC100 saiu com 10,00 nas quatro semanas encerradas, e apareceu de brinde que
+o SOC100 saiu com [nota] nas quatro semanas encerradas, e apareceu de brinde que
 na S3 ele gastou as três tentativas.
 
 A nota da página é **fonte secundária**: onde o boletim responde, é o boletim
@@ -1722,9 +1725,9 @@ que manda, e o quadro avisa no cabeçalho quando a nota veio do questionário.
 - as "Semana 1" a "Semana 4" da ambientação encerrada da COM170 não entram no
   quadro das quinzenas.
 
-**Dois números que enganavam, agora explicados na tela.** A "Média AVA" de 7,10
+**Dois números que enganavam, agora explicados na tela.** A "Média AVA" de [nota]
 da COM100 divide por sete itens contando semanas que ainda não existem. A de
-0,51 da COM170 inclui 22 atividades interativas lançadas com 0,00 mesmo
+[nota] da COM170 inclui 22 atividades interativas lançadas com [nota] mesmo
 concluídas — a contagem sai do próprio boletim, não de regra escrita à mão.
 
 Conferido no celular (390px) e no tema escuro. As três tabelas regulares cabem
@@ -1751,14 +1754,14 @@ o representante que envia o trabalho coletivo.
 
 | Disciplina | Onde está | Próximo prazo |
 |---|---|---|
-| COM100 Pensamento Computacional | S1 a S5 com 10,00, tudo concluído | S6 avaliativa, 06/09 |
-| SOC100 Ética | S1 a S4 com 10,00, fórum da S5 postado | S5 avaliativa, 30/08 |
-| LET110 Leitura e Produção | S1 a S4 feitas (S2 tirou 7,50), fórum da S5 em aberto | S5 avaliativa e fórum, 30/08 |
+| COM100 Pensamento Computacional | S1 a S5 com [nota], tudo concluído | S6 avaliativa, 06/09 |
+| SOC100 Ética | S1 a S4 com [nota], fórum da S5 postado | S5 avaliativa, 30/08 |
+| LET110 Leitura e Produção | S1 a S4 feitas (S2 tirou [nota]), fórum da S5 em aberto | S5 avaliativa e fórum, 30/08 |
 | COM170 IA na Prática | Q1 e Q2 fechadas, Q3 em curso, conteúdo todo concluído | Q3 M6 e M7, 29/08 |
 
-Notas: a "Média AVA" de 7,10 da COM100 divide por sete itens contando a S6 e a S7 que
-ainda não existem, então não é nota de reprovação, é média parcial. A COM170 mostra 0,51
-porque os pacotes SCORM entram com 0,00 no boletim mesmo concluídos; o que vale ali é o
+Notas: a "Média AVA" de [nota] da COM100 divide por sete itens contando a S6 e a S7 que
+ainda não existem, então não é nota de reprovação, é média parcial. A COM170 mostra [nota]
+porque os pacotes SCORM entram com [nota] no boletim mesmo concluídos; o que vale ali é o
 painel `Meu Progresso de Participação` (`ativa.univesp.br/lti/progress`), que na Quinzena 2
 dá "progresso muito avançado" com só o critério do Módulo 5 não identificado.
 
@@ -1861,7 +1864,7 @@ Funcionando e verificado na nuvem. O robô roda sozinho em cinco janelas do dia 
 
 1. **A participação da COM170 saía errada e sem critérios.** A ferramenta desenha *dois* cartões "Quinzena atual" para a mesma quinzena, um com o resultado real e outro vazio; o parser ficava com o último e o site estampava "Q2 - Ainda não iniciada · esta quinzena ainda não foi iniciada" no dia em que a ferramenta dizia "Indicador provisório · Progresso avançado", com 4 dos 5 critérios atendidos. Junto: a ferramenta trocou "atendido" por "Critério atendido" e o casamento por igualdade exata parou de bater, então a lista de critérios saía vazia havia dias. E os critérios um a um só existem na aba **Critérios**, dentro de "Quinzenas" — faltava o segundo clique. Agora o site nomeia o critério que ainda não contou (hoje, o Módulo 1 da Q2).
 2. **Espaço do grupo parado não era notícia.** O fórum do grupo (`M7 - Grupo: Ponto de encontro`) estava sem um único tópico a dois dias da entrega em grupo, e o guia não tinha como dizer isso: tudo o que ele sabia sobre fórum vinha de post, e fórum vazio não gera post. Agora o silêncio ali vira ação na fila, herdando o prazo da entrega em grupo. Fórum que falhou ou ficou fora do orçamento não conta como vazio.
-3. **"Entreguei e zerei" tinha a mesma cara de "não fiz".** O M6 da Quinzena 1 foi entregue em 29/07, o colega marcou o nível máximo em todos os critérios ("Nota: 1 de 1") e o boletim registra 0,00 no envio. A aba "Como estou" agora separa esse caso, e só ele: no COM170 as atividades SCORM valem 0,00 por desenho, então alertar em todo zero seria ruído em cima de estado normal.
+3. **"Entreguei e zerei" tinha a mesma cara de "não fiz".** O M6 da Quinzena 1 foi entregue em 29/07, o colega marcou o nível máximo em todos os critérios ("Nota: 1 de 1") e o boletim registra [nota] no envio. A aba "Como estou" agora separa esse caso, e só ele: no COM170 as atividades SCORM valem [nota] por desenho, então alertar em todo zero seria ruído em cima de estado normal.
 
 **Corrigido na primeira rodada real, no mesmo dia:** o aviso de grupo saiu com três falsos positivos. O COM170 tem cinco fóruns de grupo, e os três da ambientação já encerrada ("S2/S3/S4 - Fórum do Grupo") estão vazios de verdade — todos herdaram o prazo do Q2 M7 e viraram cobrança que não existe. O aviso agora só casa espaço e entrega **da mesma unidade**, comparando o prefixo do rótulo ("Q2 M7"). Rótulo sem prefixo não casa com nada.
 
@@ -1871,7 +1874,7 @@ Funcionando e verificado na nuvem. O robô roda sozinho em cinco janelas do dia 
 
 **Espera do Pages subiu de 3 para 8 minutos.** A rodada de 13/08 às 20:44 falhou com o deploy levando 187s contra um limite de 180s. Os deploys daquele dia variaram de 40s a 187s, ou seja, 3 minutos não era margem, era o próprio tempo do caso ruim. Pior: ao desistir, o passo seguinte empurrava outro commit e o Pages cancelava o deploy que estava quase pronto. O site saiu normalmente; o que se perdeu foi a confirmação, e com ela o passo do e-mail.
 
-**Fechado em 10/08 (segunda parte):** o COM170 estampava "Quinzena 1 total: 2,00" onde o AVA diz "Média AVA: 0,29". O boletim daquela disciplina publica sete linhas "Quinzena N total" antes da média do curso, e o robô pegava a primeira linha calculada. Agora quem decide é o tipo declarado pelo Moodle (`NOTA CALCULADA` é do curso, `FORMA DE AGREGAÇÃO DAS NOTAS` é de categoria), os totais por quinzena viram detalhe entre parênteses, e sem linha do curso a média fica vazia em vez de promover um total de unidade. Junto: as 8 fontes passaram a aparecer na linha de saúde (boletim e participação ficavam de fora, e podiam falhar dias enquanto a frase dizia "li tudo agora"), e o `novidades()`, que calculava três tipos de mudança sem nada ler, virou uma seção real da aba "Chegou novo" agrupada por disciplina e semana.
+**Fechado em 10/08 (segunda parte):** o COM170 estampava "Quinzena 1 total: [nota]" onde o AVA diz "Média AVA: [nota]". O boletim daquela disciplina publica sete linhas "Quinzena N total" antes da média do curso, e o robô pegava a primeira linha calculada. Agora quem decide é o tipo declarado pelo Moodle (`NOTA CALCULADA` é do curso, `FORMA DE AGREGAÇÃO DAS NOTAS` é de categoria), os totais por quinzena viram detalhe entre parênteses, e sem linha do curso a média fica vazia em vez de promover um total de unidade. Junto: as 8 fontes passaram a aparecer na linha de saúde (boletim e participação ficavam de fora, e podiam falhar dias enquanto a frase dizia "li tudo agora"), e o `novidades()`, que calculava três tipos de mudança sem nada ler, virou uma seção real da aba "Chegou novo" agrupada por disciplina e semana.
 
 **Fechado em 10/08:** o boletim vazio do SOC100 é estado real do AVA (conferido ao vivo: a página do relatório de notas só tem cabeçalho). Duas correções saíram disso: (1) disciplina com boletim lido não some mais da aba "Como estou", e a mensagem distingue "li e está vazio" de "não consegui ler"; (2) **nota que sai virou notícia** — a aba "Chegou novo" e o e-mail passam a anunciar nota lançada ou corrigida, com a devolutiva do facilitador junto. Antes disso a nota só existia na aba "Como estou", sem nada dizer que ela tinha acabado de aparecer.
 
@@ -1937,7 +1940,7 @@ O mecanismo existia (`propagar_urgencia`) e não alcançava o caso: ele só cami
 - A página da Quinzena 3 escreve "23 de agosto, domingo, às 23h59" e "De 24 a 29 de agosto, até sábado, às 23h59" — é o que o guia publica, hora e tudo.
 - As seis lives, nome e horário, uma a uma.
 - O painel de participação: Q2 provisório, Módulo 1 "Critério ainda não identificado", M2/M3/M4 e Qualidade atendidos, atualizado 12/08 às 23:25. E ele segue desenhando os **dois** cartões "Quinzena atual", com o guia pegando o certo.
-- O boletim do COM170 na tela: Média AVA 0,51 em `NOTA CALCULADA`, Quinzena 1 total 2,00 e Quinzena 2 total 1,60 em `FORMA DE AGREGAÇÃO`. A regra de 10/08 continua separando os dois.
+- O boletim do COM170 na tela: Média AVA [nota] em `NOTA CALCULADA`, Quinzena 1 total [nota] e Quinzena 2 total [nota] em `FORMA DE AGREGAÇÃO`. A regra de 10/08 continua separando os dois.
 - As 15 notificações, idênticas, a mais nova de 15/08 — a prova viva do defeito da aba "Chegou novo".
 - O SOC100 S4 – Vídeo-base segue sem conclusão: a cobrança de hoje às 23:59 é legítima.
 - Nada novo no AVA depois das 17:29. O retrato no ar não estava velho.
@@ -2060,7 +2063,7 @@ Uma segunda sessão auditou o trabalho da manhã, com acesso ao AVA e ao portal,
 
 **Data sem fuso no `provas.json` derrubava o e-mail das 8h.** O arquivo é escrito à mão, e a comparação com o agora do robô levanta `TypeError` numa data sem `-03:00`. O site publicava a prova e o e-mail morria. O fuso passou a ser completado na entrada, e o e-mail ficou tolerante por precaução. Junto: o arquivo prometia um `automacao/provas.py` que não existe; agora traz o passo a passo de verdade.
 
-Mais três acertos de texto, todos do tipo que confunde na hora errada: a aba "Como estou" continuava dizendo que **a prova presencial não é lida pelo guia**, três abas depois de a fila publicar dia e hora; a aba Secretaria mostrava a data **sem dizer de onde veio**; e a situação da disciplina saía como "Cursando" por padrão quando a leitura não achava nada, escondendo que a tela de notas mostra **"Cursando (Em Recuperação)"** em três disciplinas.
+Mais três acertos de texto, todos do tipo que confunde na hora errada: a aba "Como estou" continuava dizendo que **a prova presencial não é lida pelo guia**, três abas depois de a fila publicar dia e hora; a aba Secretaria mostrava a data **sem dizer de onde veio**; e a situação da disciplina saía como "Cursando" por padrão quando a leitura não achava nada, escondendo que a tela de notas pode mostrar **"Cursando (Em Recuperação)"**.
 
 Ficou um `[VERIFICAR]`: ninguém sabe o que "Em Recuperação" significa no SEI com todas as notas ainda em "--". Vale perguntar ao polo junto com o resto.
 
@@ -2142,8 +2145,8 @@ Ele estranhou a fila curta ("poucas pendências") e pediu para vasculhar o AVA c
 O que apareceu que a fila não mostrava:
 
 - **O formulário de conhecimentos prévios está fechado desde 25/06/2026**, e é por isso que ele nunca saiu de "Pendente". A página diz "Fechado: quinta-feira, 25 jun. 2026, 23:59". Ele vinha sendo carregado como pendência desde julho, com a ideia de "regularizar com o SAE". Não há o que regularizar do lado dele: ou o SAE reabre, ou fica assim. Deixa de ser tarefa e vira pergunta.
-- **A única nota abaixo de 10 é a S2 do LET110, com 7,50.** O questionário permitia três tentativas e ele usou uma, mas fechou em 09/08. Não dá mais para melhorar. Vale como aprendizado para as S5 a S7, que abrem 17/08 e fecham 30/08: sobrar tentativa é ponto que fica na mesa.
-- **O boletim do SOC100 segue vazio de página inteira**, agora com quatro avaliativas de 10,00 lançadas e nenhuma linha listada. É o caso mais forte até aqui para perguntar ao facilitador.
+- **A única nota abaixo de 10 é a S2 do LET110, com [nota].** O questionário permitia três tentativas e ele usou uma, mas fechou em 09/08. Não dá mais para melhorar. Vale como aprendizado para as S5 a S7, que abrem 17/08 e fecham 30/08: sobrar tentativa é ponto que fica na mesa.
+- **O boletim do SOC100 segue vazio de página inteira**, agora com quatro avaliativas de [nota] lançadas e nenhuma linha listada. É o caso mais forte até aqui para perguntar ao facilitador.
 - **O painel de participação do COM170 está parado em 12/08 às 23:25**, três dias atrás, e continua marcando o Módulo 1 da Quinzena 2 como "Critério ainda não identificado" mesmo com as duas atividades do módulo concluídas no AVA. A quinzena fecha hoje, então a pergunta ao facilitador tem hora.
 - **A live da Quinzena 2 foi em 13/08 às 18:30**, com gravação publicada em 14/08. Presença em live é um dos dez pontos da quinzena e o guia continua sem conseguir provar esse ponto, do jeito certo: ele diz "não sei", nunca "faltou".
 - **O envio do grupo (Q2 M7) fecha hoje às 23:59** e a conta dele segue dizendo "Você não enviou seu trabalho ainda", que é o estado correto para quem não é o representante. A confirmação de que o colega enviou continua sendo o print de 14/08, e o AVA não tem como confirmar isso da conta dele. Se houver erro, hoje é o último dia em que dá para consertar.
@@ -2177,12 +2180,12 @@ Agora o JS devolve o cabeçalho cru e quem separa fórum de tópico é `nome_do_
 
 Segunda varredura do dia, com a sessão dele e já com a leitura corrigida das tentativas.
 
-- **As oito avaliativas de S1 a S4 estão finalizadas, todas com 10,00.** Ele fechou a S3 do COM100 que estava com tentativa aberta e ainda emendou a S4, que só vencia em 23/08. SOC100 S3 precisou de três tentativas (7,50, 7,50, 10,00) e esgotou as permitidas.
-- **Médias depois disso: COM100 5,40** (era 2,00 pela manhã) e **LET110 5,10** (era 1,70). COM170 com Quinzena 1 total 2,00 e Quinzena 2 total 1,60.
+- **As oito avaliativas de S1 a S4 estão finalizadas, todas com [nota].** Ele fechou a S3 do COM100 que estava com tentativa aberta e ainda emendou a S4, que só vencia em 23/08. SOC100 S3 precisou de três tentativas ([nota], [nota], [nota]) e esgotou as permitidas.
+- **Médias depois disso: COM100 [nota]** (era [nota] pela manhã) e **LET110 [nota]** (era [nota]). COM170 com Quinzena 1 total [nota] e Quinzena 2 total [nota].
 - **O envio do grupo (Q2 M7) está confirmado por print da tela do colega**: "Template em Grupo Tema : Integração de Casos", enviado em 14/08 às 14:15, com o PDF anexado e os botões de editar e excluir, que só o dono do envio vê. A conta do Josemar segue dizendo "você não enviou", e é o estado correto.
 - **A condição de conclusão do Q2 M7 e do ponto de encontro é "Receber uma nota", não "fazer um envio".** Os dois se marcam sozinhos quando a nota do laboratório sair, depois da fase de avaliação. Não há nada travado do lado dele ali, ao contrário do que a leitura anterior supôs.
 - **Sobrou pendência de marcação só nos dois fóruns temáticos do COM100**, que dependem dos projetos do Scratch, e no S1 - Formulário de conhecimentos prévios, cuja condição é "Enviar feedback".
-- **O boletim do SOC100 tem duas linhas na página inteira, só cabeçalho**, com duas notas 10,00 lançadas na disciplina.
+- **O boletim do SOC100 tem duas linhas na página inteira, só cabeçalho**, com duas notas [nota] lançadas na disciplina.
 
 ## Auditoria ao vivo (14/08/2026, 18:10)
 
@@ -2191,11 +2194,11 @@ Conferência pontual pedida pelo Josemar, entrando nas páginas com a sessão de
 - **Q2 M6 (individual) entregue** em 13/08 às 20:04. A auditoria de 13/08 pegou o estado anterior ao envio.
 - **Q2 M7 (grupo) sem envio na conta dele**, com o colega tendo assumido a representação em 14/08 às 14:08. Estado esperado, mas não é prova de que o grupo entregou: o laboratório mostra o envio de cada aluno, então da conta do Josemar não dá para ver o do representante.
 - **Ponto de encontro do G4 deixou de estar vazio.** Um tópico, aberto pelo facilitador em 13/08 às 17:42, com resposta do Josemar (13/08, 20:25) e do colega (14/08, 14:08).
-- **Quatro das seis avaliativas foram feitas na noite de 14/08, todas com 10,00**: SOC100 S3 (três tentativas, subiu de 7,50 para 10,00 e esgotou), SOC100 S4, LET110 S3 e LET110 S4. Restam as duas do COM100: a S3 com **tentativa aberta e não finalizada** desde 18:16 (o AVA envia sozinho no vencimento, do jeito que estiver) e a S4 sem tentativa.
+- **Quatro das seis avaliativas foram feitas na noite de 14/08, todas com [nota]**: SOC100 S3 (três tentativas, subiu de [nota] para [nota] e esgotou), SOC100 S4, LET110 S3 e LET110 S4. Restam as duas do COM100: a S3 com **tentativa aberta e não finalizada** desde 18:16 (o AVA envia sozinho no vencimento, do jeito que estiver) e a S4 sem tentativa.
 - **Quatro fóruns temáticos parados foram respondidos em 14/08**, entre 18:29 e 18:34, com texto aprovado por ele antes do envio: SOC100 S3 e S4, LET110 S3 e S4. Confirmado na página de publicações dele em cada curso, não pelo selo do Moodle.
 - **COM100 S3 e S4 continuam parados e não dá para destravar por texto.** Os dois fóruns exigem o link de um projeto do próprio aluno no Scratch (S3 animação com repetição, S4 condicional mais variável mais entrada do usuário). Sem o desafio feito, não há o que postar. Prompt para agente externo montar os dois projetos foi entregue a ele em 14/08. **[SUPERADO: ele postou os dois ainda em 14/08, às 21:21 e 21:22. Ver a correção em "Pendências do Josemar".]**
 - **25 itens de conteúdo foram marcados como concluídos a pedido dele**, mais as duas lives do COM100. Ficaram de fora, de propósito, as avaliativas sem envio e as páginas de feedback.
-- **O boletim vazio do SOC100 agora tem prova de que engole nota.** Ele tem 10,00 em duas avaliativas da disciplina e o relatório de notas continua sem listar uma linha sequer. Antes dava para supor que estava vazio por não haver nada lançado; não dá mais.
+- **O boletim vazio do SOC100 agora tem prova de que engole nota.** Ele tem [nota] em duas avaliativas da disciplina e o relatório de notas continua sem listar uma linha sequer. Antes dava para supor que estava vazio por não haver nada lançado; não dá mais.
 
 ## Auditoria ao vivo (13/08/2026)
 
@@ -2204,7 +2207,7 @@ Conferido item por item nas quatro disciplinas, entrando em cada atividade em ve
 - **Q2 M6 e M7 (COM170)**: nenhum dos dois enviado. A própria página diz "Você não enviou seu trabalho ainda". Envio até 15/08 23:59, avaliação entre pares de 16 a 18/08 23:59.
 - **Seis questionários sem uma única tentativa**: S3 e S4 de COM100, SOC100 e LET110. Boletim confirma com traço na nota. **S3 fecha 16/08 23:59 e S4 fecha 23/08 23:59** — o guia vinha publicando 19/08 para o S4, que é o vencimento do cronograma, não o fechamento no AVA.
 - **Grupo G4 sem nenhuma conversa nesta quinzena.** O fórum do grupo está vazio e o chat do grupo tem última mensagem em 02/07, ainda do AIA. Ninguém combinou representante.
-- **Quinzena 1 zerada no boletim apesar de entregue.** M6 enviado em 29/07 e M7 (ele foi o representante) em 31/07, com as duas avaliações de pares feitas. Boletim: 0,00 nos dois. A avaliação recebida no M6 marca o nível máximo em todos os critérios. **Vale perguntar ao facilitador.** Pelo critério oficial da disciplina o que conta é a entrega, não a nota do laboratório, então não é certo que haja perda — mas isso é hipótese, não fato apurado.
+- **Quinzena 1 zerada no boletim apesar de entregue.** M6 enviado em 29/07 e M7 (ele foi o representante) em 31/07, com as duas avaliações de pares feitas. Boletim: [nota] nos dois. A avaliação recebida no M6 marca o nível máximo em todos os critérios. **Vale perguntar ao facilitador.** Pelo critério oficial da disciplina o que conta é a entrega, não a nota do laboratório, então não é certo que haja perda — mas isso é hipótese, não fato apurado.
 - **Participação da Q2: 4 de 5 critérios.** O Módulo 1 aparece como "critério ainda não identificado" mesmo com todos os itens marcados como concluídos no AVA.
 - **Fóruns temáticos parados desde a Semana 2** (último post em 30/07). Nas disciplinas regulares isso entra na composição da nota.
 - **SOC100 segue com o boletim totalmente vazio**, sem nem listar os itens, enquanto COM100 e LET110 listam normalmente. Anormal, vale questionar.
@@ -2218,16 +2221,16 @@ O **COM170 avançou para uma estrutura nova**: além das 4 Semanas do AIA, agora
 
 ## Pendências do Josemar
 
-- ~~Responder a S2 - Atividade Avaliativa do COM100~~ feito em 08/08, nota 10,00/10,00 (confirmado ao vivo).
+- ~~Responder a S2 - Atividade Avaliativa do COM100~~ feito em 08/08, nota [nota] (confirmado ao vivo).
 - ~~COM170, Quinzena 2: concluir o Módulo 4 até 09/08~~ feito. Os módulos M1 a M4 estão concluídos com nota lançada no boletim (prova de entrega, não só selo do Moodle).
 - ~~COM170, Quinzena 2: enviar o portfólio individual~~ **feito**: "Portfólio - Josemar de Paula - Quinzena 2" consta no Q2 M6 (id=215609) como enviado em **13/08 às 20:04** (conferido ao vivo em 14/08 às 18:10, na própria página do laboratório).
 - ~~COM170, Q2 M7 (portfólio em grupo)~~ **entregue pelo representante**: o colega enviou "Template em Grupo Tema : Integração de Casos" em 14/08 às 14:15, comprovado por print da tela dele (bloco "Seu envio" com o PDF e os botões de editar e excluir). A conta do Josemar continua marcando "você não enviou" porque o laboratório registra envio por aluno, e isso não muda até a nota sair. Fica a regra: **envio de representante não é verificável pela conta de quem não enviou**, e a confirmação barata é o print, não a espera.
 - ~~Escrever no ponto de encontro do G4~~ **feito** em 13/08 às 20:25: ele listou os participantes (colega, colega, colega e ele), abriu a partilha com o caso B e perguntou quem pegaria a representação desta quinzena. O colega respondeu em 14/08. colega e colega não escreveram no fórum, mas constam como integrantes no template do grupo.
 - **Avaliação entre pares do M6 e do M7, de 16 a 18/08 23:59.** Vale ponto separado da entrega e é a única etapa que segue depois do fim da quinzena.
-- ~~Avaliativas de S3 e S4 das três disciplinas regulares~~ **todas feitas em 14/08, 10,00 em cada**. Não sobrou nenhuma avaliativa em aberto de S1 a S4.
+- ~~Avaliativas de S3 e S4 das três disciplinas regulares~~ **todas feitas em 14/08, [nota] em cada**. Não sobrou nenhuma avaliativa em aberto de S1 a S4.
 - ~~Fazer os dois desafios do Scratch do COM100 e postar o link nos fóruns temáticos S3 e S4~~ **feito em 14/08, e esta pendência ficou 9 dias parada aqui depois de resolvida.** Conferido em 23/08 na página de mensagens dele (`/mod/forum/user.php?mode=posts`): o post do S3 é de 14/08 às 21:21, com `scratch.mit.edu/projects/1368884695` (o gato com piloto automático, explicando a diferença entre "sempre" e "se então"); o do S4 é de 21:22, com `scratch.mit.edu/projects/1368882973` (contador com "repita até", incluindo o relato de por que a contagem terminava no 8 ao digitar 7). Os dois textos são dele, com o raciocínio junto do link.
   - **A lição vale mais que a correção.** A linha 368 já registrava que os dois projetos existiam e estavam públicos, e a 394 continuava dizendo "continuam parados e não dá para destravar por texto". O doc afirmava as duas coisas ao mesmo tempo, e a pendência de baixo foi a que sobreviveu nas leituras seguintes. Confirmar que o projeto existe não é confirmar que o post foi feito, e a checagem barata (a página de mensagens do aluno, que o guia já sabe ler) nunca foi rodada contra esta lista.
-- **Perguntar ao facilitador do COM170** por que a Quinzena 1 está com 0,00 nos dois envios, e por que o Módulo 1 da Quinzena 2 segue como "critério ainda não identificado" com as duas atividades concluídas (o painel está parado em 12/08 e a quinzena fecha em 15/08). Ao do SOC100, por que o boletim não lista nenhum item mesmo com quatro notas 10,00 lançadas.
+- **Perguntar ao facilitador do COM170** por que a Quinzena 1 está com [nota] nos dois envios, e por que o Módulo 1 da Quinzena 2 segue como "critério ainda não identificado" com as duas atividades concluídas (o painel está parado em 12/08 e a quinzena fecha em 15/08). Ao do SOC100, por que o boletim não lista nenhum item mesmo com quatro notas [nota] lançadas.
 - ~~Confirmar com o colega que o envio do grupo no Q2 M7 está no ar~~ **confirmado por ele em 15/08**.
 - **Conflito de agenda entre a prova presencial e outro compromisso fixo: tratado fora deste repositório.** O pedido foi protocolado no canal de atendimento da universidade em agosto/2026, e o acompanhamento vive em arquivo privado, não versionado. O que interessa ao código já está nas regras de prazo: prova presencial é encontro com hora marcada, não entrega, e a data individual de cada aluno não entra neste repositório (ver `references/09-portal-do-aluno.md`).
 - ~~Regularizar o **S1 - Formulário de conhecimentos prévios do COM170**~~ **não é tarefa dele**: a pesquisa fechou em 25/06/2026 às 23:59 (conferido na página em 15/08). Vai ficar "Pendente" para sempre. Se incomodar, é pedido de reabertura ao SAE, não coisa para fazer no AVA.
@@ -2270,7 +2273,7 @@ O **COM170 avançou para uma estrutura nova**: além das 4 Semanas do AIA, agora
 - **Funcionalidade pronta e testada pode estar morta em produção.** O bloco "Como a nota é composta" não aparecia em nenhuma das quatro disciplinas, e a suíte passava: o código estava certo, o aviso é que nunca chegava. O teto de 15 posts por disciplina ordena por recência, e os CRITÉRIOS DE AVALIAÇÃO são publicados uma vez, no começo do semestre — sempre os primeiros a cair. Regra do curso agora tem prioridade máxima na fila, na frente até de aviso com prazo. Conferir "aparece no site?" é diferente de conferir "os testes passam?".
 - **Placar oficial incompleto engana pela escala, não pelo número.** O painel de participação dizia a verdade sobre os cinco critérios que ele mede, e mesmo assim "4 de 5" levava à conclusão errada, porque a régua real tem dez. Quando o guia mostra o número de outra ferramenta, precisa mostrar de quanto é o todo.
 - **Teste com porta fixa acusa o inocente.** O `test_login.py` reprovou o login por 8 asserções por causa de outro processo na porta 8791. Bancada de teste também precisa saber a diferença entre "está errado" e "não consegui medir": porta 0 e uma conferência de que quem responde é o próprio Fake.
-- **Auditoria ao vivo também erra por instrumento, e erra afirmando.** Em 14/08 a conferência das seis avaliativas procurou a tabela de tentativas por `table.quizattemptsummary`, que o Moodle não usa mais (é `quizreviewsummary`), e devolveu "sem tentativa nenhuma" para quatro provas finalizadas com 10,00. O seletor não bateu, o resultado veio vazio, e vazio foi lido como ausência. É a mesma família do painel de participação que trocou "atendido" por "Critério atendido". Duas defesas: conferir a nota no boletim, que é fonte independente da tela da atividade, e desconfiar quando a leitura devolve o mesmo resultado negativo para todos os itens de uma vez.
+- **Auditoria ao vivo também erra por instrumento, e erra afirmando.** Em 14/08 a conferência das seis avaliativas procurou a tabela de tentativas por `table.quizattemptsummary`, que o Moodle não usa mais (é `quizreviewsummary`), e devolveu "sem tentativa nenhuma" para quatro provas finalizadas com [nota]. O seletor não bateu, o resultado veio vazio, e vazio foi lido como ausência. É a mesma família do painel de participação que trocou "atendido" por "Critério atendido". Duas defesas: conferir a nota no boletim, que é fonte independente da tela da atividade, e desconfiar quando a leitura devolve o mesmo resultado negativo para todos os itens de uma vez.
 - **Prazo de módulo trancado não aparece na página do módulo, aparece na página de instruções da quinzena/semana.** Auditoria de 08/08 checou a atividade do Módulo 1 e concluiu "sem prazo visível", mas o prazo do Módulo 4 estava na página "Instruções da Quinzena" (id=215566), não na atividade em si. Conferir sempre a página de instruções/calendário da unidade inteira, não só os itens travados.
 
 ## Pendências herdadas do Mentor de Projetos (importadas em 16/11/2026)
